@@ -1,16 +1,19 @@
 const express = require('express');
 const db = require('./config/db.config');
 const cors = require('cors');
+const bodyParser = require('body-parser');
 
 const app = express();
 const port = 3001;
 
 app.use(cors());
+app.use(bodyParser.json());
 
+// GET /api/categories — existing route
 app.get('/api/categories', (req, res) => {
     const query = 'SHOW COLUMNS FROM Categories';
 
-    db.query(query, (err, results, fields) => {
+    db.query(query, (err, results) => {
         const columnCount = results ? results.length : 0;
 
         if (err) {
@@ -21,10 +24,49 @@ app.get('/api/categories', (req, res) => {
         res.json({
             columnCount: columnCount,
             rows: results
-        })
+        });
+    });
+});
+// POST /api/login
+app.post('/api/login', (req, res) => {
+    const { employeeId, password } = req.body;
+
+    if (!employeeId || !password) {
+        return res.status(400).json({ success: false, message: 'Missing credentials' });
+    }
+
+    const sql = 'SELECT * FROM employees WHERE EmployeeID = ?';
+    db.query(sql, [employeeId], (err, results) => {
+        if (err) {
+            console.error('Error querying employees:', err);
+            return res.status(500).json({ success: false, message: 'Database error' });
+        }
+
+        if (results.length === 0) {
+            // Return 200 with InvalidUP, not 401
+            return res.json({ success: false, message: 'InvalidUP' });
+        }
+
+        const employee = results[0];
+
+        if (employee.UserPassword !== password) {
+            return res.json({ success: false, message: 'InvalidUP' });
+        }
+
+        res.json({
+            success: true,
+            message: 'Login successful',
+            employee: {
+                id: employee.EmployeeID,
+                name: employee.FirstName + ' ' + employee.LastName,
+                role: employee.Role
+            }
+        });
     });
 });
 
+
+// Start the server
 app.listen(port, () => {
-   console.log('Listening on port: ' + port);
+    console.log('Backend listening on port: ' + port);
 });
