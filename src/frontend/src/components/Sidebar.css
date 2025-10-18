@@ -1,0 +1,217 @@
+.sidebar-container {
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-collapsed-width);
+    height: 100vh;
+    background-color: var(--bg-sidebar);
+    position: sticky;
+    top: 0;
+    border-top-right-radius: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    transition: width 0.3s ease;
+    z-index: 10;
+}
+
+.sidebar-container.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.collapse-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--text-secondary);
+}
+
+.collapse-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.sidebar-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 1rem;
+}
+
+.sidebar-logo {
+    width: 32px;
+    height: 32px;
+    background-color: var(--brand-primary);
+    border-radius: 8px;
+}
+
+.sidebar-title h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.sidebar-title p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.sidebar-menu {
+    flex: 1;
+    list-style: none;
+    padding: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    overflow-y: auto;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar-link svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.sidebar-link:hover {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+}
+
+.sidebar-link span {
+    white-space: nowrap;
+}
+
+.sidebar-container.collapsed .sidebar-link span {
+    display: none;
+}
+
+.sidebar-container.collapsed .sidebar-link {
+    justify-content: center;
+    padding: 0.75rem 0;
+}
+
+.dropdown {
+    display: flex;
+    flex-direction: column;
+}
+
+.dropdown-toggle {
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-radius: 8px;
+}
+
+.dropdown-toggle:hover {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+}
+
+.dropdown-toggle svg {
+    flex-shrink: 0;
+}
+
+.dropdown-menu {
+    display: flex;
+    flex-direction: column;
+    max-height: 0;
+    overflow: hidden;
+    margin-left: 2.5rem;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.dropdown.open .dropdown-menu {
+    max-height: 300px;
+    opacity: 1;
+}
+
+.sidebar-sublink {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-radius: 6px;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.sidebar-sublink:hover {
+    color: var(--brand-primary);
+    background-color: var(--bg-main);
+}
+
+.arrow {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s ease;
+    margin-left: auto;
+}
+
+.arrow.rotate {
+    transform: rotate(180deg);
+}
+
+/* When sidebar collapsed — hide dropdown text and children */
+.sidebar-container.collapsed .dropdown-menu {
+    display: none !important;
+}
+
+.sidebar-container.collapsed .dropdown-toggle {
+    justify-content: center;
+    padding: 0.75rem 0;
+}
+
+/* === Footer === */
+.sidebar-footer {
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.sidebar-container.collapsed .sidebar-footer p {
+    display: none;
+}
+
+/* === Smooth Transitions === */
+.sidebar-container,
+.sidebar-link,
+.sidebar-footer,
+.sidebar-header,
+.sidebar-title-wrapper {
+    transition: all 0.3s ease;
+}

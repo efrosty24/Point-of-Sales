@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import "./App.css";
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
     const [showPassword, setShowPassword] = useState(false); // new
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -22,7 +24,11 @@ function App() {
 
             const message = response.data.message?.trim();
             if (response.data.success) {
-                alert("Welcome " + response.data.employee.name);
+                if (response.data.success) {
+                    localStorage.setItem("user", JSON.stringify(response.data.employee));
+                    alert("Welcome " + response.data.employee.name);
+                     navigate("/dashboard");
+                }
             } else if (message === "InvalidUP") {
                 alert("Wrong username or password");
             } else {
