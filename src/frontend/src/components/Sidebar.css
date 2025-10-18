@@ -185,7 +185,6 @@
     transform: rotate(180deg);
 }
 
-/* When sidebar collapsed — hide dropdown text and children */
 .sidebar-container.collapsed .dropdown-menu {
     display: none !important;
 }
@@ -195,7 +194,6 @@
     padding: 0.75rem 0;
 }
 
-/* === Footer === */
 .sidebar-footer {
     padding: 1rem;
     text-align: center;
@@ -207,7 +205,6 @@
     display: none;
 }
 
-/* === Smooth Transitions === */
 .sidebar-container,
 .sidebar-link,
 .sidebar-footer,

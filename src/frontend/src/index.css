@@ -2,9 +2,9 @@
 
 :root {
     /* Colors */
-    --bg-main: #ffffff;                  /* main page background */
-    --bg-sidebar: #e0e0e0;               /* greyish sidebar */
-    --bg-navbar: #388e3c;                /* greenish navbar */
+    --bg-main: #ffffff;
+    --bg-sidebar: #e0e0e0;
+    --bg-navbar: #388e3c;
     --border-color: #ccc;
     --text-primary: #212529;
     --text-secondary: #333333;
