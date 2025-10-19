@@ -2,13 +2,16 @@ const express = require('express');
 const db = require('./config/db.config');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const adminInventoryRoutes = require('./routes/admin.inventory.routes');
+const adminSalesRoutes = require('./routes/admin.sales.routes');
 
 const app = express();
 const port = 3001;
 
 app.use(cors());
 app.use(bodyParser.json());
-
+app.use('/admin/inventory', adminInventoryRoutes);
+app.use('/admin/sales', adminSalesRoutes);
 // GET /api/categories — existing route
 app.get('/api/categories', (req, res) => {
     const query = 'SHOW COLUMNS FROM Categories';
@@ -64,7 +67,9 @@ app.post('/api/login', (req, res) => {
         });
     });
 });
-
+app.get('/admin/inventory/ping', (req, res) => {
+  res.json({ ok: true, where: 'server.js' });
+});
 
 // Start the server
 app.listen(port, () => {
