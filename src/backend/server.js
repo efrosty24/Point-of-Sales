@@ -75,7 +75,6 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-
 // Start the server
 app.listen(port, () => {
     console.log('Backend listening on port: ' + port);
