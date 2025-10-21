@@ -25,4 +25,5 @@ exports.byCategory = (req, res) => {
     if (err) return res.status(500).json({ error: 'DB error' });
     res.json(rows);
   });
+
 };

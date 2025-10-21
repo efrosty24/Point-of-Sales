@@ -3,65 +3,119 @@ import axios from "axios";
 import "./SalesReport.css";
 
 function SalesReport() {
-    const [sales, setSales] = useState([]);
+  const [summary, setSummary] = useState({});
+  const [topProducts, setTopProducts] = useState([]);
+  const [byCategory, setByCategory] = useState([]);
 
-    useEffect(() => {
-        axios
-            .get("http://localhost:3001/api/sales") // match our new backend route
-            .then((res) => {
-                if (res.data.success) {
-                    setSales(res.data.sales);
-                }
-            })
-            .catch((err) => console.error(err));
-    }, []);
+  useEffect(() => {
+    // Fetch sales summary
+    axios
+      .get("http://localhost:3001/admin/sales/summary")
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data[0] : res.data;
+        setSummary(data || {});
+      })
+      .catch((err) => console.error("Error fetching summary:", err));
 
-    // Total amount: sum of Total field for each order
-    const totalAmount = sales
-        .reduce((sum, s) => sum + parseFloat(s.Total), 0)
-        .toFixed(2);
+    // Fetch top products
+    axios
+      .get("http://localhost:3001/admin/sales/top-products?limit=10")
+      .then((res) => setTopProducts(Array.isArray(res.data) ? res.data : []))
+      .catch((err) => console.error("Error fetching top products:", err));
 
-    return (
-        <div className="sales-report-container">
-            <h1>Sales Report</h1>
+    // Fetch revenue by category
+    axios
+      .get("http://localhost:3001/admin/sales/by-category")
+      .then((res) => setByCategory(Array.isArray(res.data) ? res.data : []))
+      .catch((err) => console.error("Category revenue error:", err));
+  }, []);
 
-            <div className="cards-container">
-                <div className="card">
-                    <h3>Total Sales</h3>
-                    <p>${totalAmount}</p>
-                </div>
-                <div className="card">
-                    <h3>Total Orders</h3>
-                    <p>{sales.length}</p>
-                </div>
-            </div>
+  const formatCurrency = (val) =>
+    val !== undefined && !isNaN(val) ? parseFloat(val).toFixed(2) : "0.00";
 
-            <table className="sales-table">
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>Products</th>
-                        <th>Total ($)</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {sales.map((sale) => (
-                        <tr key={sale.OrderID}>
-                            <td>{sale.OrderID}</td>
-                            <td>
-                                {sale.CustomerFirstName} {sale.CustomerLastName}
-                            </td>
-                            <td>{sale.Products}</td>
-                            <td>{sale.Total}</td>
-                            <td>{new Date(sale.DatePlaced).toLocaleDateString()}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+  // Aggregate revenue per category in case multiple products belong to same category
+ const categoryRevenueArray = Object.entries(
+  byCategory.reduce((acc, c) => {
+    const revenue = parseFloat(c.revenue) || 0; // lowercase
+    if (acc[c.CategoryName]) acc[c.CategoryName] += revenue;
+    else acc[c.CategoryName] = revenue;
+    return acc;
+  }, {})
+).map(([name, revenue]) => ({ CategoryName: name, Revenue: revenue }));
+
+  return (
+    <div className="sales-report-container">
+      <h1>Sales Report</h1>
+
+      {/* Summary cards */}
+      <div className="cards-container">
+        <div className="card">
+          <h3>Total Sales</h3>
+          <p>${formatCurrency(summary.revenue)}</p>
         </div>
-    );
+        <div className="card">
+          <h3>Total Orders</h3>
+          <p>{summary.orders || 0}</p>
+        </div>
+        <div className="card">
+          <h3>Average Ticket</h3>
+          <p>${formatCurrency(summary.avg_ticket)}</p>
+        </div>
+      </div>
+
+      {/* Top Products Table */}
+      <h2>Top Products</h2>
+      <table className="sales-table">
+        <thead>
+          <tr>
+            <th>Product Name</th>
+            <th>Units Sold</th>
+            <th>Revenue ($)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {topProducts.length > 0 ? (
+            topProducts.map((p) => (
+              <tr key={p.ProductID}>
+                <td>{p.Name}</td>
+                <td>{p.units}</td>
+                <td>${formatCurrency(p.revenue)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="3">No top products data</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      {/* Revenue by Category Table */}
+      <h2>Revenue by Category</h2>
+      <table className="sales-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Revenue ($)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {categoryRevenueArray.length > 0 ? (
+            categoryRevenueArray.map((c, idx) => (
+              <tr key={idx}>
+                <td>{c.CategoryName}</td>
+                <td>${formatCurrency(c.Revenue)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="2">No category revenue data</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default SalesReport;

@@ -75,22 +75,6 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-
-//TEST sale report
-app.get('/api/sales', (req, res) => {
-    const sql = `
-        SELECT o.OrderID AS id, p.Name AS product_name, od.Quantity AS quantity,
-               od.Price AS price, o.DatePlaced AS date
-        FROM Orders o
-        JOIN OrderDetails od ON o.OrderID = od.OrderID
-        JOIN Products p ON od.ProductID = p.ProductID
-    `;
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: err });
-        res.json(results);
-    });
-});
-
 // Start the server
 app.listen(port, () => {
     console.log('Backend listening on port: ' + port);
