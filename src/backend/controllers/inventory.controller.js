@@ -15,7 +15,7 @@ exports.simpleRestock = (req, res) => {
   });
 };
 
-// Opcionales
+
 exports.listSuppliers = (req, res) => {
   svc.listSuppliers((err, rows) => {
     if (err) return res.status(500).json({ error: 'DB error' });
