@@ -30,3 +30,10 @@ exports.listSupplierProducts = (req, res) => {
     res.json(rows);
   });
 };
+
+exports.getLowStockProducts = (req, res) => {
+  svc.getLowStockProducts((err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    res.json(rows);
+  });
+};

@@ -11,4 +11,7 @@ router.post('/restock', ctrl.simpleRestock);
 router.get('/suppliers', ctrl.listSuppliers);
 router.get('/suppliers/:id/products', ctrl.listSupplierProducts);
 
+// Get low-stock products
+router.get('/low-stock', ctrl.getLowStockProducts);
+
 module.exports = router;

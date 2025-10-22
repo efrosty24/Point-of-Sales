@@ -67,6 +67,31 @@ exports.simpleRestock = ({ SupplierID, items }, cb) => {
 };
 
 /**
+ * GET /admin/inventory/low-stock
+ * Returns products where stock <= ReorderThreshold
+ * Schema fields used: Products(ProductID, Name, Brand, Stock, ReorderThreshold, CategoryID, SupplierID), Categories(CategoryName), Suppliers(Name)
+ */
+exports.getLowStockProducts = (callback) => {
+  const sql = `
+    SELECT 
+      p.ProductID,
+      p.Name,
+      p.Brand,
+      p.Stock,
+      p.ReorderThreshold,
+      c.CategoryName,
+      s.Name AS SupplierName
+    FROM Products p
+    JOIN Categories c ON p.CategoryID = c.CategoryID
+    JOIN Suppliers s ON p.SupplierID = s.SupplierID
+    WHERE p.Stock <= p.ReorderThreshold
+    ORDER BY p.Stock ASC;
+  `;
+
+  db.query(sql, callback);
+};
+
+/**
  * Optional helpers for frontend
  */
 exports.listSuppliers = (cb) => {
