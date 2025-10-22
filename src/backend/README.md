@@ -108,6 +108,36 @@ Products for a given supplier (to build a restock sheet).
 
 ---
 
+### Get `/admin/inventory/low-stock`
+List of products where current stock is less than or equal to the reorder threshold.
+Used to alert admins when products need to be restocked.
+
+**Sample reponse**
+```json
+[
+  {
+    "ProductID": 12,
+    "Name": "Whole Milk",
+    "Brand": "DairyPure",
+    "Stock": 3,
+    "ReorderThreshold": 10,
+    "CategoryName": "Dairy",
+    "SupplierName": "Fresh Farms Co."
+  },
+  {
+    "ProductID": 18,
+    "Name": "Apples",
+    "Brand": "Local Orchard",
+    "Stock": 5,
+    "ReorderThreshold": 12,
+    "CategoryName": "Produce",
+    "SupplierName": "Green Valley Suppliers"
+  }
+]
+```
+
+---
+
 ## Sales API
 
 ### GET `/admin/sales/summary?from=YYYY-MM-DD&to=YYYY-MM-DD`
