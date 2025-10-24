@@ -8,14 +8,93 @@
 - `server.js` → App bootstrap + route mounting
 
 Mounted paths:
+- `/api` → `routes/api.auth.routes.js`
 - `/admin/inventory` → `routes/admin.inventory.routes.js`
 - `/admin/sales` → `routes/admin.sales.routes.js`
 - `/admin/orders`      → `routes/admin.orders.routes.js`
 - `/admin/sale-events` → `routes/admin.sale-events.routes.js`  
 - `/admin/discounts` → `routes/admin.discounts.routes.js`
 
+---
+
+## POST `/api/login`
+
+Authenticate an employee and return basic profile info.
+
+### Body
+```json
+{
+  "employeeId": 1,
+  "password": "Admin123"
+}
+```
+
+### Response — success
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "employee": {
+    "id": 1,
+    "name": "John Doe",
+    "role": "Admin",
+    "isAdmin": true
+  },
+  "route": "/admin"
+}
+```
+
+### Response — invalid credentials
+```json
+{ "success": false, "message": "InvalidUP" }
+```
+
+### Response — missing credentials
+```json
+{ "success": false, "message": "Missing credentials" }
+```
+
+### Behavior
+- Verifies credentials against `employees` table.
+- `isAdmin` is computed from:
+  - `IsAdmin` column (boolean), **or**
+  - `Role = 'admin'` (case-insensitive).
+- Returns a route hint:
+  - `/admin` if admin
+  - `/cashier` otherwise.
 
 ---
+
+## GET `/api/auth/role?employeeId=<ID>`
+
+Lightweight endpoint to check if an employee is admin without re-logging in.
+
+### Example
+```bash
+curl -s "http://localhost:3001/api/auth/role?employeeId=1" | jq .
+```
+
+### Response
+```json
+{
+  "id": 1,
+  "role": "Admin",
+  "isAdmin": true
+}
+```
+
+### Response — not found
+```json
+{ "error": "NOT_FOUND" }
+```
+
+### Response — missing param
+```json
+{ "error": "MISSING_EMPLOYEE_ID" }
+```
+
+---
+
 
 ## Inventory API
 
@@ -470,7 +549,13 @@ Delete a discount by ID.
 ## Quick demo (Terminal)
 
 ```bash
-# Create event
+# Login (returns employee + route)
+curl -s -X POST http://localhost:3001/api/login   -H "Content-Type: application/json"   -d '{"employeeId":1,"password":"Admin123"}' | jq .
+
+# Check admin flag anytime later
+curl -s "http://localhost:3001/api/auth/role?employeeId=1" | jq .
+
+# Create sales event
 curl -s -X POST http://localhost:3001/admin/sale-events   -H "Content-Type: application/json"   -d '{"Name":"Holiday Sale","Description":"Seasonal event","StartDate":"2025-12-01","EndDate":"2025-12-31"}' | jq .
 
 # Create discount under event
