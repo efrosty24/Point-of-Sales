@@ -28,6 +28,7 @@ exports.createForEvent = (req, res) => {
     });
   });
 };
+// PUT /admin/discounts/:discountId
 exports.updateOne = (req, res) => {
   const DiscountID = Number(req.params.discountId);
   const { DiscountType, DiscountValue, Conditions } = req.body || {};

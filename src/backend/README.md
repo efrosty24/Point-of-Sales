@@ -10,6 +10,7 @@
 Mounted paths:
 - `/admin/inventory` → `routes/admin.inventory.routes.js`
 - `/admin/sales` → `routes/admin.sales.routes.js`
+- `/admin/orders`      → `routes/admin.orders.routes.js`
 - `/admin/sale-events` → `routes/admin.sale-events.routes.js`  
 - `/admin/discounts` → `routes/admin.discounts.routes.js`
 
@@ -135,6 +136,76 @@ Used to alert admins when products need to be restocked.
   }
 ]
 ```
+## Orders API
+
+### GET `/admin/orders/recent?limit=N`
+Returns the N most recent orders (for dashboard widgets).
+
+**Query params**
+- `limit` *(optional, default=5)* — number of rows to return.
+
+**Sample response**
+```json
+[
+  {
+    "OrderID": 8,
+    "DatePlaced": "2025-10-18T19:41:23.000Z",
+    "Total": "7.64",
+    "FirstName": "Bob",
+    "LastName": "Jones"
+  }
+]
+```
+
+---
+
+### GET `/admin/orders?from=YYYY-MM-DD&to=YYYY-MM-DD`
+List orders within a date range (inclusive).
+
+**Query params**
+- `from` — start date
+- `to` — end date
+
+**Sample response**
+```json
+[
+  {
+    "OrderID": 8,
+    "DatePlaced": "2025-10-18T19:41:23.000Z",
+    "CustomerID": 2,
+    "EmployeeID": 3,
+    "Total": "7.64"
+  }
+]
+```
+
+---
+
+### GET `/admin/orders/:orderId`
+Order detail (header + line items) and computed totals.
+
+**Sample response**
+```json
+{
+  "header": {
+    "OrderID": 8,
+    "DatePlaced": "2025-10-18T19:41:23.000Z",
+    "CustomerID": 2,
+    "EmployeeID": 3,
+    "CustomerFirst": "Bob",
+    "CustomerLast": "Jones"
+  },
+  "items": [
+    { "ProductID": 4, "Name": "Whole Milk 1 gal", "Qty": 1, "Price": 3.99, "LineTotal": 3.99 },
+    { "ProductID": 2, "Name": "Banana", "Qty": 4, "Price": 0.39, "LineTotal": 1.56 }
+  ],
+  "total": 7.64
+}
+```
+
+**Notes**
+- `total` is recomputed from line items to verify consistency.
+- `Price` per line comes from `OrderDetails.Price`.
 
 ---
 
@@ -305,6 +376,28 @@ List all discounts associated with a specific sale event.
   }
 ]
 ```
+### GET `/admin/sales/recent?limit=N`
+Recent orders for the dashboard (same source as `/admin/orders/recent`), but returned with `Total` already as a number for charting/UI convenience.
+
+**Query params**
+- `limit` *(optional, default=5)*
+
+**Sample response**
+```json
+[
+  {
+    "OrderID": 8,
+    "FirstName": "Bob",
+    "LastName": "Jones",
+    "Total": 7.64,
+    "DatePlaced": "2025-10-18T19:41:23.000Z",
+    "Status": "paid"
+  }
+]
+```
+
+**Implementation detail**
+- `Total` is cast to `Number` in the controller to avoid string-decimal issues from MySQL.
 
 ---
 
@@ -392,6 +485,19 @@ curl -s -X PATCH http://localhost:3001/admin/discounts/3   -H "Content-Type: app
 
 # Delete discount
 curl -s -X DELETE http://localhost:3001/admin/discounts/3 | jq .
+
+# Recent sales for dashboard (numeric totals)
+curl -s "http://localhost:3001/admin/sales/recent?limit=5" | jq .
+
+# Recent orders (base feed)
+curl -s "http://localhost:3001/admin/orders/recent?limit=5" | jq .
+
+# Orders by date range
+curl -s "http://localhost:3001/admin/orders?from=2025-10-01&to=2025-10-24" | jq .
+
+# One order detail (pick an ID from recent)
+OID=$(curl -s "http://localhost:3001/admin/orders/recent?limit=1" | jq -r '.[0].OrderID')
+curl -s "http://localhost:3001/admin/orders/$OID" | jq .
 ```
 
 ---

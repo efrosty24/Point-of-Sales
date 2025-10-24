@@ -90,13 +90,23 @@ exports.getLowStockProducts = (callback) => {
 
   db.query(sql, callback);
 };
-
 /**
- * Optional helpers for frontend
+ * GET /admin/inventory/suppliers
+ * Returns suppliers for dropdowns and filtering.
+ *
+ * Schema fields used:
+ *   Suppliers(SupplierID, Name, Phone, Email)
  */
 exports.listSuppliers = (cb) => {
   db.query('SELECT SupplierID, Name, Phone, Email FROM Suppliers ORDER BY Name', [], (err, rows) => cb(err, rows));
 };
+/**
+ * GET /admin/inventory/suppliers/:id/products
+ * Returns products for a given supplier (to build a restock sheet).
+ *
+ * Schema fields used:
+ *   Products(ProductID, Name, Brand, Stock, ReorderThreshold, Price, IsPricePerQty, QuantityValue, QuantityUnit, SupplierID)
+ */
 
 exports.listSupplierProducts = (supplierId, cb) => {
   db.query(

@@ -78,17 +78,17 @@ exports.byCategory = ({ from, to }, cb) => {
   `;
   db.query(sql, params, (err, rows) => cb(err, rows));
 };
-
-exports.fetchRecentSales = (cb) => {
+/**
+ * GET /admin/sales/recent?limit=5
+ * Fetches recent sales with customer info.
+ */
+exports.fetchRecentSales = (limit = 5, cb) => {
   const sql = `
-    SELECT o.OrderID, o.Total, o.DatePlaced, o.Status, c.FirstName, c.LastName
+    SELECT o.OrderID, o.DatePlaced, o.Total, o.Status, c.FirstName, c.LastName
     FROM Orders o
-    JOIN Customers c ON o.CustomerID = c.CustomerID
+    JOIN Customers c ON c.CustomerID = o.CustomerID
     ORDER BY o.DatePlaced DESC
-    LIMIT 5;
+    LIMIT ?
   `;
-  db.query(sql, [], (err, rows) => {
-    if (err) return cb(err);
-    cb(null, rows);
-  });
+  db.query(sql, [limit], (err, rows) => cb(err, rows));
 };
