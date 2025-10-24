@@ -7,7 +7,6 @@ const adminSalesRoutes = require('./routes/admin.sales.routes');
 const adminSaleEventsRoutes = require('./routes/admin.sale-events.routes');
 const adminDiscountsRoutes = require('./routes/admin.discounts.routes');
 
-
 const app = express();
 const port = 3001;
 

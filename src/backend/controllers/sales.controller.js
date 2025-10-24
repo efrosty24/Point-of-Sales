@@ -27,3 +27,13 @@ exports.byCategory = (req, res) => {
   });
 
 };
+
+exports.getRecentSales = (req, res) => {
+  svc.fetchRecentSales((err, rows) => {
+    if (err) {
+      console.error("Error fetching recent sales:", err);
+      return res.status(500).json({ error: 'Failed to fetch recent sales' });
+    }
+    res.json(rows);
+  });
+};

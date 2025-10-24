@@ -10,4 +10,7 @@ router.get('/top-products', ctrl.topProducts);
 // Revenue by category
 router.get('/by-category', ctrl.byCategory);
 
+// Recent sales
+router.get('/recent', ctrl.getRecentSales);
+
 module.exports = router;

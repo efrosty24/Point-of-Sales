@@ -78,3 +78,17 @@ exports.byCategory = ({ from, to }, cb) => {
   `;
   db.query(sql, params, (err, rows) => cb(err, rows));
 };
+
+exports.fetchRecentSales = (cb) => {
+  const sql = `
+    SELECT o.OrderID, o.Total, o.DatePlaced, o.Status, c.FirstName, c.LastName
+    FROM Orders o
+    JOIN Customers c ON o.CustomerID = c.CustomerID
+    ORDER BY o.DatePlaced DESC
+    LIMIT 5;
+  `;
+  db.query(sql, [], (err, rows) => {
+    if (err) return cb(err);
+    cb(null, rows);
+  });
+};
