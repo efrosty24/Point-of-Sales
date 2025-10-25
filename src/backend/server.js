@@ -2,11 +2,13 @@ const express = require('express');
 const db = require('./config/db.config');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const apiAuthRoutes = require('./routes/api.auth.routes');
 const adminInventoryRoutes = require('./routes/admin.inventory.routes');
 const adminSalesRoutes = require('./routes/admin.sales.routes');
 const adminSaleEventsRoutes = require('./routes/admin.sale-events.routes');
 const adminDiscountsRoutes = require('./routes/admin.discounts.routes');
 const adminEmployeesRoutes = require('./routes/admin.employee.routes');
+const adminOrdersRoutes = require('./routes/admin.orders.routes');
 
 
 const app = express();
@@ -14,11 +16,13 @@ const port = 3001;
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/api', apiAuthRoutes);
 app.use('/admin/inventory', adminInventoryRoutes);
 app.use('/admin/sales', adminSalesRoutes);
 app.use('/admin/sale-events', adminSaleEventsRoutes);
 app.use('/admin/discounts', adminDiscountsRoutes);
-app.use('/admin', adminEmployeesRoutes);
+app.use('/admin/employees', adminEmployeesRoutes);
+app.use('/admin/orders', adminOrdersRoutes);
 
 
 // GET /api/categories — existing route

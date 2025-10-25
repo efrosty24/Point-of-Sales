@@ -91,6 +91,7 @@ function SalesReport() {
       </table>
 
       {/* Revenue by Category Table */}
+      <div style={{ height: '20px' }}></div>
       <h2>Revenue by Category</h2>
       <table className="sales-table">
         <thead>
