@@ -6,6 +6,7 @@ const adminInventoryRoutes = require('./routes/admin.inventory.routes');
 const adminSalesRoutes = require('./routes/admin.sales.routes');
 const adminSaleEventsRoutes = require('./routes/admin.sale-events.routes');
 const adminDiscountsRoutes = require('./routes/admin.discounts.routes');
+const adminEmployeesRoutes = require('./routes/admin.employee.routes');
 
 
 const app = express();
@@ -17,6 +18,7 @@ app.use('/admin/inventory', adminInventoryRoutes);
 app.use('/admin/sales', adminSalesRoutes);
 app.use('/admin/sale-events', adminSaleEventsRoutes);
 app.use('/admin/discounts', adminDiscountsRoutes);
+app.use('/admin', adminEmployeesRoutes);
 
 
 // GET /api/categories — existing route

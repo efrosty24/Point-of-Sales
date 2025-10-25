@@ -37,3 +37,26 @@ exports.getLowStockProducts = (req, res) => {
     res.json(rows);
   });
 };
+
+exports.addProduct = (req, res) => {
+    const productData = req.body;
+    if (!productData || !productData.Name || !productData.Price || !productData.Stock) {
+        return res.status(400).json({ error: 'Missing product data or required fields' });
+    }
+    svc.addProduct(productData, (err, result) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+        return res.status(201).json({
+            message: 'Product added',
+            product: {
+                ProductID: result.insertId,
+                Name: productData.Name,
+                Brand: productData.Brand,
+                Price: productData.Price,
+                Stock: productData.Stock,
+                QuantityValue: productData.QuantityValue,
+                QuantityUnit: productData.QuantityUnit,
+                Description: productData.Description
+            }
+        });
+    });
+};

@@ -46,6 +46,70 @@ List products with stock and supplier info.
 ]
 ```
 
+
+---
+
+### POST `/admin/inventory/add/products`
+Add Product into database
+**Query params (non-optional)**
+- `name` 
+- `stock`
+- `ReorderThreshold`
+-  `Price`
+- `IsPricePerQty`
+- `QuantityValue`
+- `QuantityUnit`
+- `SupplierID`
+- `CetgoryID`
+
+**Query params (optional)**
+- `Brand`
+- `ImgName`
+- `ImgPath`
+- `Description`
+
+**Example Body Request** 
+```json
+{
+    "Name": "Wireless Mechanical Keyboard",
+    "Brand": "TechKeys",
+    "Stock": 150,
+    "ReorderThreshold": 30,
+    "Price": 129.99,
+    "IsPricePerQty": false,
+    "QuantityValue": 1,
+    "QuantityUnit": "unit",
+    "SupplierID": 105,
+    "ImgName": "keyboard_mk500.jpg",
+    "ImgPath": "/assets/images/keyboard_mk500.jpg",
+    "CategoryID": 1,
+    "Description": "Full-size 104-key mechanical keyboard with brown tactile switches and RGB lighting."
+}
+```
+
+**Sample Response after successful insertion**
+```json
+{
+  "message": "Product added successfully!",
+  "product": {
+    "ProductID": 91,
+    "Name": "Wireless Mechanical Keyboard",
+    "Brand": "TechKeys",
+    "Stock": 150,
+    "ReorderThreshold": 30,
+    "Price": 129.99,
+    "IsPricePerQty": false,
+    "QuantityValue": 1,
+    "QuantityUnit": "unit",
+    "SupplierID": 105,
+    "ImgName": "keyboard_mk500.jpg",
+    "ImgPath": "/assets/images/keyboard_mk500.jpg",
+    "CategoryID": 1,
+    "Description": "Full-size 104-key mechanical keyboard with brown tactile switches and RGB lighting."
+  }
+}
+```
+
 ---
 
 ### POST `/admin/inventory/restock`

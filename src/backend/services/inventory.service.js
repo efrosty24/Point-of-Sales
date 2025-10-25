@@ -33,7 +33,50 @@ exports.listInventoryProducts = ({ search, category, supplier }, cb) => {
   `;
   db.query(sql, params, (err, rows) => cb(err, rows));
 };
+/**
+ * POST /admin/inventory/restock
+ * Returns successful product insertion message, product Name, Brand, Price, Quantity, Price per Quantity, and Description
+ * Fields used: Products(Name, Brand, ProductID, Stock, ReorderThreshold, Price, IsPricePerQty, QuantityValue, QuantityUnit,
+ * SupplierID, ImgName, ImgPath, DateAdded, CategoryID, Description)
+ */
 
+exports.addProduct = (productData, callback) => {
+    const sql = `
+        INSERT INTO Products (
+            Name,
+            Brand,
+            Stock,
+            ReorderThreshold,
+            Price,
+            IsPricePerQty,
+            QuantityValue,
+            QuantityUnit,
+            SupplierID,
+            ImgName,
+            ImgPath,
+            CategoryID,
+            Description
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `;
+
+    // Map the productData fields to the SQL parameters (represented by ?)
+    const values = [
+        productData.Name,
+        productData.Brand || null,        // NULLABLE
+        productData.Stock,
+        productData.ReorderThreshold,
+        productData.Price,
+        productData.IsPricePerQty,
+        productData.QuantityValue,
+        productData.QuantityUnit,
+        productData.SupplierID,
+        productData.ImgName || null,      // NULLABLE
+        productData.ImgPath || null,      // NULLABLE
+        productData.CategoryID,
+        productData.Description || null   // NULLABLE
+    ];
+    db.query(sql, values, callback);
+};
 /**
  * POST /admin/inventory/restock
  * Body: { SupplierID, items: [{ ProductID, Qty }] }

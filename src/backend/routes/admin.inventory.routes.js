@@ -7,6 +7,9 @@ router.get('/products', ctrl.listInventoryProducts);
 // Simple restock (increase stock by items)
 router.post('/restock', ctrl.simpleRestock);
 
+// Simple Add product to list
+router.post('/products', ctrl.addProduct);
+
 // Frontend helpers
 router.get('/suppliers', ctrl.listSuppliers);
 router.get('/suppliers/:id/products', ctrl.listSupplierProducts);
