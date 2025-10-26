@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const db = require('./config/db.config');
 const cors = require('cors');
@@ -9,7 +10,7 @@ const adminSaleEventsRoutes = require('./routes/admin.sale-events.routes');
 const adminDiscountsRoutes = require('./routes/admin.discounts.routes');
 const adminEmployeesRoutes = require('./routes/admin.employee.routes');
 const adminOrdersRoutes = require('./routes/admin.orders.routes');
-
+const cashierRoutes = require('./routes/cashier.routes');
 
 const app = express();
 const port = 3001;
@@ -23,29 +24,35 @@ app.use('/admin/sale-events', adminSaleEventsRoutes);
 app.use('/admin/discounts', adminDiscountsRoutes);
 app.use('/admin/employees', adminEmployeesRoutes);
 app.use('/admin/orders', adminOrdersRoutes);
+app.use('/cashier', cashierRoutes);
 
+// Ensure guest customer exists, create if not
+async function ensureGuestCustomer() {
+  const GUEST_ID = parseInt(process.env.GUEST_CUSTOMER_ID || '1000', 10);
 
-// GET /api/categories — existing route
-app.get('/api/categories', (req, res) => {
-    const query = 'SHOW COLUMNS FROM Categories';
+  const selectSql = 'SELECT CustomerID FROM Customers WHERE CustomerID = ?';
+  const insertSql = `
+    INSERT INTO Customers (CustomerID, FirstName, LastName, Email, Phone)
+    VALUES (?, 'Guest', '', NULL, NULL)
+  `;
 
-    db.query(query, (err, results) => {
-        const columnCount = results ? results.length : 0;
-
-        if (err) {
-            console.error('Error executing query: ', err);
-            return res.status(500).send('Error retrieving categories from database');
-        }
-
-        res.json({
-            columnCount: columnCount,
-            rows: results
-        });
+  await new Promise((resolve, reject) => {
+    db.query(selectSql, [GUEST_ID], (e, rows) => {
+      if (e) return reject(e);
+      if (rows && rows.length > 0) return resolve();
+      db.query(insertSql, [GUEST_ID], (e2) => (e2 ? reject(e2) : resolve()));
     });
-});
+  });
 
+  console.log(`[init] Guest customer ensured with ID=${GUEST_ID}`);
+}
 
-// Start the server
-app.listen(port, () => {
-    console.log('Backend listening on port: ' + port);
-});
+ensureGuestCustomer()
+  .catch(err => {
+    console.error('Failed to ensure guest customer:', err);
+  })
+  .finally(() => {
+    app.listen(port, () => {
+      console.log('Backend listening on port: ' + port);
+    });
+  });

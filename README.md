@@ -56,6 +56,7 @@ The backend connects to the database using credentials.
     DB_USER=root
     DB_PASSWORD=YOUR_ROOT_PASSWORD_HERE  # <-- CHANGE THIS!
     DB_NAME=posdb
+    GUEST_CUSTOMER_ID=1000
     ```
 
 ---

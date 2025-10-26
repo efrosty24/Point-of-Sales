@@ -1,4 +1,4 @@
-# POS Admin API (Backend) — Admin Endpoints Doc
+# POS API (Backend) —  Endpoints Doc
 
 ## Folder layout
 
@@ -14,7 +14,7 @@ Mounted paths:
 - `/admin/orders`      → `routes/admin.orders.routes.js`
 - `/admin/sale-events` → `routes/admin.sale-events.routes.js`  
 - `/admin/discounts` → `routes/admin.discounts.routes.js`
-
+- `/cashier` → `./routes/cashier.routes.js`
 ---
 
 ## POST `/api/login`
@@ -129,7 +129,7 @@ List products with stock and supplier info.
 
 ---
 
-### POST `/admin/inventory/add/products`
+### POST `/admin/inventory/products`
 Add Product into database
 **Query params (non-optional)**
 - `name` 
@@ -279,6 +279,163 @@ Used to alert admins when products need to be restocked.
   }
 ]
 ```
+# Cashier API
+
+### GET `/cashier/customers/lookup?phone=<number>`
+Find existing customers by phone (digits only comparison).  
+If `phone` is empty or no matches are found, returns an empty array (frontend should offer Guest flow).
+
+**Sample response**
+```json
+[
+  { "CustomerID": 2, "FirstName": "Bob", "LastName": "Jones", "Phone": "(123) 456-7890", "Email": "bob@example.com" }
+]
+```
+
+---
+
+### POST `/cashier/orders/quote`
+Preview totals without saving an order.
+
+**Body**
+```json
+{
+  "items": [
+    { "ProductID": 4, "Qty": 2 },
+    { "ProductID": 6, "Qty": 1 }
+  ],
+  "taxRate": 0.0825
+}
+```
+
+**Response**
+```json
+{
+  "subtotal": 11.77,
+  "tax": 0.97,
+  "total": 12.74,
+  "items": [
+    { "ProductID": 4, "Name": "Whole Milk 1 gal", "Qty": 2, "Price": 3.99, "LineTotal": 7.98 },
+    { "ProductID": 6, "Name": "Cheddar Cheese 8oz", "Qty": 1, "Price": 3.79, "LineTotal": 3.79 }
+  ]
+}
+```
+
+**Notes**
+- Uses current `Products.Price` and validates quantities.
+- No DB writes occur.
+
+---
+
+### POST `/cashier/orders`
+Create a new order (guest or registered customer) and decrement stock transactionally.
+
+**Guest checkout logic**
+- If `customerId` is missing and `phone` is `""`, the order is created under `GUEST_CUSTOMER_ID` (from `.env`).
+- On server startup, a minimal Guest row is ensured automatically.
+
+**Body**
+```json
+{
+  "customerId": null,
+  "phone": "",
+  "employeeId": 1,
+  "items": [
+    { "ProductID": 4, "Qty": 2 },
+    { "ProductID": 6, "Qty": 1 }
+  ],
+  "payment": { "method": "card", "amount": 12.74 },
+  "taxRate": 0.0825
+}
+```
+
+**Response — success**
+```json
+{ "ok": true, "OrderID": 10, "subtotal": 11.77, "tax": 0.97, "total": 12.74 }
+```
+
+**Errors**
+```json
+{ "error": "EMPTY_CART" }
+{ "error": "BAD_QTY" }
+{ "error": "PRODUCT_NOT_FOUND" }
+{ "error": "DB_ERROR" }
+```
+
+**Behavior**
+- Inserts `Orders(CustomerID, EmployeeID, Subtotal, Tax, Total, Status='paid')`.
+- Inserts `OrderDetails(OrderID, ProductID, Quantity, Price)` (price snapshot).
+- Decrements `Products.Stock` within the same transaction.
+
+---
+
+### GET `/cashier/orders/:id`
+Receipt payload (header + line items + totals).
+
+**Sample response**
+```json
+{
+  "header": {
+    "OrderID": 10,
+    "DatePlaced": "2025-10-25T23:35:03.000Z",
+    "Status": "paid",
+    "CustomerID": 1000,
+    "EmployeeID": 1,
+    "CustomerName": "Guest"
+  },
+  "items": [
+    { "ProductID": 4, "Name": "Whole Milk 1 gal", "Qty": 2, "Price": 3.99, "LineTotal": 7.98 },
+    { "ProductID": 6, "Name": "Cheddar Cheese 8oz", "Qty": 1, "Price": 3.79, "LineTotal": 3.79 }
+  ],
+  "subtotal": 11.77,
+  "tax": 0.97,
+  "total": 12.74
+}
+```
+
+---
+
+### PATCH `/admin/orders/:id/reassign-customer`
+(Admin) Reassign a guest order to a real customer later.
+
+**Body**
+```json
+{ "CustomerID": 2 }
+```
+
+**Response**
+```json
+{ "ok": true, "updated": 1 }
+```
+
+---
+
+## Quick demo (Terminal)
+
+```bash
+# Lookup (no match → empty array)
+curl -s "http://localhost:3001/cashier/customers/lookup?phone=5550101" | jq .
+
+# Quote (no DB writes)
+curl -s -X POST "http://localhost:3001/cashier/orders/quote"   -H "Content-Type: application/json"   -d '{"items":[{"ProductID":4,"Qty":2},{"ProductID":6,"Qty":1}],"taxRate":0.0825}' | jq .
+
+# Checkout as Guest (phone empty → uses GUEST_CUSTOMER_ID)
+curl -s -X POST "http://localhost:3001/cashier/orders"   -H "Content-Type: application/json"   -d '{"customerId":null,"phone":"","employeeId":1,"items":[{"ProductID":4,"Qty":2},{"ProductID":6,"Qty":1}],"payment":{"method":"card","amount":12.74},"taxRate":0.0825}' | jq .
+
+# Receipt (replace :id with the OrderID returned above)
+curl -s "http://localhost:3001/cashier/orders/10" | jq .
+
+# Reassign guest → real customer
+curl -s -X PATCH "http://localhost:3001/admin/orders/10/reassign-customer"   -H "Content-Type: application/json" -d '{"CustomerID":2}' | jq .
+```
+
+---
+
+## Cashier Notes
+- `.env` must include `GUEST_CUSTOMER_ID=<id>`; the backend ensures that row exists in `Customers` at startup.
+- `employeeId` is **required** (FK `NOT NULL`) and must reference an existing `Employees` row.
+- `OrderDetails.Price` is a **snapshot** of the price at the time of sale (reporting uses this, not the current `Products.Price`).
+
 ## Orders API
 
 ### GET `/admin/orders/recent?limit=N`

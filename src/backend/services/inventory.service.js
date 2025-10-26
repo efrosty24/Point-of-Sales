@@ -34,7 +34,7 @@ exports.listInventoryProducts = ({ search, category, supplier }, cb) => {
   db.query(sql, params, (err, rows) => cb(err, rows));
 };
 /**
- * POST /admin/inventory/restock
+ * POST /admin/inventory/product
  * Returns successful product insertion message, product Name, Brand, Price, Quantity, Price per Quantity, and Description
  * Fields used: Products(Name, Brand, ProductID, Stock, ReorderThreshold, Price, IsPricePerQty, QuantityValue, QuantityUnit,
  * SupplierID, ImgName, ImgPath, DateAdded, CategoryID, Description)
@@ -59,7 +59,6 @@ exports.addProduct = (productData, callback) => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `;
 
-    // Map the productData fields to the SQL parameters (represented by ?)
     const values = [
         productData.Name,
         productData.Brand || null,        // NULLABLE
