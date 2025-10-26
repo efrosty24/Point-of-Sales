@@ -26,7 +26,7 @@ function App() {
             if (response.data.success) {
                 if (response.data.success) {
                     localStorage.setItem("user", JSON.stringify(response.data.employee));
-                    alert("Welcome " + response.data.employee.name);
+                    // alert("Welcome " + response.data.employee.name);
                      navigate("/dashboard");
                 }
             } else if (message === "InvalidUP") {

@@ -11,6 +11,7 @@
     box-shadow: 0 0 10px rgba(0,0,0,0.05);
     transition: width 0.3s ease;
     z-index: 10;
+    overflow: hidden;
 }
 
 .sidebar-container.collapsed {
@@ -35,6 +36,7 @@
     justify-content: center;
     padding: 0;
     color: var(--text-secondary);
+    transition: transform 0.3s ease;
 }
 
 .collapse-btn svg {
@@ -45,8 +47,8 @@
 .sidebar-title-wrapper {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     margin-left: 1rem;
+    overflow: hidden;
 }
 
 .sidebar-logo {
@@ -54,6 +56,7 @@
     height: 32px;
     background-color: var(--brand-primary);
     border-radius: 8px;
+    flex-shrink: 0;
 }
 
 .sidebar-title h2 {
@@ -61,12 +64,14 @@
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
+    white-space: nowrap;
 }
 
 .sidebar-title p {
     font-size: 0.75rem;
     color: var(--text-secondary);
     margin: 0;
+    white-space: nowrap;
 }
 
 .sidebar-menu {
@@ -88,13 +93,14 @@
     font-weight: 500;
     color: var(--text-secondary);
     border-radius: 8px;
-    transition: background-color 0.2s, color 0.2s;
+    transition: background-color 0.2s, color 0.2s, padding 0.3s ease;
 }
 
 .sidebar-link svg {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
+    transition: margin 0.3s ease;
 }
 
 .sidebar-link:hover {
@@ -104,10 +110,13 @@
 
 .sidebar-link span {
     white-space: nowrap;
+    transition: opacity 0.2s ease;
 }
 
 .sidebar-container.collapsed .sidebar-link span {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    width: 0;
 }
 
 .sidebar-container.collapsed .sidebar-link {
@@ -134,6 +143,7 @@
     font-size: 0.95rem;
     font-weight: 500;
     border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
 .dropdown-toggle:hover {
@@ -143,6 +153,7 @@
 
 .dropdown-toggle svg {
     flex-shrink: 0;
+    transition: transform 0.2s ease;
 }
 
 .dropdown-menu {
@@ -194,15 +205,22 @@
     padding: 0.75rem 0;
 }
 
+.sidebar-container.collapsed .dropdown-toggle .arrow {
+    display: none;
+}
+
 .sidebar-footer {
     padding: 1rem;
     text-align: center;
     font-size: 0.7rem;
     color: var(--text-secondary);
+    transition: opacity 0.3s ease;
 }
 
 .sidebar-container.collapsed .sidebar-footer p {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    height: 0;
 }
 
 .sidebar-container,
