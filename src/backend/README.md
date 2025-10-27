@@ -1,5 +1,5 @@
 # POS API (Backend) —  Endpoints Doc
-
+  
 ## Folder layout
 
 - `routes/` → HTTP routes only (no DB/logic)
@@ -93,6 +93,165 @@ curl -s "http://localhost:3001/api/auth/role?employeeId=1" | jq .
 ```json
 { "error": "MISSING_EMPLOYEE_ID" }
 ```
+---
+# Employees API
+
+### GET `/admin/employees`
+List employees with optional filtering and sorting.
+
+**Query params (optional)**
+- `id` — filter by `EmployeeID`
+- `name` — substring match on `FirstName` or `LastName`
+- `role` — one of: `"Admin"`, `"Cashier"`
+- `sort` — sort column: `name` | `id` | `role` *(default: `id`)*
+- `dir` — sort direction: `ASC` | `DESC` *(default: `ASC`)*
+
+**Sample response**
+```json
+{
+  "message": "3 employees found.",
+  "employees": [
+    { "EmployeeID": 3, "FirstName": "System", "LastName": "Employee", "Email": "emp@pos.lcom", "Phone": "0000000000", "Role": "Cashier" },
+    { "EmployeeID": 6, "FirstName": "Jane", "LastName": "Doe", "Email": "qa2@example.com", "Phone": "555-9999", "Role": "Admin" },
+    { "EmployeeID": 8, "FirstName": "Jane", "LastName": "Doe", "Email": "qa.auto+001@example.com", "Phone": "555-9001", "Role": "Admin" }
+  ]
+}
+```
+
+---
+
+### POST `/admin/employees`
+Create a new employee.
+
+**Body (required)**
+- `Email`
+- `FirstName`
+- `LastName`
+- `Phone`
+- `Role` — `"Admin"` or `"Cashier"`
+- `UserPassword` *(or `Password`, which is mapped internally to `UserPassword`)*
+
+**Body (optional)**
+*(none at the moment)*
+
+**Example request**
+```json
+{
+  "Email": "luis.alfaro@example.com",
+  "FirstName": "Luis",
+  "LastName": "Alfaro",
+  "Phone": "555-7777",
+  "Role": "Admin",
+  "Password": "NoHashNeeded123"
+}
+```
+
+**Sample response**
+```json
+{
+  "message": "Employee Added",
+  "employee": {
+    "EmployeeID": 7,
+    "Email": "luis.alfaro@example.com",
+    "FirstName": "Luis",
+    "LastName": "Alfaro",
+    "Phone": "555-7777",
+    "Role": "Admin"
+  }
+}
+```
+
+**Behavior**
+- If `Password` is provided and `UserPassword` is not, the server maps `Password → UserPassword`.
+- No hashing is performed (plain text per current spec).
+- `Role` is validated against the enum: `"Admin"`, `"Cashier"`.
+
+**Errors**
+```json
+{ "error": "Missing employee data or required fields.", "missing": ["..."] }
+{ "error": "DB error" }
+```
+
+---
+
+### PUT `/admin/employees/:id`
+Update one or more fields of an employee.
+
+**Body (any subset)**
+- Allowed fields: `FirstName`, `LastName`, `Email`, `Phone`, `Role`, `UserPassword`  
+  *(You may send `Password` instead of `UserPassword` if your controller supports mapping; otherwise send `UserPassword`.)*
+
+**Example request**
+```json
+{ "Phone": "555-0000", "Role": "Cashier" }
+```
+
+**Sample response**
+```json
+{
+  "message": "3 updated successfully",
+  "updatedFields": { "Phone": "555-0000", "Role": "Cashier" }
+}
+```
+
+**Errors**
+```json
+{ "error": "Employee ID is required" }
+{ "error": "No update data is provided" }
+{ "error": "INVALID_ROLE", "allowed": ["Admin","Cashier"] }
+{ "error": "Failed to update employee due to server error." }
+{ "error": "Employee with ID <id> not found" }
+```
+
+---
+
+### DELETE `/admin/employees/:id`
+Delete an employee by ID.
+
+**Response — success**
+- HTTP `204 No Content`
+
+**Errors**
+```json
+{ "error": "Employee ID is required" }
+{ "error": "Failed to delete employee data." }
+{ "error": "Employee with ID <id> not found" }
+```
+
+---
+
+## Quick demo (Terminal)
+
+```bash
+# List all
+curl -s "http://localhost:3001/admin/employees" | jq .
+
+# Filter by role
+curl -s "http://localhost:3001/admin/employees?role=Cashier" | jq .
+
+# Filter by name substring
+curl -s "http://localhost:3001/admin/employees?name=System" | jq .
+
+# Create (Password alias → UserPassword)
+curl -s -X POST "http://localhost:3001/admin/employees"   -H "Content-Type: application/json"   -d '{
+    "Email":"qa.auto+001@example.com",
+    "FirstName":"Jane",
+    "LastName":"Doe",
+    "Phone":"555-9001",
+    "Role":"Admin",
+    "Password":"PlainText999"
+  }' | jq .
+
+# Update (only allowed fields; Role must be Admin/Cashier)
+curl -s -X PUT "http://localhost:3001/admin/employees/3"   -H "Content-Type: application/json"   -d '{"Phone":"555-0000","Role":"Cashier"}' | jq .
+
+# Update with invalid role → 400
+curl -i -s -X PUT "http://localhost:3001/admin/employees/3"   -H "Content-Type: application/json"   -d '{"Role":"Manager"}' | head -n 15
+
+# Delete by ID (204 on success)
+curl -i -s -X DELETE "http://localhost:3001/admin/employees/8" | head -n1
+```
+
 
 ---
 ## Inventory API
@@ -321,8 +480,49 @@ Products for a given supplier (restock sheet).
   }
 ]
 ```
+---
+### POST `/admin/inventory/restock`
+Increase stock for one or more products from a specific supplier.  
+Also logs each restock into the `RestockOrders` table for record keeping.
+
+**Body**
+```json
+{
+  "SupplierID": 3,
+  "items": [
+    { "ProductID": 70, "Qty": 3 },
+    { "ProductID": 71, "Qty": 5 }
+  ]
+}
+```
+
+**Response — success**
+```json
+{
+  "ok": true,
+  "itemsUpdated": 2,
+  "SupplierID": 3
+}
+```
+
+**Behavior**
+- Validates that:
+  - `SupplierID` exists.
+  - Each product belongs to that supplier.
+  - Quantities (`Qty`) are positive.
+- Updates stock for each product:  
+  `Products.Stock = Products.Stock + Qty`
+- Inserts a record into `RestockOrders(ProductID, SupplierID, Quantity, Status="received", DatePlaced=NOW())`.
+
+**Errors**
+```json
+{ "error": "Invalid payload" }
+{ "error": "DB error", "message": "Supplier mismatch for ProductID <id>" }
+{ "error": "DB error" }
+```
 
 ---
+
 
 ### GET `/admin/inventory/low-stock`
 Products where `Stock <= ReorderThreshold` (alert list).

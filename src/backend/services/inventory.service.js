@@ -83,6 +83,7 @@ exports.addProduct = (productData, callback) => {
  * Minimal MVP: increases stock and logs the restock in RestockOrders (one row per product).
  * Schema fields used: Products(Stock, ProductID), RestockOrders(ProductID, SupplierID, Quantity, Status, DatePlaced)
  */
+
 exports.simpleRestock = ({ SupplierID, items }, cb) => {
   if (!SupplierID || !Array.isArray(items) || items.length === 0) {
     return cb(new Error('Invalid payload'));
@@ -90,23 +91,37 @@ exports.simpleRestock = ({ SupplierID, items }, cb) => {
 
   const ops = items.map(it => new Promise((resolve, reject) => {
     const qty = Number(it.Qty) || 0;
-    if (qty <= 0) return reject(new Error('Qty must be > 0'));
+    if (qty <= 0) return reject(new Error(`Qty must be > 0 (ProductID ${it.ProductID})`));
+    db.query('SELECT SupplierID FROM Products WHERE ProductID = ?', [it.ProductID], (err, rows) => {
+      if (err) return reject(err);
+      if (!rows.length) return reject(new Error(`ProductID ${it.ProductID} not found`));
 
-    // 1) Increase stock
-    db.query('UPDATE Products SET Stock = Stock + ? WHERE ProductID = ?', [qty, it.ProductID], (e1) => {
-      if (e1) return reject(e1);
-      // 2) Log a received restock row (history)
+      const productSupplier = rows[0].SupplierID;
+      if (productSupplier !== SupplierID) {
+        return reject(new Error(`Supplier mismatch for ProductID ${it.ProductID}`));
+      }
       db.query(
-        'INSERT INTO RestockOrders (ProductID, SupplierID, Quantity, Status, DatePlaced) VALUES (?, ?, ?, "received", NOW())',
-        [it.ProductID, SupplierID, qty],
-        (e2) => e2 ? reject(e2) : resolve()
+        'UPDATE Products SET Stock = Stock + ? WHERE ProductID = ?',
+        [qty, it.ProductID],
+        (e1) => {
+          if (e1) return reject(e1);
+
+          db.query(
+            'INSERT INTO RestockOrders (ProductID, SupplierID, Quantity, Status, DatePlaced) VALUES (?, ?, ?, "received", NOW())',
+            [it.ProductID, SupplierID, qty],
+            (e2) => e2 ? reject(e2) : resolve()
+          );
+        }
       );
     });
   }));
 
-  Promise.all(ops)
-    .then(() => cb(null, { ok: true, itemsUpdated: items.length, SupplierID }))
-    .catch(err => cb(err));
+  Promise.allSettled(ops).then(results => {
+    const errors = results.filter(r => r.status === 'rejected').map(r => r.reason.message);
+    if (errors.length) return cb(new Error(errors.join('; ')));
+
+    cb(null, { ok: true, itemsUpdated: items.length, SupplierID });
+  }).catch(err => cb(err));
 };
 
 /**

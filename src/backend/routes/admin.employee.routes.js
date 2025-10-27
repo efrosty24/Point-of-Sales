@@ -1,16 +1,17 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/employees.controller');
 
-// PUT path for adding employees and updating employee
+// Create employee
 router.post('/', ctrl.addEmployee);
 
-// PUT/PATCH for updating an employee
+// Update (full o parcial)
 router.put('/:id', ctrl.updateEmployee);
+router.patch('/:id', ctrl.updateEmployee);
 
-// GET path for retrieving employees
+// List employees (con filtros vía query)
 router.get('/', ctrl.getEmployees);
 
-// DELETE path for deleting an employee by ID
+// Delete employee
 router.delete('/:id', ctrl.deleteEmployee);
 
 module.exports = router;
