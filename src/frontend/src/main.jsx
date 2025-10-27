@@ -17,13 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Routes>
             <Route path="/" element={<App />} />
             <Route path="/" element={<NavMenus />}>
-                {/*<Route*/}
-                {/*    path="dashboard"*/}
-                {/*    element={*/}
-                {/*        user?.role === "Admin" ? <Dashboard /> : <EmpDashboard />*/}
-                {/*    }*/}
-                {/*/>*/}
-                <Route path="dashbaord" element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
                 <Route path="salesreport" element={<SalesReport />} />
                 <Route path="cashier" element={<Cashier />} />
                 <Route path="CustomerList" element={<CustomerList />} />

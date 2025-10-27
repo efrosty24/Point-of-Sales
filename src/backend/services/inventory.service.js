@@ -216,3 +216,10 @@ exports.deleteSupplier = (id, cb) => {
         });
     });
 };
+
+exports.listCategories = (cb) => {
+    db.query(
+        `SELECT * FROM Categories`,
+        (err, rows) => cb(err, rows)
+    );
+};

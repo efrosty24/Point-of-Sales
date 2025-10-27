@@ -68,8 +68,7 @@ exports.listCategories = (req, res) => {
         res.json(rows);
     });
 };
-// GET /admin/inventory/suppliers/:id
-// Returns one supplier by ID.
+
 exports.getSupplierById = (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'INVALID_ID' });
@@ -80,8 +79,7 @@ exports.getSupplierById = (req, res) => {
     res.json(row);
   });
 };
-// POST /admin/inventory/suppliers
-// Creates a supplier (Name required).
+
 exports.createSupplier = (req, res) => {
   const { Name, Phone, Email } = req.body || {};
   if (!Name) return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Name is required.' });
@@ -91,8 +89,7 @@ exports.createSupplier = (req, res) => {
     res.status(201).json({ ok: true, SupplierID: out.insertId });
   });
 };
-// PATCH /admin/inventory/suppliers/:id
-// Partial update (Name, Phone, Email).
+
 exports.updateSupplier = (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'INVALID_ID' });
@@ -111,8 +108,7 @@ exports.updateSupplier = (req, res) => {
     return res.json({ ok: true, updated: out.updated, supplier: out.supplier });
   });
 };
-// DELETE /admin/inventory/suppliers/:id
-// Deletes a supplier if not referenced by Products.
+
 exports.deleteSupplier = (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'INVALID_ID' });

@@ -43,7 +43,7 @@ function Sidebar() {
 
             <ul className="sidebar-menu">
                 <li>
-                    <a href="dashboard" className="sidebar-link">
+                    <a href="/Dashboard" className="sidebar-link">
                         <svg
                             width="24"
                             height="24"

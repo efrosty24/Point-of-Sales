@@ -154,7 +154,15 @@ export default function ReceiptView({ data, currency = "USD" }) {
                     <div className="rx-center rx-muted">Glad to see you again!</div>
                     <div className="rx-center rx-meta">{placedAt}</div>
                     {data?.CustomerID != null && (
-                        <div className="rx-center rx-muted">CustomerID: {Number(data.CustomerID)}</div>
+                        <div className="rx-center rx-muted">
+                            CustomerID:{' '}
+                            {(() => {
+                                const idStr = String(data.CustomerID || '');
+                                const visibleCount = Math.ceil(idStr.length * 0.25);
+                                const hiddenCount = idStr.length - visibleCount;
+                                return 'x'.repeat(hiddenCount) + idStr.slice(-visibleCount);
+                            })()}
+                        </div>
                     )}
                     {data?.GuestID != null && (
                         <div className="rx-center rx-muted">
