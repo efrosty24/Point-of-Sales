@@ -53,11 +53,19 @@ exports.addProduct = (req, res) => {
                 Brand: productData.Brand,
                 Price: productData.Price,
                 Stock: productData.Stock,
+                CategoryID: productData.CategoryID,
                 QuantityValue: productData.QuantityValue,
                 QuantityUnit: productData.QuantityUnit,
                 Description: productData.Description
             }
         });
+    });
+};
+
+exports.listCategories = (req, res) => {
+    svc.listCategories((err, rows) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+        res.json(rows);
     });
 };
 // GET /admin/inventory/suppliers/:id

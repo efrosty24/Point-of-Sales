@@ -9,6 +9,7 @@ const adminSalesRoutes = require('./routes/admin.sales.routes');
 const adminSaleEventsRoutes = require('./routes/admin.sale-events.routes');
 const adminDiscountsRoutes = require('./routes/admin.discounts.routes');
 const adminEmployeesRoutes = require('./routes/admin.employee.routes');
+const adminCustomerRoutes = require('./routes/admin.customers.route');
 const adminOrdersRoutes = require('./routes/admin.orders.routes');
 const cashierRoutes = require('./routes/cashier.routes');
 
@@ -23,6 +24,7 @@ app.use('/admin/sales', adminSalesRoutes);
 app.use('/admin/sale-events', adminSaleEventsRoutes);
 app.use('/admin/discounts', adminDiscountsRoutes);
 app.use('/admin/employees', adminEmployeesRoutes);
+app.use('/admin/customers', adminCustomerRoutes);
 app.use('/admin/orders', adminOrdersRoutes);
 app.use('/cashier', cashierRoutes);
 
@@ -34,7 +36,7 @@ async function ensureGuestCustomer() {
   const selectSql = 'SELECT CustomerID FROM Customers WHERE CustomerID = ?';
   const insertSql = `
     INSERT INTO Customers (CustomerID, FirstName, LastName, Email, Phone)
-    VALUES (?, 'Guest', '', NULL, NULL)
+    VALUES (?, 'Guest', '', NULL, '1234567890')
   `;
 
   await new Promise((resolve, reject) => {

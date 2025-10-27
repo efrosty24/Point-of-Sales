@@ -1,38 +1,59 @@
-import React, { useState, useMemo } from "react";
-import {
-    Plus,
-    Search,
-    Edit,
-    Trash2,
-    ChevronLeft,
-    ChevronRight,
-    X
-} from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import "./CustomerList.css";
 
-export default function CustomerList() {
-    const DUMMY_CUSTOMERS = Array.from({ length: 25 }, (_, i) => ({
-        id: i + 1,
-        name: `Customer ${i + 1}`,
-        phone: `+1 (555) 00${i.toString().padStart(2, "0")}`,
-        email: `customer${i + 1}@example.com`
-    }));
+const BASE_URL = "http://localhost:3001/admin";
 
-    const [customers, setCustomers] = useState(DUMMY_CUSTOMERS);
+export default function CustomerList() {
+    const [customers, setCustomers] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [editCustomer, setEditCustomer] = useState(null);
-    const [formData, setFormData] = useState({ name: "", phone: "", email: "" });
+    const [formData, setFormData] = useState({
+        FirstName: "",
+        LastName: "",
+        Phone: "",
+        Email: "",
+        Address: "",
+        City: "",
+        State: "",
+        Zip: "",
+        Country: "",
+    });
 
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 8;
-    const totalPages = Math.ceil(customers.length / pageSize);
+
+    const fetchCustomers = async (search = "") => {
+        const params = new URLSearchParams();
+        if (search) params.append("name", search);
+        const res = await fetch(`${BASE_URL}/customers?${params.toString()}`);
+        if (!res.ok) throw new Error("Failed to load customers");
+        const data = await res.json();
+        const mapped = (data.customers || []).map((c) => ({
+            id: c.CustomerID,
+            name: `${c.FirstName || ""} ${c.LastName || ""}`.trim(),
+            phone: c.Phone || "",
+            email: c.Email || "",
+            isActive: c.isActive !== undefined ? Number(c.isActive) !== 0 : true,
+            _raw: c,
+        }));
+        setCustomers(mapped);
+    };
+
+    useEffect(() => {
+        fetchCustomers().catch(console.error);
+    }, []);
+
+    const totalPages = Math.max(1, Math.ceil(customers.length / pageSize));
 
     const filteredCustomers = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) return customers;
         return customers.filter(
             (c) =>
-                c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                c.email.toLowerCase().includes(searchTerm.toLowerCase())
+                c.name.toLowerCase().includes(term) ||
+                c.email.toLowerCase().includes(term)
         );
     }, [customers, searchTerm]);
 
@@ -43,47 +64,118 @@ export default function CustomerList() {
 
     const openModal = (customer = null) => {
         setEditCustomer(customer);
-        setFormData(customer || { name: "", phone: "", email: "" });
+        if (customer && customer._raw) {
+            const r = customer._raw;
+            setFormData({
+                FirstName: r.FirstName || "",
+                LastName: r.LastName || "",
+                Phone: r.Phone || "",
+                Email: r.Email || "",
+                Address: r.Address || "",
+                City: r.City || "",
+                State: r.State || "",
+                Zip: r.Zip || "",
+                Country: r.Country || "",
+            });
+        } else {
+            setFormData({
+                FirstName: "",
+                LastName: "",
+                Phone: "",
+                Email: "",
+                Address: "",
+                City: "",
+                State: "",
+                Zip: "",
+                Country: "",
+            });
+        }
         setShowModal(true);
     };
 
     const closeModal = () => {
         setShowModal(false);
         setEditCustomer(null);
-        setFormData({ name: "", phone: "", email: "" });
+        setFormData({
+            FirstName: "",
+            LastName: "",
+            Phone: "",
+            Email: "",
+            Address: "",
+            City: "",
+            State: "",
+            Zip: "",
+            Country: "",
+        });
     };
 
-    const handleSave = () => {
-        if (!formData.name.trim()) return;
+    const handleSave = async () => {
+        const payload = { ...formData };
+
         if (editCustomer) {
-            setCustomers((prev) =>
-                prev.map((c) => (c.id === editCustomer.id ? { ...c, ...formData } : c))
-            );
+            const id = editCustomer.id;
+            const res = await fetch(`${BASE_URL}/customers/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                console.error("Update failed");
+                return;
+            }
+            await fetchCustomers(searchTerm).catch(console.error);
         } else {
-            const newCustomer = {
-                id: customers.length + 1,
-                ...formData
-            };
-            setCustomers((prev) => [newCustomer, ...prev]);
+            const res = await fetch(`${BASE_URL}/customers/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                console.error("Create failed");
+                return;
+            }
+            await fetchCustomers(searchTerm).catch(console.error);
         }
         closeModal();
     };
 
-    const handleDelete = (id) => {
-        setCustomers((prev) => prev.filter((c) => c.id !== id));
+    const handleDelete = async (id) => {
+        const res = await fetch(`${BASE_URL}/customers/${id}`, { method: "DELETE" });
+        if (!res.ok && res.status !== 204) {
+            console.error(res);
+            console.error("Delete failed");
+            return;
+        }
+        await fetchCustomers(searchTerm).catch(console.error);
     };
 
+    const handleReactivate = async (id) => {
+        const res = await fetch(`${BASE_URL}/customers/${id}/reactivate`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isActive: 1 }),
+        });
+        if (!res.ok) {
+            console.error(res);
+            console.error("Reactivate failed");
+            return;
+        }
+        await fetchCustomers(searchTerm).catch(console.error);
+    };
+
+
     const handleSearch = (e) => {
-        setSearchTerm(e.target.value);
+        const value = e.target.value;
+        setSearchTerm(value);
         setCurrentPage(1);
     };
 
     const nextPage = () => {
-        if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+        if (currentPage < totalPages) setCurrentPage((p) => p + 1);
     };
 
     const prevPage = () => {
-        if (currentPage > 1) setCurrentPage(currentPage - 1);
+        if (currentPage > 1) setCurrentPage((p) => p - 1);
     };
 
     return (
@@ -104,7 +196,7 @@ export default function CustomerList() {
                             value={searchTerm}
                             onChange={handleSearch}
                         />
-                        <button>
+                        <button onClick={() => fetchCustomers(searchTerm).catch(console.error)}>
                             <Search />
                         </button>
                     </div>
@@ -123,25 +215,35 @@ export default function CustomerList() {
                     <tbody>
                     {displayedCustomers.length > 0 ? (
                         displayedCustomers.map((c) => (
-                            <tr key={c.id}>
+                            <tr key={c.id} className={!c.isActive ? "row-inactive" : undefined}>
                                 <td>{c.id}</td>
                                 <td>{c.name}</td>
                                 <td>{c.phone}</td>
                                 <td>{c.email}</td>
                                 <td>
                                     <div className="action-btns">
-                                        <button
-                                            className="edit-btn"
-                                            onClick={() => openModal(c)}
-                                        >
-                                            <Edit />
-                                        </button>
-                                        <button
-                                            className="delete-btn"
-                                            onClick={() => handleDelete(c.id)}
-                                        >
-                                            <Trash2 />
-                                        </button>
+                                        {!c.isActive ? (
+                                            <button
+                                                className="reactivate-btn"
+                                                onClick={() => handleReactivate(c.id)}
+                                                title="Reactivate"
+                                            >
+                                                <RefreshCw />
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button className="edit-btn" onClick={() => openModal(c)} title="Edit">
+                                                    <Edit />
+                                                </button>
+                                                <button
+                                                    className="delete-btn"
+                                                    onClick={() => handleDelete(c.id)}
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 />
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
@@ -154,6 +256,7 @@ export default function CustomerList() {
                         </tr>
                     )}
                     </tbody>
+
                 </table>
 
                 <div className="pagination">
@@ -183,87 +286,80 @@ export default function CustomerList() {
                         </div>
 
                         <div className="modal-right">
-
                             <div className="form-body">
+                                {/* FirstName */}
                                 <div className="input-group">
                                     <input
                                         type="text"
                                         placeholder=" "
                                         value={formData.FirstName}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, FirstName: e.target.value })
-                                        }
+                                        onChange={(e) => setFormData({ ...formData, FirstName: e.target.value })}
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
                                     <label>First Name</label>
                                 </div>
 
+                                {/* LastName */}
                                 <div className="input-group">
                                     <input
                                         type="text"
                                         placeholder=" "
                                         value={formData.LastName}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, LastName: e.target.value })
-                                        }
+                                        onChange={(e) => setFormData({ ...formData, LastName: e.target.value })}
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
                                     <label>Last Name</label>
                                 </div>
 
+                                {/* Phone */}
                                 <div className="input-group">
                                     <input
                                         type="text"
                                         placeholder=" "
                                         value={formData.Phone}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, Phone: e.target.value })
-                                        }
+                                        onChange={(e) => setFormData({ ...formData, Phone: e.target.value })}
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
                                     <label>Phone</label>
                                 </div>
 
+                                {/* Email */}
                                 <div className="input-group">
                                     <input
                                         type="email"
                                         placeholder=" "
                                         value={formData.Email}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, Email: e.target.value })
-                                        }
+                                        onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
                                     <label>Email</label>
                                 </div>
 
+                                {/* Address */}
                                 <div className="input-group full">
                                     <input
                                         type="text"
                                         placeholder=" "
                                         value={formData.Address}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, Address: e.target.value })
-                                        }
+                                        onChange={(e) => setFormData({ ...formData, Address: e.target.value })}
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
                                     <label>Address</label>
                                 </div>
 
+                                {/* City + State */}
                                 <div className="grid-two">
                                     <div className="input-group">
                                         <input
                                             type="text"
                                             placeholder=" "
                                             value={formData.City}
-                                            onChange={(e) =>
-                                                setFormData({ ...formData, City: e.target.value })
-                                            }
+                                            onChange={(e) => setFormData({ ...formData, City: e.target.value })}
                                             onFocus={(e) => e.target.classList.add("focused")}
                                             onBlur={(e) => e.target.classList.remove("focused")}
                                         />
@@ -274,9 +370,7 @@ export default function CustomerList() {
                                             type="text"
                                             placeholder=" "
                                             value={formData.State}
-                                            onChange={(e) =>
-                                                setFormData({ ...formData, State: e.target.value })
-                                            }
+                                            onChange={(e) => setFormData({ ...formData, State: e.target.value })}
                                             onFocus={(e) => e.target.classList.add("focused")}
                                             onBlur={(e) => e.target.classList.remove("focused")}
                                         />
@@ -284,6 +378,7 @@ export default function CustomerList() {
                                     </div>
                                 </div>
 
+                                {/* Zip + Country */}
                                 <div className="grid-two">
                                     <div className="input-group">
                                         <input
@@ -292,9 +387,7 @@ export default function CustomerList() {
                                             inputMode="numeric"
                                             placeholder=" "
                                             value={formData.Zip}
-                                            onChange={(e) =>
-                                                setFormData({ ...formData, Zip: e.target.value })
-                                            }
+                                            onChange={(e) => setFormData({ ...formData, Zip: e.target.value })}
                                             onFocus={(e) => e.target.classList.add("focused")}
                                             onBlur={(e) => e.target.classList.remove("focused")}
                                         />
@@ -305,9 +398,7 @@ export default function CustomerList() {
                                             type="text"
                                             placeholder=" "
                                             value={formData.Country}
-                                            onChange={(e) =>
-                                                setFormData({ ...formData, Country: e.target.value })
-                                            }
+                                            onChange={(e) => setFormData({ ...formData, Country: e.target.value })}
                                             onFocus={(e) => e.target.classList.add("focused")}
                                             onBlur={(e) => e.target.classList.remove("focused")}
                                         />
@@ -328,8 +419,6 @@ export default function CustomerList() {
                     </div>
                 </div>
             )}
-
-
         </div>
     );
 }

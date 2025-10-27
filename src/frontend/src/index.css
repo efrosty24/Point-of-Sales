@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
-    /* Colors */
     --bg-main: #ffffff;
     --bg-sidebar: #e0e0e0;
     --bg-navbar: #388e3c;
@@ -11,18 +10,15 @@
     --brand-primary: #388e3c;
     --brand-primary-light: #3cb371;
 
-    /* Sizing */
     --sidebar-width: 240px;
     --sidebar-collapsed-width: 60px;
     --navbar-height: 65px;
     --transition-speed: 0.3s;
 
-    /* Additional Theme Variables */
     --primary-color: #2c7a7b;
     --primary-color-hover: #256666;
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-    /* Gray Scale */
     --gray-100: #f7fafc;
     --gray-200: #edf2f7;
     --gray-300: #e2e8f0;
@@ -32,7 +28,6 @@
     --gray-700: #4a5568;
     --gray-800: #2d3748;
 
-    /* Accent Colors */
     --red-100: #fff5f5;
     --red-200: #fed7d7;
     --red-600: #e53e3e;
@@ -41,12 +36,10 @@
     --blue-600: #3182ce;
     --teal-50: #e6fffa;
 
-    /* Border Radius */
-    --border-radius-lg: 0.5rem; /* 8px */
-    --border-radius-xl: 0.75rem; /* 12px */
-    --border-radius-2xl: 1rem; /* 16px */
+    --border-radius-lg: 0.5rem;
+    --border-radius-xl: 0.75rem;
+    --border-radius-2xl: 1rem;
 
-    /* Shadows */
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);

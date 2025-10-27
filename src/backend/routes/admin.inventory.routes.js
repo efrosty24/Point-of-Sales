@@ -22,4 +22,7 @@ router.post('/suppliers', ctrl.createSupplier);
 router.patch('/suppliers/:id', ctrl.updateSupplier);
 router.delete('/suppliers/:id', ctrl.deleteSupplier);
 
+// Get Categoriesl
+router.get('/categories', ctrl.listCategories);
+
 module.exports = router;
