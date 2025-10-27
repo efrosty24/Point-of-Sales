@@ -48,7 +48,7 @@ function App() {
                 <h1>Grocery POS</h1>
                 <p className="subtitle">Personnel Login</p>
                 <form onSubmit={handleLogin}>
-                    <div className="input-group">
+                    <div className="input-wrapper">
                         <input
                             type="text"
                             id="employeeId"
@@ -59,7 +59,7 @@ function App() {
                         />
                         <label htmlFor="employeeId">Employee ID</label>
                     </div>
-                    <div className="input-group password-group">
+                    <div className="input-wrapper password-group">
                         <input
                             type={showPassword ? "text" : "password"}
                             id="password"

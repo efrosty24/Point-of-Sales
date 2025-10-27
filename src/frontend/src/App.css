@@ -78,12 +78,12 @@ html, body, #root {
     font-weight: 500;
 }
 
-.input-group {
+.input-wrapper {
     position: relative;
     margin-bottom: 20px;
 }
 
-.input-group input {
+.input-wrapper input {
     width: 100%;
     padding: 15px 12px;
     border-radius: 10px;
@@ -94,18 +94,18 @@ html, body, #root {
     color: #333;
 }
 
-.input-group input::placeholder {
+.input-wrapper input::placeholder {
     color: #999;
 }
 
 
-.input-group input:focus {
+.input-wrapper input:focus {
     border-color: #66bb6a;
     box-shadow: 0 0 8px rgba(102,187,106,0.4);
     background: #fff;
 }
 
-.input-group label {
+.input-wrapper label {
     position: absolute;
     left: 12px;
     top: 50%;
@@ -115,9 +115,9 @@ html, body, #root {
     transition: all 0.2s ease;
 }
 
-.input-group input:-webkit-autofill + label,
-.input-group input:-webkit-autofill:hover + label,
-.input-group input:-webkit-autofill:focus + label {
+.input-wrapper input:-webkit-autofill + label,
+.input-wrapper input:-webkit-autofill:hover + label,
+.input-wrapper input:-webkit-autofill:focus + label {
     top: -8px;
     left: 10px;
     font-size: 12px;
@@ -125,7 +125,7 @@ html, body, #root {
     background: #fff;
     padding: 0 4px;
 }
-.input-group input:autofill + label {
+.input-wrapper input:autofill + label {
     top: -8px;
     left: 10px;
     font-size: 12px;

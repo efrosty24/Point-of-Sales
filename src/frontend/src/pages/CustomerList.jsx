@@ -179,7 +179,7 @@ export default function CustomerList() {
     };
 
     return (
-        <div className="app-container">
+        <div className="appcl-container">
             <div className="customer-management-card">
                 <div className="card-header">
                     <h2 className="card-title">Customer Management</h2>

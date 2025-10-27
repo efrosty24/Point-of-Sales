@@ -34,7 +34,7 @@
     align-items: center;
     gap: 0.75rem;
     background-color: rgba(255, 255, 255, 0.15);
-    padding: 0.4rem 0.9rem;
+    padding: 0.4rem 0.6rem;
     border-radius: 25px;
     transition: background-color 0.2s ease;
 }
@@ -73,7 +73,90 @@
     opacity: 0.9;
 }
 
+.hover-signout {
+    position: relative;
+    height: 38px;
+    width: 38px;
+    padding: 0 0.6rem;
+    border-radius: 25px;
+    background: white;
+    color: #2e7d32;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    overflow: hidden;
+    white-space: nowrap;
+    transition:
+            width 0.3s ease,
+            background-color 0.2s ease,
+            color 0.2s ease;
+}
+
+.hover-signout .avatar-icon {
+    flex-shrink: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    opacity: 1;
+    margin-right: 0;
+}
+
+.hover-signout .avatar-text {
+    position: absolute;
+    right: 10px;
+    opacity: 0;
+    color: #d32f2f;
+    transition: opacity 0.3s ease 0.15s;
+}
+
+.hover-signout:hover {
+    width: 80px;
+    background-color: white;
+    color: #d32f2f;
+    text-align: center;
+}
+
+.hover-signout:hover .avatar-icon {
+    opacity: 0;
+    transform: scale(0.7);
+    margin-right: 0;
+}
+
+.hover-signout:hover .avatar-text {
+    opacity: 1;
+}
+
+.hover-signout:focus-visible {
+    outline: 2px solid #d32f2f;
+    outline-offset: 2px;
+    width: 110px;
+    color: #d32f2f;
+}
+
+.hover-signout:focus-visible .avatar-icon {
+    opacity: 0;
+    transform: scale(0.7);
+}
+
+.hover-signout:focus-visible .avatar-text {
+    opacity: 1;
+}
+
 @media (max-width: 768px) {
+
+    .hover-signout {
+        height: 34px;
+        width: 34px;
+        font-size: 0.85rem;
+    }
+
+    .hover-signout:hover,
+    .hover-signout:focus-visible {
+        width: 90px;
+    }
+
     .navbar-container {
         padding: 0 1rem;
         height: 56px;
