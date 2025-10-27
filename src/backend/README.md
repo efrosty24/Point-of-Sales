@@ -15,6 +15,7 @@ Mounted paths:
 - `/admin/sale-events` → `routes/admin.sale-events.routes.js`  
 - `/admin/discounts` → `routes/admin.discounts.routes.js`
 - `/cashier` → `./routes/cashier.routes.js`
+
 ---
 
 ## POST `/api/login`
@@ -94,8 +95,6 @@ curl -s "http://localhost:3001/api/auth/role?employeeId=1" | jq .
 ```
 
 ---
-
-
 ## Inventory API
 
 ### GET `/admin/inventory/products`
@@ -126,51 +125,51 @@ List products with stock and supplier info.
 ]
 ```
 
-
 ---
 
 ### POST `/admin/inventory/products`
-Add Product into database
-**Query params (non-optional)**
-- `name` 
-- `stock`
+Add a product to the catalog.
+
+**Body (required)**
+- `Name`
+- `Stock`
 - `ReorderThreshold`
--  `Price`
-- `IsPricePerQty`
+- `Price`
+- `IsPricePerQty` *(boolean: 0/1 or true/false)*
 - `QuantityValue`
 - `QuantityUnit`
 - `SupplierID`
-- `CetgoryID`
+- `CategoryID`
 
-**Query params (optional)**
+**Body (optional)**
 - `Brand`
 - `ImgName`
 - `ImgPath`
 - `Description`
 
-**Example Body Request** 
+**Example request**
 ```json
 {
-    "Name": "Wireless Mechanical Keyboard",
-    "Brand": "TechKeys",
-    "Stock": 150,
-    "ReorderThreshold": 30,
-    "Price": 129.99,
-    "IsPricePerQty": false,
-    "QuantityValue": 1,
-    "QuantityUnit": "unit",
-    "SupplierID": 105,
-    "ImgName": "keyboard_mk500.jpg",
-    "ImgPath": "/assets/images/keyboard_mk500.jpg",
-    "CategoryID": 1,
-    "Description": "Full-size 104-key mechanical keyboard with brown tactile switches and RGB lighting."
+  "Name": "Wireless Mechanical Keyboard",
+  "Brand": "TechKeys",
+  "Stock": 150,
+  "ReorderThreshold": 30,
+  "Price": 129.99,
+  "IsPricePerQty": false,
+  "QuantityValue": 1,
+  "QuantityUnit": "unit",
+  "SupplierID": 105,
+  "ImgName": "keyboard_mk500.jpg",
+  "ImgPath": "/assets/images/keyboard_mk500.jpg",
+  "CategoryID": 1,
+  "Description": "Full-size 104-key mechanical keyboard with brown tactile switches and RGB lighting."
 }
 ```
 
-**Sample Response after successful insertion**
+**Sample response**
 ```json
 {
-  "message": "Product added successfully!",
+  "message": "Product added",
   "product": {
     "ProductID": 91,
     "Name": "Wireless Mechanical Keyboard",
@@ -190,35 +189,16 @@ Add Product into database
 }
 ```
 
----
-
-### POST `/admin/inventory/restock`
-Increase stock for a set of SKUs and log a restock record per item.
-
-**Body**
+**Errors**
 ```json
-{
-  "SupplierID": 2,
-  "items": [
-    { "ProductID": 4, "Qty": 5 },
-    { "ProductID": 6, "Qty": 3 }
-  ]
-}
+{ "error": "Missing product data or required fields" }
+{ "error": "DB error" }
 ```
-
-**Response**
-```json
-{ "ok": true, "itemsUpdated": 2, "SupplierID": 2 }
-```
-
-**Behavior**
-- `Products.Stock += Qty` (per item)
-- Inserts one row per item into `RestockOrders` with `Status="received"` and `DatePlaced=NOW()`
 
 ---
 
 ### GET `/admin/inventory/suppliers`
-Supplier list for dropdowns/search.
+List all suppliers (for dropdowns/search).
 
 **Sample response**
 ```json
@@ -230,8 +210,100 @@ Supplier list for dropdowns/search.
 
 ---
 
+### GET `/admin/inventory/suppliers/:id`
+Retrieve one supplier by ID.
+
+**Sample response**
+```json
+{
+  "SupplierID": 3,
+  "Name": "Bake House",
+  "Phone": "555-1003",
+  "Email": "hello@bakehouse.com"
+}
+```
+
+**Errors**
+```json
+{ "error": "INVALID_ID" }
+{ "error": "NOT_FOUND" }
+```
+
+---
+
+### POST `/admin/inventory/suppliers`
+Create a new supplier.
+
+**Body**
+```json
+{ "Name": "Test Supplier", "Phone": "555-7777", "Email": "test@supplier.com" }
+```
+
+**Response**
+```json
+{ "ok": true, "SupplierID": 8 }
+```
+
+**Errors**
+```json
+{ "error": "MISSING_FIELDS", "message": "Name is required." }
+{ "error": "DB error" }
+```
+
+---
+
+### PATCH `/admin/inventory/suppliers/:id`
+Update supplier fields (partial).
+
+**Body (any subset)**
+```json
+{ "Name": "Supplier QA", "Phone": "555-0000", "Email": "qa@supplier.com" }
+```
+
+**Response**
+```json
+{
+  "ok": true,
+  "updated": 1,
+  "supplier": {
+    "SupplierID": 8,
+    "Name": "Supplier QA",
+    "Phone": "555-0000",
+    "Email": "qa@supplier.com"
+  }
+}
+```
+
+**Errors**
+```json
+{ "error": "INVALID_ID" }
+{ "error": "EMPTY_PATCH" }
+{ "error": "NOT_FOUND" }
+{ "error": "DB error" }
+```
+
+---
+
+### DELETE `/admin/inventory/suppliers/:id`
+Delete a supplier (only if not referenced by any products).
+
+**Response**
+```json
+{ "ok": true, "deleted": 1 }
+```
+
+**Errors**
+```json
+{ "error": "SUPPLIER_IN_USE", "message": "Supplier has Products referencing it." }
+{ "error": "NOT_FOUND" }
+{ "error": "INVALID_ID" }
+{ "error": "DB error" }
+```
+
+---
+
 ### GET `/admin/inventory/suppliers/:id/products`
-Products for a given supplier (to build a restock sheet).
+Products for a given supplier (restock sheet).
 
 **Sample response**
 ```json
@@ -252,11 +324,10 @@ Products for a given supplier (to build a restock sheet).
 
 ---
 
-### Get `/admin/inventory/low-stock`
-List of products where current stock is less than or equal to the reorder threshold.
-Used to alert admins when products need to be restocked.
+### GET `/admin/inventory/low-stock`
+Products where `Stock <= ReorderThreshold` (alert list).
 
-**Sample reponse**
+**Sample response**
 ```json
 [
   {
@@ -267,18 +338,31 @@ Used to alert admins when products need to be restocked.
     "ReorderThreshold": 10,
     "CategoryName": "Dairy",
     "SupplierName": "Fresh Farms Co."
-  },
-  {
-    "ProductID": 18,
-    "Name": "Apples",
-    "Brand": "Local Orchard",
-    "Stock": 5,
-    "ReorderThreshold": 12,
-    "CategoryName": "Produce",
-    "SupplierName": "Green Valley Suppliers"
   }
 ]
 ```
+
+---
+
+### Quick demo (Suppliers)
+```bash
+# List
+curl -s "http://localhost:3001/admin/inventory/suppliers" | jq .
+
+# Create
+curl -s -X POST "http://localhost:3001/admin/inventory/suppliers"   -H "Content-Type: application/json"   -d '{"Name":"QA Supplier","Phone":"555-7000","Email":"qa@supplier.com"}' | jq .
+
+# Get by ID
+curl -s "http://localhost:3001/admin/inventory/suppliers/8" | jq .
+
+# Patch
+curl -s -X PATCH "http://localhost:3001/admin/inventory/suppliers/8"   -H "Content-Type: application/json"   -d '{"Phone":"555-0001"}' | jq .
+
+# Delete (will fail if supplier has products)
+curl -s -X DELETE "http://localhost:3001/admin/inventory/suppliers/8" | jq .
+```
+---
+
 # Cashier API
 
 ### GET `/cashier/customers/lookup?phone=<number>`

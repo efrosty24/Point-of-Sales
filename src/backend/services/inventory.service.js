@@ -160,3 +160,57 @@ exports.listSupplierProducts = (supplierId, cb) => {
     (err, rows) => cb(err, rows)
   );
 };
+/**
+ * GET one supplier
+ * Schema: Suppliers(SupplierID, Name, Phone, Email)
+ */
+exports.getSupplierById = (id, cb) => {
+  const sql = `SELECT SupplierID, Name, Phone, Email FROM Suppliers WHERE SupplierID = ? LIMIT 1`;
+  db.query(sql, [id], (err, rows) => (err ? cb(err) : cb(null, rows[0] || null)));
+};
+/**
+ * CREATE supplier
+ * Inserts into Suppliers(Name, Phone, Email)
+ */
+exports.createSupplier = ({ Name, Phone, Email }, cb) => {
+  const sql = `INSERT INTO Suppliers (Name, Phone, Email) VALUES (?, ?, ?)`;
+  db.query(sql, [Name, Phone || null, Email || null], (err, result) => (err ? cb(err) : cb(null, result)));
+};
+/**
+ * PATCH supplier (partial)
+ * Updates Name/Phone/Email.
+ */
+exports.updateSupplier = (id, patch, cb) => {
+  const fields = [];
+  const params = [];
+  if (patch.Name !== undefined)  { fields.push('Name = ?');  params.push(patch.Name || null); }
+  if (patch.Phone !== undefined) { fields.push('Phone = ?'); params.push(patch.Phone || null); }
+  if (patch.Email !== undefined) { fields.push('Email = ?'); params.push(patch.Email || null); }
+  if (!fields.length) return cb(null, { found: true, updated: 0 });
+
+  params.push(id);
+  const sql = `UPDATE Suppliers SET ${fields.join(', ')} WHERE SupplierID = ?`;
+  db.query(sql, params, (err, result) => {
+    if (err) return cb(err);
+    if (result.affectedRows === 0) return cb(null, { found: false, updated: 0 });
+    exports.getSupplierById(id, (e2, row) => (e2 ? cb(e2) : cb(null, { found: true, updated: result.affectedRows, supplier: row })));
+  });
+};
+/**
+ * DELETE supplier
+ * Blocks delete if Products reference this SupplierID.
+ */
+exports.deleteSupplier = (id, cb) => {
+  const qCheck = `SELECT COUNT(*) AS cnt FROM Products WHERE SupplierID = ?`;
+  db.query(qCheck, [id], (err, rows) => {
+    if (err) return cb(err);
+    const cnt = rows[0]?.cnt || 0;
+    if (cnt > 0) return cb(null, { inUse: true, found: true, deleted: 0 });
+
+    db.query(`DELETE FROM Suppliers WHERE SupplierID = ?`, [id], (e2, result) => {
+      if (e2) return cb(e2);
+      if (result.affectedRows === 0) return cb(null, { found: false, deleted: 0 });
+      cb(null, { found: true, deleted: result.affectedRows });
+    });
+  });
+};

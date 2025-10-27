@@ -26,6 +26,7 @@ app.use('/admin/employees', adminEmployeesRoutes);
 app.use('/admin/orders', adminOrdersRoutes);
 app.use('/cashier', cashierRoutes);
 
+
 // Ensure guest customer exists, create if not
 async function ensureGuestCustomer() {
   const GUEST_ID = parseInt(process.env.GUEST_CUSTOMER_ID || '1000', 10);

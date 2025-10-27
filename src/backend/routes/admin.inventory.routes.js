@@ -16,5 +16,10 @@ router.get('/suppliers/:id/products', ctrl.listSupplierProducts);
 
 // Get low-stock products
 router.get('/low-stock', ctrl.getLowStockProducts);
+// Suppliers CRUD
+router.get('/suppliers/:id', ctrl.getSupplierById);
+router.post('/suppliers', ctrl.createSupplier);
+router.patch('/suppliers/:id', ctrl.updateSupplier);
+router.delete('/suppliers/:id', ctrl.deleteSupplier);
 
 module.exports = router;
