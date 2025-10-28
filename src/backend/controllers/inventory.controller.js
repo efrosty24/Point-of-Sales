@@ -120,3 +120,111 @@ exports.deleteSupplier = (req, res) => {
     return res.json({ ok: true, deleted: out.deleted });
   });
 };
+
+exports.getProductById = (req, res) => {
+  const { id } = req.params;
+  svc.getProductById(id, (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+    res.json(rows[0]);
+  });
+};
+
+exports.updateProduct = (req, res) => {
+  const { id } = req.params;
+  const fields = req.body;
+  svc.updateProduct(id, fields, (err, result) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'Product not found' });
+    res.json({ message: 'Product updated successfully' });
+  });
+};
+
+exports.deactivateProduct = (req, res) => {
+  const { id } = req.params;
+  svc.deactivateProduct(id, (err, result) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    if (result.affectedRows === 0)
+      return res.status(404).json({ message: 'Product not found or already inactive' });
+    res.json({ message: 'Product deactivated successfully' });
+  });
+};
+
+exports.reactivateProduct = (req, res) => {
+  const { id } = req.params;
+  svc.reactivateProduct(id, (err, result) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    if (result.affectedRows === 0)
+      return res.status(404).json({ message: 'Product not found or already active' });
+    res.json({ message: 'Product reactivated successfully' });
+  });
+};
+
+exports.searchProducts = (req, res) => {
+  const { search } = req.query;
+  if (!search) return res.status(400).json({ error: 'Search query is required' });
+
+  svc.searchProducts(search, (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    res.json(rows);
+  });
+};
+
+exports.searchCategoriesByName = (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: 'Query parameter "name" is required' });
+
+  svc.searchCategoriesByName(name, (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    res.json(rows);
+  });
+};
+
+exports.createCategory = (req, res) => {
+  const { CategoryName } = req.body;
+  if (!CategoryName) return res.status(400).json({ error: 'CategoryName is required' });
+
+  svc.createCategory({ CategoryName }, (err, result) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ error: 'Category name already exists' });
+      }
+      return res.status(500).json({ error: 'DB error' });
+    }
+    res.status(201).json({ message: 'Category created', CategoryID: result.insertId });
+  });
+};
+
+exports.updateCategory = (req, res) => {
+  const { id } = req.params;
+  const { CategoryName } = req.body;
+  if (!CategoryName) return res.status(400).json({ error: 'CategoryName is required' });
+
+  svc.updateCategory(id, CategoryName, (err, result) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ error: 'Category name already exists' });
+      }
+      return res.status(500).json({ error: 'DB error' });
+    }
+    if (result.affectedRows === 0)
+      return res.status(404).json({ message: 'Category not found' });
+    res.json({ message: 'Category updated successfully' });
+  });
+};
+
+exports.deleteCategory = (req, res) => {
+    const { id } = req.params;
+
+    svc.deleteCategory(id, (err, result) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+        if (!result.found)
+            return res.status(404).json({ message: 'Category not found' });
+        if (result.inUse)
+            return res.status(400).json({
+                error: 'Category cannot be deleted',
+                message: 'Products are still assigned to this category.'
+            });
+        res.json({ message: 'Category deleted successfully' });
+    });
+};
