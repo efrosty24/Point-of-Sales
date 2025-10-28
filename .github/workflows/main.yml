@@ -28,25 +28,25 @@ jobs:
       # 4. Build and Install Dependencies for Backend (default service)
       - name: Setup Backend
         run: npm install
-        working-directory: /src/backend # Navigate to your backend directory
+        working-directory: ./src/backend # Navigate to your backend directory
 
       # 5. Build and Install Dependencies for Frontend (frontend service)
       - name: Setup Frontend
         run: npm install && npm run build # Installs and creates the 'build' folder
-        working-directory: /src/frontend
+        working-directory: ./src/frontend
 
       # 6. Deploy Backend Service (default)
       - name: Deploy Backend to App Engine
         uses: 'google-github-actions/deploy-appengine@v2'
         with:
-          working_directory: /src/backend
+          working_directory: ./src/backend
           # By default, this uses the app.yaml in this directory for the 'default' service
           
       # 7. Deploy Frontend Service (frontend)
       - name: Deploy Frontend to App Engine
         uses: 'google-github-actions/deploy-appengine@v2'
         with:
-          working_directory: /src/frontend
+          working_directory: ./src/frontend
           # This uses the app.yaml in the frontend directory to deploy the 'frontend' service
 
 
