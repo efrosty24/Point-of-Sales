@@ -522,8 +522,6 @@ Also logs each restock into the `RestockOrders` table for record keeping.
 ```
 
 ---
-
-
 ### GET `/admin/inventory/low-stock`
 Products where `Stock <= ReorderThreshold` (alert list).
 
@@ -542,6 +540,119 @@ Products where `Stock <= ReorderThreshold` (alert list).
 ]
 ```
 
+---
+### GET `/admin/inventory/products/:id`
+Returns detailed information for a single product.
+
+**Sample response**
+```json
+[
+  {
+    "ProductID": 1,
+    "Name": "Whole Milk",
+    "Brand": "DairyPure",
+    "Price": 4.99,
+    "Stock": 5,
+    "ReorderThreshold": 10,
+    "Description": "1 gallon whole milk",
+    "IsPricePerQty": 0,
+    "QuantityValue": 1,
+    "QuantityUnit": "gal",
+    "CategoryName": "Dairy",
+    "SupplierName": "Fresh Farms Co."
+  }
+]
+```
+
+---
+### PATCH `/admin/inventory/products/:id`
+Updates an existing product’s details.
+
+**Body**
+```json
+{
+  "Price": 5.25,
+  "Stock": 15
+}
+```
+
+**Response**
+```json
+{ "message": "Product updated successfully" }
+```
+
+---
+### GET `/admin/inventory/products?search=<name>`
+Searches for products by name or brand.
+
+**Sample response**
+```json
+[
+  {
+    "ProductID": 1,
+    "Name": "Whole Milk",
+    "Brand": "DairyPure",
+    "Price": 4.99,
+    "Stock": 5,
+    "CategoryName": "Dairy",
+    "SupplierName": "Fresh Farms Co."
+  }
+]
+```
+
+---
+### GET `/admin/inventory/categories/search?name=<text>`
+Searches for categories by name.
+
+**Sample response**
+```json
+[
+  { "CategoryID": 1, "CategoryName": "Beverages" },
+  { "CategoryID": 3, "CategoryName": "Non-Alcoholic Beverages" }
+]
+```
+
+---
+### POST `/admin/inventory/categories`
+Creates a new category.
+
+**Body**
+```json
+{ "CategoryName": "Produce" }
+```
+
+**Response**
+```json
+{ "message": "Category created", "CategoryID": 5 }
+```
+
+---
+### PATCH `/admin/inventory/categories/:id`
+Updates a category’s name.
+
+**Body**
+```json
+{ "CategoryName": "Dairy & Eggs" }
+```
+
+**Response**
+```json
+{ "message": "Category updated successfully" }
+```
+
+---
+### DELETE `/admin/inventory/categories/:id`
+Deletes a category, unless products reference it.
+
+**Response - Success**
+```json
+{ "message": "Category deleted successfully" }
+```
+**Response - Failure**
+```json
+{ "error": "Category cannot be deleted", "message": "Products are still assigned to this category." }
+{ "message": "Category not found" }
+```
 ---
 
 ### Quick demo (Suppliers)
