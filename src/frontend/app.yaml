@@ -2,16 +2,14 @@ runtime: nodejs20
 env: standard      
 service: frontend  
 instance_class: F1
-
 handlers:
 # 1. Match specific static asset paths (CSS, JS, images, etc.)
-
 - url: /(.*\.html|.*\.js|.*\.css|.*\.png|.*\.jpg|.*\.svg|.*\.ico|.*\.woff2|.*\.ttf)$
-  static_files: build/\1
-  upload: build/.*
+  static_files: dist/\1  # <-- FIXED: Now points to 'dist'
+  upload: dist/.*
 
 # 2. Catch-all for routing (pushes all other requests to index.html)
 - url: /.*
-  static_files: build/index.html
-  upload: build/index.html
+  static_files: dist/index.html  # <-- FIXED: Now points to 'dist/index.html' not 'build/index.html'
+  upload: dist/index.html
   expiration: 4m
