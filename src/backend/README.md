@@ -854,17 +854,35 @@ curl -s "http://localhost:3001/admin/sales/by-category?from=2025-10-01&to=2025-1
 
 ---
 
-## Sale Events API
+
+##  Sale Events API
+
+### GET `/admin/sale-events`
+List all sale events (past, active, and future).
+
+**Sample Response**
+```json
+[
+  {
+    "SaleEventID": 5,
+    "Name": "Fall Promo",
+    "Description": "Seasonal",
+    "StartDate": "2025-10-01T05:00:00.000Z",
+    "EndDate": "2025-10-31T05:00:00.000Z"
+  }
+]
+```
+
+---
 
 ### POST `/admin/sale-events`
-Create a new sale event.  
-Sale events represent promotional periods (e.g., *Holiday Sales*, *Fall Promo*) that can group multiple discounts.
+Create a new sale event.
 
 **Body**
 ```json
 {
   "Name": "Holiday Sale",
-  "Description": "Seasonal discount event",
+  "Description": "End-of-year discounts on selected items.",
   "StartDate": "2025-12-01",
   "EndDate": "2025-12-31"
 }
@@ -872,48 +890,67 @@ Sale events represent promotional periods (e.g., *Holiday Sales*, *Fall Promo*) 
 
 **Response**
 ```json
-{ "ok": true, "SaleEventID": 2 }
+{
+  "ok": true,
+  "SaleEventID": 6
+}
 ```
 
-**Behavior**
-- Validates that `StartDate <= EndDate`.
-- Returns `400 INVALID_DATES` if invalid.
+**Errors**
+```json
+{ "error": "MISSING_FIELDS", "message": "Name, StartDate, EndDate are required." }
+{ "error": "INVALID_DATES", "message": "StartDate must be <= EndDate." }
+{ "error": "DB_ERROR" }
+```
 
 ---
 
-### GET `/admin/sale-events`
-List all sale events in descending order by start date.
+### GET `/admin/sale-events/:saleEventId/discounts`
+List all discounts linked to a specific event.
 
-**Sample response**
+**Sample Response**
 ```json
 [
   {
-    "SaleEventID": 2,
-    "Name": "Holiday Sale",
-    "Description": "Seasonal discount event",
-    "StartDate": "2025-12-01",
-    "EndDate": "2025-12-31"
-  },
-  {
-    "SaleEventID": 1,
-    "Name": "Fall Promo",
-    "Description": "Seasonal discounts",
-    "StartDate": "2025-10-20",
-    "EndDate": "2025-11-10"
+    "DiscountID": 12,
+    "ProductID": 61,
+    "ProductName": "Bananas",
+    "DiscountType": "percentage",
+    "DiscountValue": "20.00",
+    "Conditions": null
   }
 ]
 ```
 
+**Errors**
+```json
+{ "error": "SALE_EVENT_REQUIRED" }
+{ "error": "SALE_EVENT_NOT_FOUND" }
+```
+
 ---
 
-### PATCH `/admin/sale-events/:saleEventId`
-Update the name, description, or date range of a sale event.
+### POST `/admin/sale-events/prune`
+Deletes expired sale events (and their discounts).
+
+**Response**
+```json
+{ "ok": true, "deleted": 5 }
+```
+
+---
+
+##  Discounts API
+
+### POST `/admin/sale-events/:saleEventId/discounts`
+Add a discount to a product under an existing sale event.
 
 **Body**
 ```json
 {
-  "Name": "Holiday Sale Extended",
-  "EndDate": "2026-01-05"
+  "ProductID": 61,
+  "DiscountType": "percentage",
+  "DiscountValue": 20
 }
 ```
 
@@ -921,105 +958,41 @@ Update the name, description, or date range of a sale event.
 ```json
 {
   "ok": true,
-  "updated": 1,
-  "event": {
-    "SaleEventID": 2,
-    "Name": "Holiday Sale Extended",
-    "Description": "Seasonal discount event",
-    "StartDate": "2025-12-01",
-    "EndDate": "2026-01-05"
-  }
+  "DiscountID": 12
 }
-```
-
----
-
-### DELETE `/admin/sale-events/:saleEventId`
-Delete a sale event and all related discounts (cascades via FK).
-
-**Response**
-```json
-{ "ok": true, "deleted": 1 }
-```
-
----
-
-### GET `/admin/sale-events/:saleEventId/discounts`
-List all discounts associated with a specific sale event.
-
-**Sample response**
-```json
-[
-  {
-    "DiscountID": 3,
-    "ProductID": 4,
-    "ProductName": "Whole Milk 1 gal",
-    "DiscountType": "percentage",
-    "DiscountValue": "10.00",
-    "Conditions": "Valid during Fall Promo"
-  }
-]
-```
-### GET `/admin/sales/recent?limit=N`
-Recent orders for the dashboard (same source as `/admin/orders/recent`), but returned with `Total` already as a number for charting/UI convenience.
-
-**Query params**
-- `limit` *(optional, default=5)*
-
-**Sample response**
-```json
-[
-  {
-    "OrderID": 8,
-    "FirstName": "Bob",
-    "LastName": "Jones",
-    "Total": 7.64,
-    "DatePlaced": "2025-10-18T19:41:23.000Z",
-    "Status": "paid"
-  }
-]
-```
-
-**Implementation detail**
-- `Total` is cast to `Number` in the controller to avoid string-decimal issues from MySQL.
-
----
-
-## Discounts API
-
-### POST `/admin/sale-events/:saleEventId/discounts`
-Create a new discount tied to a sale event and product.
-
-**Body**
-```json
-{
-  "ProductID": 4,
-  "DiscountType": "percentage",
-  "DiscountValue": 10.00,
-  "Conditions": "Valid for dairy products only"
-}
-```
-
-**Response**
-```json
-{ "ok": true, "DiscountID": 3 }
 ```
 
 **Behavior**
-- Requires existing `SaleEventID` and `ProductID`.
-- Returns `400 SALE_EVENT_NOT_FOUND` or `400 PRODUCT_NOT_FOUND` when invalid.
+- Validates that:
+  - The sale event exists and is active (CURDATE() between StartDate and EndDate).
+  - The product exists in the database.
+  - The product does **not** already have an active discount.
+- Supports DiscountType:
+  - "percentage" → value in %
+  - "fixed" → fixed amount off
+  - "bogo" → Buy One Get One type (1:1 default)
+
+**Errors**
+```json
+{ "error": "SALE_EVENT_REQUIRED" }
+{ "error": "SALE_EVENT_NOT_FOUND" }
+{ "error": "EVENT_NOT_ACTIVE", "message": "SaleEvent must be active today." }
+{ "error": "MISSING_FIELDS" }
+{ "error": "INVALID_TYPE" }
+{ "error": "PRODUCT_NOT_FOUND" }
+{ "error": "DUPLICATE_DISCOUNT", "message": "This product already has an active discount." }
+{ "error": "DB_ERROR" }
+```
 
 ---
 
 ### PATCH `/admin/discounts/:discountId`
-Update one or more fields of a discount.
+Update a discount’s fields partially.
 
 **Body**
 ```json
 {
-  "DiscountType": "fixed",
-  "DiscountValue": 2.50,
-  "Conditions": "Only on Wednesdays"
+  "DiscountValue": 25
 }
 ```
 
@@ -1029,75 +1002,37 @@ Update one or more fields of a discount.
   "ok": true,
   "updated": 1,
   "discount": {
-    "DiscountID": 3,
-    "SaleEventID": 1,
-    "ProductID": 4,
-    "DiscountType": "fixed",
-    "DiscountValue": "2.50",
-    "Conditions": "Only on Wednesdays"
+    "DiscountID": 12,
+    "SaleEventID": 5,
+    "ProductID": 61,
+    "DiscountType": "percentage",
+    "DiscountValue": "25.00",
+    "Conditions": null
   }
 }
+```
+
+**Errors**
+```json
+{ "error": "INVALID_ID" }
+{ "error": "EMPTY_PATCH" }
+{ "error": "NOT_FOUND" }
+{ "error": "INVALID_TYPE" }
+{ "error": "DB_ERROR" }
 ```
 
 ---
 
 ### DELETE `/admin/discounts/:discountId`
-Delete a discount by ID.
+Delete a discount by its ID.
 
 **Response**
 ```json
 { "ok": true, "deleted": 1 }
 ```
 
----
-
-## Quick demo (Terminal)
-
-```bash
-# Login (returns employee + route)
-curl -s -X POST http://localhost:3001/api/login   -H "Content-Type: application/json"   -d '{"employeeId":1,"password":"Admin123"}' | jq .
-
-# Check admin flag anytime later
-curl -s "http://localhost:3001/api/auth/role?employeeId=1" | jq .
-
-# Create sales event
-curl -s -X POST http://localhost:3001/admin/sale-events   -H "Content-Type: application/json"   -d '{"Name":"Holiday Sale","Description":"Seasonal event","StartDate":"2025-12-01","EndDate":"2025-12-31"}' | jq .
-
-# Create discount under event
-curl -s -X POST http://localhost:3001/admin/sale-events/1/discounts   -H "Content-Type: application/json"   -d '{"ProductID":4,"DiscountType":"percentage","DiscountValue":10,"Conditions":"Valid during Fall Promo"}' | jq .
-
-# List events and discounts
-curl -s http://localhost:3001/admin/sale-events | jq .
-curl -s http://localhost:3001/admin/sale-events/1/discounts | jq .
-
-# Update discount
-curl -s -X PATCH http://localhost:3001/admin/discounts/3   -H "Content-Type: application/json"   -d '{"DiscountType":"fixed","DiscountValue":2.50}' | jq .
-
-# Delete discount
-curl -s -X DELETE http://localhost:3001/admin/discounts/3 | jq .
-
-# Recent sales for dashboard (numeric totals)
-curl -s "http://localhost:3001/admin/sales/recent?limit=5" | jq .
-
-# Recent orders (base feed)
-curl -s "http://localhost:3001/admin/orders/recent?limit=5" | jq .
-
-# Orders by date range
-curl -s "http://localhost:3001/admin/orders?from=2025-10-01&to=2025-10-24" | jq .
-
-# One order detail (pick an ID from recent)
-OID=$(curl -s "http://localhost:3001/admin/orders/recent?limit=1" | jq -r '.[0].OrderID')
-curl -s "http://localhost:3001/admin/orders/$OID" | jq .
-```
-
----
-
-## Notes
-- Discounts require a valid `SaleEventID` and `ProductID`.  
-- Foreign keys:
-  - `Discounts.SaleEventID` → `SaleEvents.SaleEventID` (CASCADE)
-  - `Discounts.ProductID` → `Products.ProductID` (RESTRICT)
-- When a Sale Event is deleted, all its discounts are automatically removed.  
-- `DiscountType` supports: `"percentage"`, `"fixed"`, `"bogo"`.  
-- Dates are stored as `DATE` type and validated for consistency.  
-- All DB logic lives in `/services/` for cleaner separation of concerns.
+**Errors**
+```json
+{ "error": "INVALID_ID" }
+{ "error": "NOT_FOUND" }
+{ "error": "DB_ERROR" }
