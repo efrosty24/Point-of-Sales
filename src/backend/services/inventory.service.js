@@ -238,3 +238,125 @@ exports.listCategories = (cb) => {
         (err, rows) => cb(err, rows)
     );
 };
+
+/**
+ * GET /admin/inventory/products/:id
+ * Returns details of a single product by ID.
+ */
+exports.getProductById = (id, callback) => {
+  const sql = `
+    SELECT 
+      p.ProductID, p.Name, p.Brand, p.Price, p.Stock, p.ReorderThreshold,
+      p.Description, p.IsPricePerQty, p.QuantityValue, p.QuantityUnit,
+      c.CategoryName, s.Name AS SupplierName
+    FROM Products p
+    JOIN Categories c ON p.CategoryID = c.CategoryID
+    JOIN Suppliers s ON p.SupplierID = s.SupplierID
+    WHERE p.ProductID = ?;
+  `;
+  db.query(sql, [id], callback);
+};
+
+/**
+ * PATCH /admin/inventory/products/:id
+ * Updates existing product details.
+ */
+exports.updateProduct = (id, fields, callback) => {
+  const sql = "UPDATE Products SET ? WHERE ProductID = ?";
+  db.query(sql, [fields, id], callback);
+};
+
+/**
+ * DELETE /admin/inventory/products/:id
+ * Marks a product as inactive (deactivated) instead of deleting it.
+ */
+exports.deactivateProduct = (id, callback) => {
+  const sql = `
+    UPDATE Products
+    SET IsActive = 0
+    WHERE ProductID = ? AND IsActive = 1;
+  `;
+  db.query(sql, [id], callback);
+};
+
+/**
+ * PATCH /admin/inventory/products/:id/reactivate
+ * Reactivates a previously inactive product.
+ */
+exports.reactivateProduct = (id, callback) => {
+  const sql = `
+    UPDATE Products
+    SET IsActive = 1
+    WHERE ProductID = ? AND IsActive = 0;
+  `;
+  db.query(sql, [id], callback);
+};
+
+/**
+ * GET /admin/inventory/products?search=<name>
+ * Searches for products by name or brand.
+ */
+exports.searchProducts = (search, callback) => {
+  const sql = `
+    SELECT 
+      p.ProductID, p.Name, p.Brand, p.Price, p.Stock,
+      c.CategoryName, s.Name AS SupplierName
+    FROM Products p
+    JOIN Categories c ON p.CategoryID = c.CategoryID
+    JOIN Suppliers s ON p.SupplierID = s.SupplierID
+    WHERE (p.Name LIKE ? OR p.Brand LIKE ?)
+  `;
+  const like = `%${search}%`;
+  db.query(sql, [like, like], callback);
+};
+
+/**
+ * GET /admin/inventory/categories/search?name=<text>
+ * Searches categories by name (partial match).
+ */
+exports.searchCategoriesByName = (name, callback) => {
+  const sql = `
+    SELECT CategoryID, CategoryName
+    FROM Categories
+    WHERE CategoryName LIKE ?
+    ORDER BY CategoryName ASC;
+  `;
+  db.query(sql, [`%${name}%`], callback);
+};
+
+/**
+ * POST /admin/inventory/categories
+ * Creates a new category.
+ */
+exports.createCategory = (data, callback) => {
+  const sql = `INSERT INTO Categories (CategoryName) VALUES (?);`;
+  db.query(sql, [data.CategoryName], callback);
+};
+
+/**
+ * PATCH /admin/inventory/categories/:id
+ * Updates a category's name.
+ */
+exports.updateCategory = (id, newName, callback) => {
+  const sql = `UPDATE Categories SET CategoryName = ? WHERE CategoryID = ?;`;
+  db.query(sql, [newName, id], callback);
+};
+
+/**
+ * DELETE category
+ * Blocks delete if Products reference this CategoryID.
+ */
+exports.deleteCategory = (id, cb) => {
+    const qCheck = `SELECT COUNT(*) AS cnt FROM Products WHERE CategoryID = ?`;
+    db.query(qCheck, [id], (err, rows) => {
+        if (err) return cb(err);
+        const cnt = rows[0]?.cnt || 0;
+        if (cnt > 0) return cb(null, { inUse: true, found: true, deleted: 0 });
+        db.query(`DELETE FROM Categories WHERE CategoryID = ?`, [id], (e2, result) => {
+            if (e2) return cb(e2);
+            if (result.affectedRows === 0)
+                return cb(null, { found: false, deleted: 0 });
+            cb(null, { found: true, deleted: result.affectedRows });
+        });
+    });
+};

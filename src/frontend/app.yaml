@@ -1,0 +1,17 @@
+runtime: nodejs20 
+env: standard      
+service: frontend  
+instance_class: F1
+
+handlers:
+# 1. Match specific static asset paths (CSS, JS, images, etc.)
+
+- url: /(.*\.html|.*\.js|.*\.css|.*\.png|.*\.jpg|.*\.svg|.*\.ico|.*\.woff2|.*\.ttf)$
+  static_files: build/\1
+  upload: build/.*
+
+# 2. Catch-all for routing (pushes all other requests to index.html)
+- url: /.*
+  static_files: build/index.html
+  upload: build/index.html
+  expiration: 4m
