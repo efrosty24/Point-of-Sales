@@ -1,0 +1,29 @@
+runtime: nodejs20 # Use the latest supported Node.js runtime
+env: standard      # Use the standard environment (scales to zero for cost savings)
+service: default   # The first service is automatically named 'default'
+
+# Instance Class: Use the lowest class possible for development/low-traffic to minimize cost.
+# F1 is the lowest tier and eligible for the Free Tier usage.
+instance_class: F1 
+
+# Entrypoint: This tells App Engine exactly how to start your Express server.
+# Ensure your package.json has a "start" script: "node server.js" or whatever your entry file is.
+entrypoint: npm start 
+
+# =========================================================================
+# Environment Variables for Secure Database Connection
+# =========================================================================
+# These variables are read by your Node.js code (process.env.VARIABLE_NAME)
+env_variables:
+  # 1. Database Credentials (Used by the mysql2 driver in your code)
+  DB_USER: "root"               # The username you created for application access
+  DB_PASS: "POSsystem25!" # Replace with your actual secure password
+  DB_NAME: "POSDB"                # The database name
+  
+  # 2. Cloud SQL Connection Name (CRITICAL for the Cloud SQL Proxy)
+  # Format: PROJECT_ID:REGION:INSTANCE_NAME
+  # Example: pos-project-1234:us-central1:pos-sql-instance
+  CLOUD_SQL_CONNECTION_NAME: "point-of-sales-476509:us-central1:possystem"
+  
+  # Optional: Set Node environment
+  NODE_ENV: "production"
