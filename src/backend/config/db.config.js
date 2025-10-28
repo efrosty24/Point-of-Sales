@@ -3,9 +3,9 @@ const mysql = require('mysql2');
 
 
 const db = mysql.createConnection({
-    host: process.env.DB_HOST,
+    host: process.env.CLOUD_SQL_CONNECTION_NAME,
     user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD, // use whatever you personal password is to mySQL on your machine
+    password: process.env.DB_PASS, // use whatever you personal password is to mySQL on your machine
     database: process.env.DB_NAME
 })
 
