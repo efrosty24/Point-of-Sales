@@ -1,0 +1,53 @@
+name: Deploy to Google App Engine
+
+on:
+  push:
+    branches:
+      - main # Trigger deployment on pushes to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout Code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Authenticate to GCP using the Service Account Key
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          
+      # 3. Setup Node.js Environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Match your App Engine runtime
+
+      # 4. Build and Install Dependencies for Backend (default service)
+      - name: Setup Backend
+        run: npm install
+        working-directory: ./backend_folder # Navigate to your backend directory
+
+      # 5. Build and Install Dependencies for Frontend (frontend service)
+      - name: Setup Frontend
+        run: npm install && npm run build # Installs and creates the 'build' folder
+        working-directory: ./frontend_folder
+
+      # 6. Deploy Backend Service (default)
+      - name: Deploy Backend to App Engine
+        uses: 'google-github-actions/deploy-appengine@v2'
+        with:
+          working_directory: ./backend_folder
+          # By default, this uses the app.yaml in this directory for the 'default' service
+          
+      # 7. Deploy Frontend Service (frontend)
+      - name: Deploy Frontend to App Engine
+        uses: 'google-github-actions/deploy-appengine@v2'
+        with:
+          working_directory: ./frontend_folder
+          # This uses the app.yaml in the frontend directory to deploy the 'frontend' service
+
+
+          
