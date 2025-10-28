@@ -1,0 +1,29 @@
+/* Employees page styles - reuse patterns from Inventory/Discount pages */
+.page-wrap { padding: 20px; }
+.page-card { background: #ffffff; border-radius: 8px; box-shadow: 0 6px 18px rgba(20,28,51,0.06); padding: 20px; max-width: 1100px; margin: 0 auto; }
+.page-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.page-title { font-size:20px; margin:0; color:#111827; }
+.page-actions { display:flex; gap:8px; }
+.btn { padding:8px 14px; border-radius:6px; border:1px solid transparent; background:#f3f4f6; color:#111827; cursor:pointer; font-size:14px; }
+.btn.primary { background:var(--primary-color); color:#fff; }
+.loading { padding:12px 0; color:#6b7280; }
+.message { margin-bottom:12px; color:#0f172a; }
+.no-backend p { margin:0 0 12px 0; color:#374151; }
+.table-wrap { overflow-x:auto; }
+.data-table { width:100%; border-collapse:collapse; min-width:700px; }
+.data-table thead th { text-align:left; padding:12px; font-weight:600; font-size:13px; color:#6b7280; border-bottom:1px solid #eef2f6; background:#fafafa; }
+.data-table td { padding:12px; border-bottom:1px solid #f1f5f9; font-size:14px; color:#111827; }
+.align-center { text-align:center; }
+.no-data { text-align:center; padding:26px; color:#6b7280; }
+.overlay { position:fixed; left:0; top:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; background:rgba(2,6,23,0.4); z-index:50; }
+.modal { background:#fff; padding:18px; border-radius:8px; width:640px; max-width:95%; box-shadow:0 6px 24px rgba(2,6,23,0.2); }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.form-grid .input, .form-grid .select { width:100%; padding:10px 12px; border:1px solid #e6e9ef; border-radius:6px; }
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; }
+.input { padding:10px 12px; border:1px solid #e6e9ef; border-radius:6px; }
+.select { padding:10px 12px; border:1px solid #e6e9ef; border-radius:6px; }
+
+@media (max-width:720px) {
+  .form-grid { grid-template-columns:1fr; }
+  .page-card { padding:12px; }
+}
