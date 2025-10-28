@@ -39,7 +39,7 @@ jobs:
       - name: Deploy Backend to App Engine
         uses: 'google-github-actions/deploy-appengine@v2'
         with:
-          working_directory: /arc/backend
+          working_directory: /src/backend
           # By default, this uses the app.yaml in this directory for the 'default' service
           
       # 7. Deploy Frontend Service (frontend)

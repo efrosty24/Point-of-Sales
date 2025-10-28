@@ -23,7 +23,7 @@ router.post('/suppliers', ctrl.createSupplier);
 router.patch('/suppliers/:id', ctrl.updateSupplier);
 router.delete('/suppliers/:id', ctrl.deleteSupplier);
 
-// Categories CRUD
+// Categories CRUdD
 router.get('/categories', ctrl.listCategories);
 router.get('/categories/search', ctrl.searchCategoriesByName);
 router.post('/categories', ctrl.createCategory);
