@@ -12,7 +12,7 @@ const CLOUD_SQL_CONNECTION_NAME = process.env.CLOUD_SQL_CONNECTION_NAME;
 
 const isAppEngine = !!CLOUD_SQL_CONNECTION_NAME;
 
-const connectionOptions = {
+let connectionOptions = {
     user: DB_USER,
     password: DB_PASS,
     database: DB_NAME,
@@ -35,6 +35,8 @@ if (isAppEngine) {
     // Assumes your local host/DB host is defined in .env
     connectionOptions.host = process.env.DB_HOST || '127.0.0.1'; 
     connectionOptions.port = process.env.DB_PORT || 3306;
+    connectionOptions.user = process.env.DB_USER;
+    connectionOptions.password = process.env.DB_PASSWORD;
 }
 
 const pool = mysql.createPool(connectionOptions);
