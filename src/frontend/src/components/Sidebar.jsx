@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import "./Sidebar.css";
 
 function Sidebar() {
@@ -43,7 +44,7 @@ function Sidebar() {
 
             <ul className="sidebar-menu">
                 <li>
-                    <a href="/Dashboard" className="sidebar-link">
+                    <Link to="/dashboard" className="sidebar-link">
                         <svg
                             width="24"
                             height="24"
@@ -60,11 +61,11 @@ function Sidebar() {
                             />
                         </svg>
                         {!collapsed && <span>Dashboard</span>}
-                    </a>
+                    </Link>
                 </li>
 
                 <li>
-                    <a href="/SalesReport" className="sidebar-link">
+                    <Link to="/salesreport" className="sidebar-link">
                         <svg
                             width="20"
                             height="20"
@@ -88,11 +89,11 @@ function Sidebar() {
                             />
                         </svg>
                         {!collapsed && <span>Sales Report</span>}
-                    </a>
+                    </Link>
                 </li>
 
                 <li>
-                    <a href="/Cashier" className="sidebar-link">
+                    <Link to="/cashier" className="sidebar-link">
                         <svg
                             width="20"
                             height="20"
@@ -110,7 +111,38 @@ function Sidebar() {
                             </g>
                         </svg>
                         {!collapsed && <span>Cashier</span>}
-                    </a>
+                    </Link>
+                </li>
+
+                {/* Admin pages added: Inventory, Employees, Discounts */}
+                <li>
+                    <Link to="/inventory" className="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="7" width="18" height="10" rx="2" stroke="currentColor" strokeWidth="1.2" fill="currentColor" />
+                            <path d="M3 7l9-4 9 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                        </svg>
+                        {!collapsed && <span>Inventory</span>}
+                    </Link>
+                </li>
+
+                <li>
+                    <Link to="/employees" className="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                            <path d="M3 21a9 9 0 0118 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                        </svg>
+                        {!collapsed && <span>Employees</span>}
+                    </Link>
+                </li>
+
+                <li>
+                    <Link to="/discounts" className="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20.59 13.41L13 21H3V11l7.59-7.59a2 2 0 012.82 0L20.59 9.39a2 2 0 010 2.02z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                            <circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" />
+                        </svg>
+                        {!collapsed && <span>Discounts</span>}
+                    </Link>
                 </li>
 
                 <li className={`dropdown ${openDropdown ? "open" : ""}`}>
@@ -145,7 +177,7 @@ function Sidebar() {
 
                     <ul className="dropdown-menu">
                         <li>
-                            <a href="/CustomerList" className="sidebar-sublink">Users</a>
+                            <Link to="/CustomerList" className="sidebar-sublink">Users</Link>
                         </li>
                     </ul>
                 </li>
