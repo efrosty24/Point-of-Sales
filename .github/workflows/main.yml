@@ -33,6 +33,8 @@ jobs:
       # 5. Build and Install Dependencies for Frontend (frontend service)
       - name: Setup Frontend
         run: npm install && npm run build # Installs and creates the 'build' folder
+        env:
+          VITE_APP_API_URL: ${{ secrets.VITE_APP_API_URL }}
         working-directory: ./src/frontend
 
       # 6. Deploy Backend Service (default)
