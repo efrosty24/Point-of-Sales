@@ -53,8 +53,9 @@ steps:
       - 'app'
       - 'services'
       - 'set-traffic'
-      - 'default=1'
-      - 'frontend=1'
+      - 'default'
+      - 'frontend'
+      - '--splits=default=1,frontend=1'
       - '--quiet'
 
 # Define default substitution variables for use in Cloud Build Triggers
