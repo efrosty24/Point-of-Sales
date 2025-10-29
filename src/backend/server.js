@@ -16,7 +16,30 @@ const cashierRoutes = require('./routes/cashier.routes');
 const app = express();
 const port = 3001;
 
-app.use(cors());
+const allowedOrigins = [
+    // URLS for both CLOUD and Local Deployment
+    'https://frontend-dot-point-of-sales-476509.uc.r.appspot.com/',
+    'http://localhost:3000',
+    'http://localhost:5173'
+];
+
+const corsOptions =  {
+    origin: function (origin, callback) {
+        // allow requests with no origins
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = "NOT allowed origin from CORS Policy";
+            return callback(new Error(msg), true);
+        }
+        return callback(null, true);
+    },
+    // Allowed Headers
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true // for sending cookies/auth headers
+};
+
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use('/api', apiAuthRoutes);
 app.use('/admin/inventory', adminInventoryRoutes);
@@ -27,6 +50,7 @@ app.use('/admin/employees', adminEmployeesRoutes);
 app.use('/admin/customers', adminCustomerRoutes);
 app.use('/admin/orders', adminOrdersRoutes);
 app.use('/cashier', cashierRoutes);
+
 
 
 // Ensure guest customer exists, create if not
