@@ -64,3 +64,6 @@ steps:
 # Define default substitution variables for use in Cloud Build Triggers
 substitutions:
   _VITE_APP_API_URL: 'https://point-of-sales-476509.uc.r.appspot.com'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
