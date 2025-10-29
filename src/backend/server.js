@@ -14,7 +14,7 @@ const adminOrdersRoutes = require('./routes/admin.orders.routes');
 const cashierRoutes = require('./routes/cashier.routes');
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || process.env.APP_PORT || 8080;
 
 const allowedOrigins = [
     // URLS for both CLOUD and Local Deployment
@@ -55,28 +55,26 @@ app.use('/cashier', cashierRoutes);
 
 // Ensure guest customer exists, create if not
 async function ensureGuestCustomer() {
-  const GUEST_ID = parseInt(process.env.GUEST_CUSTOMER_ID || '1000', 10);
+    const GUEST_ID = parseInt(process.env.GUEST_CUSTOMER_ID || '1000', 10);
 
-  const selectSql = 'SELECT CustomerID FROM Customers WHERE CustomerID = ?';
-  const insertSql = `
-    INSERT INTO Customers (CustomerID, FirstName, LastName, Email, Phone)
-    VALUES (?, 'Guest', '', NULL, '1234567890')
-  `;
-  /*
-  const [rows] = await db.query(selectSql, [GUEST_ID]);
-  if (rows.length === 0) {
-      await db.query(insertSql, [GUEST_ID]);
-  }
-*/
+    const selectSql = 'SELECT CustomerID FROM Customers WHERE CustomerID = ?';
+    const insertSql = `
+        INSERT INTO Customers (CustomerID, FirstName, LastName, Email, Phone)
+        VALUES (?, 'Guest', '', NULL, '1234567890')
+    `;
 
-  await new Promise((resolve, reject) => {
-    db.query(selectSql, [GUEST_ID], (e, rows) => {
-      if (e) return reject(e);
-      if (rows && rows.length > 0) return resolve();
-      db.query(insertSql, [GUEST_ID], (e2) => (e2 ? reject(e2) : resolve()));
+    // This structure is now CORRECT for your callback-based 'db' export:
+    await new Promise((resolve, reject) => {
+        // 1. First db.query uses the callback function (e, rows) => { ... }
+        db.query(selectSql, [GUEST_ID], (e, rows) => {
+            if (e) return reject(e);
+            if (rows && rows.length > 0) return resolve();
+
+            // 2. Second db.query also uses the callback function
+            db.query(insertSql, [GUEST_ID], (e2) => (e2 ? reject(e2) : resolve()));
+        });
     });
-  });
-  console.log(`[init] Guest customer ensured with ID=${GUEST_ID}`);
+    console.log(`[init] Guest customer ensured with ID=${GUEST_ID}`);
 }
 
 ensureGuestCustomer()
