@@ -281,6 +281,9 @@
 
 .input-group label {
     position: absolute;
+    top: 50%;
+    left: 14px;
+    transform: translateY(-50%);
     font-size: 0.95rem;
     color: #777;
     background: white;
@@ -289,6 +292,7 @@
     transition: 0.25s ease;
     pointer-events: none;
 }
+
 
 .input-group input.focused {
     border-color: #43a047;
