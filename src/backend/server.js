@@ -18,7 +18,7 @@ const port = 3001;
 
 const allowedOrigins = [
     // URLS for both CLOUD and Local Deployment
-    'https://frontend-dot-point-of-sales-476509.uc.r.appspot.com/',
+    'https://frontend-dot-point-of-sales-476509.uc.r.appspot.com',
     'http://localhost:3000',
     'http://localhost:5173'
 ];
