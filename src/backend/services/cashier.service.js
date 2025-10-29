@@ -65,235 +65,243 @@ exports.quoteOrder = ({ items, taxRate = 0 }, cb) => {
 };
 
 exports.addToRegister = ({ customerId, guestId, employeeId, items, taxRate = 0 }, cb) => {
-    if (!Array.isArray(items) || items.length === 0) return cb(new Error('EMPTY_CART'));
+  if (!Array.isArray(items) || items.length === 0) return cb(new Error('EMPTY_CART'));
 
-    const cust = normId(customerId);
-    const guest = cust == null ? normId(guestId) : null;
+  const cust = normId(customerId);
+  const guest = cust == null ? normId(guestId) : null;
 
-    db.beginTransaction((err) => {
-        if (err) return cb(err);
-        try {
-            const cleanItems = items.map(it => ({
-                ProductID: Number(it.ProductID),
-                Qty: Math.max(0, Number(it.Qty) || 0),
-            })).filter(it => Number.isFinite(it.ProductID) && Number.isFinite(it.Qty));
+  db.getConnection((err, conn) => {
+    if (err) return cb(err);
+    conn.beginTransaction((errTx) => {
+      if (errTx) { conn.release(); return cb(errTx); }
 
-            if (!cleanItems.length) {
-                return db.rollback(() => cb(new Error('BAD_ITEMS')));
-            }
-            if (cust == null && guest == null) {
-                return db.rollback(() => cb(new Error('BAD_CUSTOMER_OR_GUEST')));
-            }
+      try {
+        const cleanItems = items.map(it => ({
+          ProductID: Number(it.ProductID),
+          Qty: Math.max(0, Number(it.Qty) || 0),
+        })).filter(it => Number.isFinite(it.ProductID) && Number.isFinite(it.Qty));
 
-            const reqIds = Array.from(new Set(cleanItems.map(i => i.ProductID)));
-            const placeholders = reqIds.map(() => '?').join(',');
+        if (!cleanItems.length) {
+          return conn.rollback(() => { conn.release(); cb(new Error('BAD_ITEMS')); });
+        }
+        if (cust == null && guest == null) {
+          return conn.rollback(() => { conn.release(); cb(new Error('BAD_CUSTOMER_OR_GUEST')); });
+        }
 
-            db.query(
-                `SELECT p.ProductID, p.Price AS OriginalPrice, p.Name, p.Stock,
-                        d.DiscountType, d.DiscountValue
-                 FROM Products p
-                          LEFT JOIN Discounts d ON p.ProductID = d.ProductID
-                 WHERE p.ProductID IN (${placeholders})
-                     FOR UPDATE`,
-                reqIds,
-                (e1, rows) => {
-                    if (e1) return db.rollback(() => cb(e1));
+        const reqIds = Array.from(new Set(cleanItems.map(i => i.ProductID)));
+        const placeholders = reqIds.map(() => '?').join(',');
 
-                    const productMap = new Map(rows.map(r => [Number(r.ProductID), {
-                        Price: Number(r.OriginalPrice),
-                        Name: r.Name,
-                        Stock: Number(r.Stock),
-                        DiscountType: r.DiscountType || null,
-                        DiscountValue: Number(r.DiscountValue || 0),
-                    }]));
+        conn.query(
+          `SELECT p.ProductID, p.Price AS OriginalPrice, p.Name, p.Stock,
+                  d.DiscountType, d.DiscountValue
+           FROM Products p
+           LEFT JOIN Discounts d ON p.ProductID = d.ProductID
+           WHERE p.ProductID IN (${placeholders})
+           FOR UPDATE`,
+          reqIds,
+          (e1, rows) => {
+            if (e1) return conn.rollback(() => { conn.release(); cb(e1); });
 
-                    const findSql = `
-            SELECT RegisterListID
-            FROM RegisterList
-            WHERE ${cust != null ? 'CustomerID = ?' : 'CustomerID IS NULL AND GuestID = ?'}
-            ORDER BY DateCreated DESC
-            LIMIT 1
-            FOR UPDATE
-          `;
+            const productMap = new Map(rows.map(r => [Number(r.ProductID), {
+              Price: Number(r.OriginalPrice),
+              Name: r.Name,
+              Stock: Number(r.Stock),
+              DiscountType: r.DiscountType || null,
+              DiscountValue: Number(r.DiscountValue || 0),
+            }]));
 
-                    db.query(findSql, [cust != null ? cust : guest], (eFind, found) => {
-                        if (eFind) return db.rollback(() => cb(eFind));
-                        const existingId = found?.[0]?.RegisterListID || null;
+            const findSql = `
+              SELECT RegisterListID
+              FROM RegisterList
+              WHERE ${cust != null ? 'CustomerID = ?' : 'CustomerID IS NULL AND GuestID = ?'}
+              ORDER BY DateCreated DESC
+              LIMIT 1
+              FOR UPDATE
+            `;
 
-                        const continueWithList = (registerListId) => {
-                            db.query(
-                                `SELECT ProductID, Quantity
-                 FROM RegisterItems
-                 WHERE RegisterListID = ?
-                 FOR UPDATE`,
-                                [registerListId],
-                                (eLockItems, existingRows) => {
-                                    if (eLockItems) return db.rollback(() => cb(eLockItems));
+            conn.query(findSql, [cust != null ? cust : guest], (eFind, found) => {
+              if (eFind) return conn.rollback(() => { conn.release(); cb(eFind); });
+              const existingId = found?.[0]?.RegisterListID || null;
 
-                                    const prevMap = new Map((existingRows || []).map(r => [Number(r.ProductID), Number(r.Quantity)]));
-                                    const nextMap = new Map(cleanItems.map(it => [it.ProductID, it.Qty]));
+              const continueWithList = (registerListId) => {
+                conn.query(
+                  `SELECT ProductID, Quantity
+                   FROM RegisterItems
+                   WHERE RegisterListID = ?
+                   FOR UPDATE`,
+                  [registerListId],
+                  (eLockItems, existingRows) => {
+                    if (eLockItems) return conn.rollback(() => { conn.release(); cb(eLockItems); });
 
-                                    const allIds = Array.from(new Set([...prevMap.keys(), ...nextMap.keys()]));
-                                    let idx = 0;
+                    const prevMap = new Map((existingRows || []).map(r => [Number(r.ProductID), Number(r.Quantity)]));
+                    const nextMap = new Map(cleanItems.map(it => [it.ProductID, it.Qty]));
 
-                                    const applyStockDelta = (pid, delta, done) => {
-                                        if (delta === 0) return done();
-                                        if (delta > 0) {
-                                            db.query(
-                                                `UPDATE Products SET Stock = Stock - ? WHERE ProductID = ? AND Stock >= ?`,
-                                                [delta, pid, delta],
-                                                (eU, rU) => {
-                                                    if (eU) return done(eU);
-                                                    if (rU.affectedRows === 0) return done(new Error(`INSUFFICIENT_STOCK:${pid}`));
-                                                    done();
-                                                }
-                                            );
-                                        } else {
-                                            db.query(
-                                                `UPDATE Products SET Stock = Stock + ? WHERE ProductID = ?`,
-                                                [Math.abs(delta), pid],
-                                                (eU) => done(eU || null)
-                                            );
-                                        }
-                                    };
+                    const allIds = Array.from(new Set([...prevMap.keys(), ...nextMap.keys()]));
+                    let idx = 0;
 
-                                    const stepStock = () => {
-                                        if (idx >= allIds.length) return priceAndUpsert();
-                                        const pid = allIds[idx++];
-                                        const prevQ = prevMap.get(pid) || 0;
-                                        const nextQ = nextMap.get(pid) || 0;
-                                        const delta = nextQ - prevQ;
-                                        applyStockDelta(pid, delta, (eDelta) => {
-                                            if (eDelta) return db.rollback(() => cb(eDelta));
-                                            stepStock();
-                                        });
-                                    };
+                    const applyStockDelta = (pid, delta, done) => {
+                      if (delta === 0) return done();
+                      if (delta > 0) {
+                        conn.query(
+                          `UPDATE Products SET Stock = Stock - ? WHERE ProductID = ? AND Stock >= ?`,
+                          [delta, pid, delta],
+                          (eU, rU) => {
+                            if (eU) return done(eU);
+                            if (rU.affectedRows === 0) return done(new Error(`INSUFFICIENT_STOCK:${pid}`));
+                            done();
+                          }
+                        );
+                      } else {
+                        conn.query(
+                          `UPDATE Products SET Stock = Stock + ? WHERE ProductID = ?`,
+                          [Math.abs(delta), pid],
+                          (eU) => done(eU || null)
+                        );
+                      }
+                    };
 
-                                    const priceAndUpsert = () => {
-                                        let subtotal = 0;
-                                        const lines = [];
+                    const stepStock = () => {
+                      if (idx >= allIds.length) return priceAndUpsert();
+                      const pid = allIds[idx++];
+                      const prevQ = prevMap.get(pid) || 0;
+                      const nextQ = nextMap.get(pid) || 0;
+                      const delta = nextQ - prevQ;
+                      applyStockDelta(pid, delta, (eDelta) => {
+                        if (eDelta) return conn.rollback(() => { conn.release(); cb(eDelta); });
+                        stepStock();
+                      });
+                    };
 
-                                        try {
-                                            for (const [pid, qty] of nextMap.entries()) {
-                                                if (qty <= 0) continue;
-                                                const prod = productMap.get(pid);
-                                                if (!prod) throw new Error(`PRODUCT_NOT_FOUND:${pid}`);
+                    const priceAndUpsert = () => {
+                      let subtotal = 0;
+                      const lines = [];
 
-                                                const dtype = String(prod.DiscountType || '').toLowerCase();
-                                                let unit = prod.Price;
-                                                let lineTotal;
+                      try {
+                        for (const [pid, qty] of nextMap.entries()) {
+                          if (qty <= 0) continue;
+                          const prod = productMap.get(pid);
+                          if (!prod) throw new Error(`PRODUCT_NOT_FOUND:${pid}`);
 
-                                                if (dtype === 'percentage') {
-                                                    unit = Math.max(0, Math.round(unit * (1 - prod.DiscountValue / 100) * 100) / 100);
-                                                    lineTotal = Math.round(unit * qty * 100) / 100;
-                                                } else if (dtype === 'fixed') {
-                                                    unit = Math.max(0, Math.round((unit - prod.DiscountValue) * 100) / 100);
-                                                    lineTotal = Math.round(unit * qty * 100) / 100;
-                                                } else if (dtype === 'bogo') {
-                                                    const X = 1, Y = 1;
-                                                    const cycle = X + Y;
-                                                    const cycles = Math.floor(qty / cycle);
-                                                    const remainder = qty - cycles * cycle;
-                                                    const chargeable = cycles * X + Math.min(remainder, X);
-                                                    lineTotal = Math.round(chargeable * unit * 100) / 100;
-                                                } else {
-                                                    lineTotal = Math.round(unit * qty * 100) / 100;
-                                                }
+                          const dtype = String(prod.DiscountType || '').toLowerCase();
+                          let unit = prod.Price;
+                          let lineTotal;
 
-                                                subtotal += lineTotal;
+                          if (dtype === 'percentage') {
+                            unit = Math.max(0, Math.round(unit * (1 - prod.DiscountValue / 100) * 100) / 100);
+                            lineTotal = Math.round(unit * qty * 100) / 100;
+                          } else if (dtype === 'fixed') {
+                            unit = Math.max(0, Math.round((unit - prod.DiscountValue) * 100) / 100);
+                            lineTotal = Math.round(unit * qty * 100) / 100;
+                          } else if (dtype === 'bogo') {
+                            const X = 1, Y = 1;
+                            const cycle = X + Y;
+                            const cycles = Math.floor(qty / cycle);
+                            const remainder = qty - cycles * cycle;
+                            const chargeable = cycles * X + Math.min(remainder, X);
+                            lineTotal = Math.round(chargeable * unit * 100) / 100;
+                          } else {
+                            lineTotal = Math.round(unit * qty * 100) / 100;
+                          }
 
-                                                lines.push({
-                                                    ProductID: pid,
-                                                    Name: prod.Name,
-                                                    Qty: qty,
-                                                    OriginalPrice: prod.Price,
-                                                    Price: unit,
-                                                    LineTotal: lineTotal,
-                                                    DiscountType: prod.DiscountType,
-                                                    DiscountValue: prod.DiscountValue,
-                                                });
-                                            }
+                          subtotal += lineTotal;
 
-                                            subtotal = Math.round(subtotal * 100) / 100;
-                                            const tax = Math.round(subtotal * Number(taxRate) * 100) / 100;
-                                            const total = Math.round((subtotal + tax) * 100) / 100;
+                          lines.push({
+                            ProductID: pid,
+                            Name: prod.Name,
+                            Qty: qty,
+                            OriginalPrice: prod.Price,
+                            Price: unit,
+                            LineTotal: lineTotal,
+                            DiscountType: prod.DiscountType,
+                            DiscountValue: prod.DiscountValue,
+                          });
+                        }
 
-                                            const upsertAll = () => {
-                                                const removed = Array.from(prevMap.keys()).filter(pid => !nextMap.has(pid));
-                                                const deleteRemoved = (doneDel) => {
-                                                    if (!removed.length) return doneDel();
-                                                    db.query(
-                                                        `DELETE FROM RegisterItems WHERE RegisterListID = ? AND ProductID IN (${removed.map(()=>'?').join(',')})`,
-                                                        [registerListId, ...removed],
-                                                        (eDel) => doneDel(eDel || null)
-                                                    );
-                                                };
+                        subtotal = Math.round(subtotal * 100) / 100;
+                        const tax = Math.round(subtotal * Number(taxRate) * 100) / 100;
+                        const total = Math.round((subtotal + tax) * 100) / 100;
 
-                                                deleteRemoved((eDel) => {
-                                                    if (eDel) return db.rollback(() => cb(eDel));
-                                                    let done = 0;
-                                                    const want = lines.length;
-                                                    if (!want) {
-                                                        return db.commit((eC2) => eC2 ? db.rollback(() => cb(eC2)) :
-                                                            cb(null, { RegisterListID: registerListId, subtotal, tax, total, items: lines })
-                                                        );
-                                                    }
-                                                    const upsertOne = (line) => {
-                                                        db.query(
-                                                            `INSERT INTO RegisterItems
-                                 (RegisterListID, ProductID, Quantity, Price, DiscountType, DiscountValue)
-                               VALUES (?, ?, ?, ?, ?, ?)
-                               ON DUPLICATE KEY UPDATE
-                                 Quantity=VALUES(Quantity),
-                                 Price=VALUES(Price),
-                                 DiscountType=VALUES(DiscountType),
-                                 DiscountValue=VALUES(DiscountValue)`,
-                                                            [registerListId, line.ProductID, line.Qty, line.Price, line.DiscountType, line.DiscountValue],
-                                                            (eUp) => {
-                                                                if (eUp) return db.rollback(() => cb(eUp));
-                                                                if (++done === want) {
-                                                                    db.commit((eC) => eC ? db.rollback(() => cb(eC)) :
-                                                                        cb(null, { RegisterListID: registerListId, subtotal, tax, total, items: lines })
-                                                                    );
-                                                                }
-                                                            }
-                                                        );
-                                                    };
-                                                    for (const line of lines) upsertOne(line);
-                                                });
-                                            };
-
-                                            upsertAll();
-                                        } catch (ex) {
-                                            return db.rollback(() => cb(ex));
-                                        }
-                                    };
-
-                                    stepStock();
-                                }
+                        const upsertAll = () => {
+                          const removed = Array.from(prevMap.keys()).filter(pid => !nextMap.has(pid));
+                          const deleteRemoved = (doneDel) => {
+                            if (!removed.length) return doneDel();
+                            conn.query(
+                              `DELETE FROM RegisterItems WHERE RegisterListID = ? AND ProductID IN (${removed.map(()=>'?').join(',')})`,
+                              [registerListId, ...removed],
+                              (eDel) => doneDel(eDel || null)
                             );
+                          };
+
+                          deleteRemoved((eDel) => {
+                            if (eDel) return conn.rollback(() => { conn.release(); cb(eDel); });
+                            let done = 0;
+                            const want = lines.length;
+                            if (!want) {
+                              return conn.commit((eC2) => {
+                                if (eC2) return conn.rollback(() => { conn.release(); cb(eC2); });
+                                conn.release();
+                                cb(null, { RegisterListID: registerListId, subtotal, tax, total, items: lines });
+                              });
+                            }
+                            const upsertOne = (line) => {
+                              conn.query(
+                                `INSERT INTO RegisterItems
+                                   (RegisterListID, ProductID, Quantity, Price, DiscountType, DiscountValue)
+                                 VALUES (?, ?, ?, ?, ?, ?)
+                                 ON DUPLICATE KEY UPDATE
+                                   Quantity=VALUES(Quantity),
+                                   Price=VALUES(Price),
+                                   DiscountType=VALUES(DiscountType),
+                                   DiscountValue=VALUES(DiscountValue)`,
+                                [registerListId, line.ProductID, line.Qty, line.Price, line.DiscountType, line.DiscountValue],
+                                (eUp) => {
+                                  if (eUp) return conn.rollback(() => { conn.release(); cb(eUp); });
+                                  if (++done === want) {
+                                    conn.commit((eC) => {
+                                      if (eC) return conn.rollback(() => { conn.release(); cb(eC); });
+                                      conn.release();
+                                      cb(null, { RegisterListID: registerListId, subtotal, tax, total, items: lines });
+                                    });
+                                  }
+                                }
+                              );
+                            };
+                            for (const line of lines) upsertOne(line);
+                          });
                         };
 
-                        if (existingId) {
-                            continueWithList(existingId);
-                        } else {
-                            db.query(
-                                `INSERT INTO RegisterList (EmployeeID, CustomerID, GuestID, DateCreated)
-                 VALUES (?, ?, ?, NOW())`,
-                                [employeeId || null, cust, guest],
-                                (eHead, regResult) => {
-                                    if (eHead) return db.rollback(() => cb(eHead));
-                                    continueWithList(regResult.insertId);
-                                }
-                            );
-                        }
-                    });
-                }
-            );
-        } catch (ex) {
-            db.rollback(() => cb(ex));
-        }
+                        upsertAll();
+                      } catch (ex) {
+                        return conn.rollback(() => { conn.release(); cb(ex); });
+                      }
+                    };
+
+                    stepStock();
+                  }
+                );
+              };
+
+              if (existingId) {
+                continueWithList(existingId);
+              } else {
+                conn.query(
+                  `INSERT INTO RegisterList (EmployeeID, CustomerID, GuestID, DateCreated)
+                   VALUES (?, ?, ?, NOW())`,
+                  [employeeId || null, cust, guest],
+                  (eHead, regResult) => {
+                    if (eHead) return conn.rollback(() => { conn.release(); cb(eHead); });
+                    continueWithList(regResult.insertId);
+                  }
+                );
+              }
+            });
+          }
+        );
+      } catch (ex) {
+        conn.rollback(() => { conn.release(); cb(ex); });
+      }
     });
+  });
 };
 
 exports.getRegister = (registerListId, cb) => {
@@ -406,112 +414,120 @@ exports.getRegister = (registerListId, cb) => {
 };
 
 exports.removeRegisterItem = ({ registerListId, productId }, cb) => {
-    db.beginTransaction((err) => {
-        if (err) return cb(err);
+  db.getConnection((err, conn) => {
+    if (err) return cb(err);
+    conn.beginTransaction((errTx) => {
+      if (errTx) { conn.release(); return cb(errTx); }
 
-        db.query(
-            `SELECT Quantity FROM RegisterItems
-             WHERE RegisterListID = ? AND ProductID = ?
-                 FOR UPDATE`,
-            [registerListId, productId],
-            (eSel, rows) => {
-                if (eSel) return db.rollback(() => cb(eSel));
+      conn.query(
+        `SELECT Quantity FROM RegisterItems
+         WHERE RegisterListID = ? AND ProductID = ?
+         FOR UPDATE`,
+        [registerListId, productId],
+        (eSel, rows) => {
+          if (eSel) return conn.rollback(() => { conn.release(); cb(eSel); });
 
-                const prevQty = rows?.[0]?.Quantity ? Number(rows[0].Quantity) : 0;
+          const prevQty = rows?.[0]?.Quantity ? Number(rows[0].Quantity) : 0;
 
-                const releaseStock = (done) => {
-                    if (prevQty <= 0) return done();
-                    db.query(
-                        `UPDATE Products SET Stock = Stock + ? WHERE ProductID = ?`,
-                        [prevQty, productId],
-                        (eUp) => done(eUp || null)
-                    );
-                };
+          const releaseStock = (done) => {
+            if (prevQty <= 0) return done();
+            conn.query(
+              `UPDATE Products SET Stock = Stock + ? WHERE ProductID = ?`,
+              [prevQty, productId],
+              (eUp) => done(eUp || null)
+            );
+          };
 
-                releaseStock((eRel) => {
-                    if (eRel) return db.rollback(() => cb(eRel));
+          releaseStock((eRel) => {
+            if (eRel) return conn.rollback(() => { conn.release(); cb(eRel); });
 
-                    db.query(
-                        `DELETE FROM RegisterItems WHERE RegisterListID = ? AND ProductID = ?`,
-                        [registerListId, productId],
-                        (eDel) => {
-                            if (eDel) return db.rollback(() => cb(eDel));
+            conn.query(
+              `DELETE FROM RegisterItems WHERE RegisterListID = ? AND ProductID = ?`,
+              [registerListId, productId],
+              (eDel) => {
+                if (eDel) return conn.rollback(() => { conn.release(); cb(eDel); });
 
-                            db.commit((eC) => {
-                                if (eC) return db.rollback(() => cb(eC));
-                                exports.getRegister(registerListId, (eGet, data) => {
-                                    if (eGet) return cb(eGet);
-                                    cb(null, data);
-                                });
-                            });
-                        }
-                    );
+                conn.commit((eC) => {
+                  if (eC) return conn.rollback(() => { conn.release(); cb(eC); });
+                  // devolver snapshot actualizado
+                  exports.getRegister(registerListId, (eGet, data) => {
+                    conn.release();
+                    if (eGet) return cb(eGet);
+                    cb(null, data);
+                  });
                 });
-            }
-        );
+              }
+            );
+          });
+        }
+      );
     });
+  });
 };
 
 exports.updateRegisterIdentity = ({ registerListId, customerId, guestId }, cb) => {
-    const hasCust = customerId != null;
-    const hasGuest = guestId != null;
-    if ((hasCust && hasGuest) || (!hasCust && !hasGuest)) {
-        return cb(new Error('BAD_PARAMS'));
-    }
+  const hasCust = customerId != null;
+  const hasGuest = guestId != null;
+  if ((hasCust && hasGuest) || (!hasCust && !hasGuest)) {
+    return cb(new Error('BAD_PARAMS'));
+  }
 
-    const custVal = hasCust ? Number(customerId) : null;
-    const guestVal = hasGuest ? Number(guestId) : null;
+  const custVal = hasCust ? Number(customerId) : null;
+  const guestVal = hasGuest ? Number(guestId) : null;
 
-    db.beginTransaction((err) => {
-        if (err) return cb(err);
+  db.getConnection((err, conn) => {
+    if (err) return cb(err);
+    conn.beginTransaction((errTx) => {
+      if (errTx) { conn.release(); return cb(errTx); }
 
-        db.query(
-            `SELECT RegisterListID
-             FROM RegisterList
-             WHERE RegisterListID = ?
-                 FOR UPDATE`,
-            [registerListId],
-            (eSel, rows) => {
-                if (eSel) return db.rollback(() => cb(eSel));
+      conn.query(
+        `SELECT RegisterListID
+         FROM RegisterList
+         WHERE RegisterListID = ?
+         FOR UPDATE`,
+        [registerListId],
+        (eSel, rows) => {
+          if (eSel) return conn.rollback(() => { conn.release(); cb(eSel); });
 
-                const exists = rows && rows.length > 0;
+          const exists = rows && rows.length > 0;
 
-                const returnSnapshot = (id) => {
-                    db.commit((eC) => {
-                        if (eC) return db.rollback(() => cb(eC));
-                        exports.getRegister(id, (eGet, data) => {
-                            if (eGet) return cb(eGet);
-                            cb(null, data);
-                        });
-                    });
-                };
+          const returnSnapshot = (id) => {
+            conn.commit((eC) => {
+              if (eC) return conn.rollback(() => { conn.release(); cb(eC); });
+              exports.getRegister(id, (eGet, data) => {
+                conn.release();
+                if (eGet) return cb(eGet);
+                cb(null, data);
+              });
+            });
+          };
 
-                if (exists) {
-                    db.query(
-                        `UPDATE RegisterList
-             SET CustomerID = ?, GuestID = ?
-             WHERE RegisterListID = ?`,
-                        [custVal, guestVal, registerListId],
-                        (eU) => {
-                            if (eU) return db.rollback(() => cb(eU));
-                            returnSnapshot(registerListId);
-                        }
-                    );
-                } else {
-                    db.query(
-                        `INSERT INTO RegisterList (EmployeeID, CustomerID, GuestID, DateCreated)
-             VALUES (?, ?, ?, NOW())`,
-                        [null, custVal, guestVal],
-                        (eIns, resIns) => {
-                            if (eIns) return db.rollback(() => cb(eIns));
-                            const newId = resIns.insertId;
-                            returnSnapshot(newId);
-                        }
-                    );
-                }
-            }
-        );
+          if (exists) {
+            conn.query(
+              `UPDATE RegisterList
+               SET CustomerID = ?, GuestID = ?
+               WHERE RegisterListID = ?`,
+              [custVal, guestVal, registerListId],
+              (eU) => {
+                if (eU) return conn.rollback(() => { conn.release(); cb(eU); });
+                returnSnapshot(registerListId);
+              }
+            );
+          } else {
+            conn.query(
+              `INSERT INTO RegisterList (EmployeeID, CustomerID, GuestID, DateCreated)
+               VALUES (?, ?, ?, NOW())`,
+              [null, custVal, guestVal],
+              (eIns, resIns) => {
+                if (eIns) return conn.rollback(() => { conn.release(); cb(eIns); });
+                returnSnapshot(resIns.insertId);
+              }
+            );
+          }
+        }
+      );
     });
+  });
 };
 
 exports.listProductsForCashier = ({ search = '', category = null }, cb) => {
@@ -569,169 +585,174 @@ exports.listProductsForCashier = ({ search = '', category = null }, cb) => {
 };
 
 exports.checkoutRegister = ({ registerListId, employeeId = null }, cb) => {
-    db.beginTransaction((err) => {
-        if (err) return cb(err);
-        db.query(
-            `SELECT RegisterListID, CustomerID, GuestID, EmployeeID, DateCreated
-             FROM RegisterList
-             WHERE RegisterListID = ?
-                 FOR UPDATE`,
+  db.getConnection((err, conn) => {
+    if (err) return cb(err);
+    conn.beginTransaction((errTx) => {
+      if (errTx) { conn.release(); return cb(errTx); }
+
+      conn.query(
+        `SELECT RegisterListID, CustomerID, GuestID, EmployeeID, DateCreated
+         FROM RegisterList
+         WHERE RegisterListID = ?
+         FOR UPDATE`,
+        [registerListId],
+        (eHead, headRows) => {
+          if (eHead) return conn.rollback(() => { conn.release(); cb(eHead); });
+          if (!headRows || headRows.length === 0) {
+            return conn.rollback(() => { conn.release(); cb(new Error('REGISTER_NOT_FOUND')); });
+          }
+          const head = headRows[0];
+
+          conn.query(
+            `SELECT ri.ProductID, ri.Quantity AS Qty, ri.Price, ri.DiscountType, ri.DiscountValue,
+                    p.Price AS OriginalPrice
+             FROM RegisterItems ri
+             JOIN Products p ON p.ProductID = ri.ProductID
+             WHERE ri.RegisterListID = ?
+             FOR UPDATE`,
             [registerListId],
-            (eHead, headRows) => {
-                if (eHead) return db.rollback(() => cb(eHead));
-                if (!headRows || headRows.length === 0) {
-                    return db.rollback(() => cb(new Error('REGISTER_NOT_FOUND')));
-                }
-                const head = headRows[0];
+            (eItems, rows) => {
+              if (eItems) return conn.rollback(() => { conn.release(); cb(eItems); });
+              const items = rows || [];
+              if (!items.length) {
+                return conn.rollback(() => { conn.release(); cb(new Error('EMPTY_REGISTER')); });
+              }
 
-                db.query(
-                    `SELECT ri.ProductID, ri.Quantity AS Qty, ri.Price, ri.DiscountType, ri.DiscountValue,
-                            p.Price AS OriginalPrice
-                     FROM RegisterItems ri
-                              JOIN Products p ON p.ProductID = ri.ProductID
-                     WHERE ri.RegisterListID = ?
-                         FOR UPDATE`,
-                    [registerListId],
-                    (eItems, rows) => {
-                        if (eItems) return db.rollback(() => cb(eItems));
-                        const items = rows || [];
-                        if (!items.length) {
-                            return db.rollback(() => cb(new Error('EMPTY_REGISTER')));
-                        }
-
-                        const productIds = Array.from(new Set(items.map(r => Number(r.ProductID))));
-                        const loadDiscountIds = (done) => {
-                            if (!productIds.length) return done(null, new Map());
-                            const ph = productIds.map(() => '?').join(',');
-                            db.query(
-                                `SELECT ProductID, DiscountID
-                 FROM Discounts
-                 WHERE ProductID IN (${ph})`,
-                                productIds,
-                                (eDisc, discRows) => {
-                                    if (eDisc) return done(eDisc);
-                                    const discMap = new Map((discRows || []).map(dr => [Number(dr.ProductID), Number(dr.DiscountID)]));
-                                    done(null, discMap);
-                                }
-                            );
-                        };
-
-                        loadDiscountIds((eLd, discMap) => {
-                            if (eLd) return db.rollback(() => cb(eLd));
-
-                            const round2 = (n) => Math.round(n * 100) / 100;
-                            let subtotal = 0;
-                            let discountTotal = 0;
-
-                            for (const r of items) {
-                                const qty = Number(r.Qty) || 0;
-                                const unit = Number(r.Price) || 0;
-                                const orig = Number(r.OriginalPrice) || 0;
-                                const dtype = String(r.DiscountType || '').toLowerCase();
-
-                                const lineTotal = round2(unit * qty);
-                                subtotal += lineTotal;
-
-                                let saved = 0;
-                                if (dtype === 'bogo') {
-                                    const freeUnits = Math.floor(qty / 2);
-                                    saved = round2(freeUnits * orig);
-                                } else {
-                                    const perUnitSave = Math.max(0, orig - unit);
-                                    saved = round2(perUnitSave * qty);
-                                }
-                                discountTotal += saved;
-                            }
-
-                            subtotal = round2(subtotal);
-                            discountTotal = round2(discountTotal);
-                            const taxRate = 0.0825;
-                            const tax = round2(subtotal * taxRate);
-                            const total = round2(subtotal + tax);
-
-                            const ord = {
-                                CustomerID: head.CustomerID || null,
-                                GuestID: head.CustomerID ? null : (head.GuestID || null),
-                                EmployeeID: employeeId || head.EmployeeID || null,
-                                Subtotal: subtotal,
-                                DiscountTotal: discountTotal,
-                                Tax: tax,
-                                Total: total,
-                                Status: 'Placed',
-                            };
-
-                            db.query(
-                                `INSERT INTO Orders
-                                 (CustomerID, GuestID, EmployeeID, Subtotal, DiscountTotal, Tax, Total, Status, DatePlaced)
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-                                [ord.CustomerID, ord.GuestID, ord.EmployeeID, ord.Subtotal, ord.DiscountTotal, ord.Tax, ord.Total, ord.Status],
-                                (eIns, resIns) => {
-                                    if (eIns) return db.rollback(() => cb(eIns));
-                                    const orderId = resIns.insertId;
-
-                                    let done = 0;
-                                    const want = items.length;
-
-                                    const insertDetail = (r) => {
-                                        const discountId = discMap.get(Number(r.ProductID)) || null;
-                                        db.query(
-                                            `INSERT INTO OrderDetails
-                                                 (OrderID, ProductID, Quantity, DiscountID, Price)
-                                             VALUES (?, ?, ?, ?, ?)`,
-                                            [
-                                                orderId,
-                                                Number(r.ProductID),
-                                                Number(r.Qty),
-                                                discountId,
-                                                Number(r.Price),
-                                            ],
-                                            (eD) => {
-                                                if (eD) return db.rollback(() => cb(eD));
-                                                if (++done === want) finalize();
-                                            }
-                                        );
-                                    };
-
-                                    const finalize = () => {
-                                        db.query(
-                                            `DELETE FROM RegisterItems WHERE RegisterListID = ?`,
-                                            [registerListId],
-                                            (eDelItems) => {
-                                                if (eDelItems) return db.rollback(() => cb(eDelItems));
-                                                db.query(
-                                                    `DELETE FROM RegisterList WHERE RegisterListID = ?`,
-                                                    [registerListId],
-                                                    (eDelList) => {
-                                                        if (eDelList) return db.rollback(() => cb(eDelList));
-                                                        db.commit((eC) => {
-                                                            if (eC) return db.rollback(() => cb(eC));
-                                                            cb(null, {
-                                                                OrderID: orderId,
-                                                                CustomerID: ord.CustomerID,
-                                                                GuestID: ord.GuestID,
-                                                                EmployeeID: ord.EmployeeID,
-                                                                subtotal: ord.Subtotal,
-                                                                discount: ord.DiscountTotal,
-                                                                tax: ord.Tax,
-                                                                total: ord.Total,
-                                                                Status: ord.Status,
-                                                            });
-                                                        });
-                                                    }
-                                                );
-                                            }
-                                        );
-                                    };
-
-                                    for (const r of items) insertDetail(r);
-                                }
-                            );
-                        });
-                    }
+              const productIds = Array.from(new Set(items.map(r => Number(r.ProductID))));
+              const loadDiscountIds = (done) => {
+                if (!productIds.length) return done(null, new Map());
+                const ph = productIds.map(() => '?').join(',');
+                conn.query(
+                  `SELECT ProductID, DiscountID
+                   FROM Discounts
+                   WHERE ProductID IN (${ph})`,
+                  productIds,
+                  (eDisc, discRows) => {
+                    if (eDisc) return done(eDisc);
+                    const discMap = new Map((discRows || []).map(dr => [Number(dr.ProductID), Number(dr.DiscountID)]));
+                    done(null, discMap);
+                  }
                 );
+              };
+
+              loadDiscountIds((eLd, discMap) => {
+                if (eLd) return conn.rollback(() => { conn.release(); cb(eLd); });
+
+                const r2 = (n) => Math.round(n * 100) / 100;
+                let subtotal = 0;
+                let discountTotal = 0;
+
+                for (const r of items) {
+                  const qty = Number(r.Qty) || 0;
+                  const unit = Number(r.Price) || 0;
+                  const orig = Number(r.OriginalPrice) || 0;
+                  const dtype = String(r.DiscountType || '').toLowerCase();
+
+                  const lineTotal = r2(unit * qty);
+                  subtotal += lineTotal;
+
+                  let saved = 0;
+                  if (dtype === 'bogo') {
+                    const freeUnits = Math.floor(qty / 2);
+                    saved = r2(freeUnits * orig);
+                  } else {
+                    const perUnitSave = Math.max(0, orig - unit);
+                    saved = r2(perUnitSave * qty);
+                  }
+                  discountTotal += saved;
+                }
+
+                subtotal = r2(subtotal);
+                discountTotal = r2(discountTotal);
+                const taxRate = 0.0825;
+                const tax = r2(subtotal * taxRate);
+                const total = r2(subtotal + tax);
+
+                const ord = {
+                  CustomerID: head.CustomerID || null,
+                  GuestID: head.CustomerID ? null : (head.GuestID || null),
+                  EmployeeID: employeeId || head.EmployeeID || null,
+                  Subtotal: subtotal,
+                  DiscountTotal: discountTotal,
+                  Tax: tax,
+                  Total: total,
+                  Status: 'Placed',
+                };
+
+                conn.query(
+                  `INSERT INTO Orders
+                   (CustomerID, GuestID, EmployeeID, Subtotal, DiscountTotal, Tax, Total, Status, DatePlaced)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                  [ord.CustomerID, ord.GuestID, ord.EmployeeID, ord.Subtotal, ord.DiscountTotal, ord.Tax, ord.Total, ord.Status],
+                  (eIns, resIns) => {
+                    if (eIns) return conn.rollback(() => { conn.release(); cb(eIns); });
+                    const orderId = resIns.insertId;
+
+                    let done = 0;
+                    const want = items.length;
+
+                    const insertDetail = (r) => {
+                      const discountId = discMap.get(Number(r.ProductID)) || null;
+                      conn.query(
+                        `INSERT INTO OrderDetails
+                           (OrderID, ProductID, Quantity, DiscountID, Price)
+                         VALUES (?, ?, ?, ?, ?)`,
+                        [
+                          orderId,
+                          Number(r.ProductID),
+                          Number(r.Qty),
+                          discountId,
+                          Number(r.Price),
+                        ],
+                        (eD) => {
+                          if (eD) return conn.rollback(() => { conn.release(); cb(eD); });
+                          if (++done === want) finalize();
+                        }
+                      );
+                    };
+
+                    const finalize = () => {
+                      conn.query(
+                        `DELETE FROM RegisterItems WHERE RegisterListID = ?`,
+                        [registerListId],
+                        (eDelItems) => {
+                          if (eDelItems) return conn.rollback(() => { conn.release(); cb(eDelItems); });
+                          conn.query(
+                            `DELETE FROM RegisterList WHERE RegisterListID = ?`,
+                            [registerListId],
+                            (eDelList) => {
+                              if (eDelList) return conn.rollback(() => { conn.release(); cb(eDelList); });
+                              conn.commit((eC) => {
+                                if (eC) return conn.rollback(() => { conn.release(); cb(eC); });
+                                conn.release();
+                                cb(null, {
+                                  OrderID: orderId,
+                                  CustomerID: ord.CustomerID,
+                                  GuestID: ord.GuestID,
+                                  EmployeeID: ord.EmployeeID,
+                                  subtotal: ord.Subtotal,
+                                  discount: ord.DiscountTotal,
+                                  tax: ord.Tax,
+                                  total: ord.Total,
+                                  Status: ord.Status,
+                                });
+                              });
+                            }
+                          );
+                        }
+                      );
+                    };
+
+                    for (const r of items) insertDetail(r);
+                  }
+                );
+              });
             }
-        );
+          );
+        }
+      );
     });
+  });
 };
 
 exports.reassignOrderCustomer = ({ orderId, customerId }, cb) => {
