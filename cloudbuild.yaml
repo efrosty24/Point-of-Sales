@@ -42,21 +42,11 @@ steps:
       - 'app'
       - 'deploy'
       - 'src/frontend/app.yaml' # Use the specific app.yaml for the frontend
-      - '--no-promote'
+      - '--promote'
       - '--quiet'
 
-  # 6. Promote Traffic (Promotes the last deployed service, or run gcloud app services set-traffic)
-  # This step ensures traffic is routed to the new versions of BOTH services.
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: Promote_Traffic
-    args:
-      - 'app'
-      - 'services'
-      - 'set-traffic'
-      - 'default'
-      - 'frontend'
-      - '--splits=LATEST=1'
-      - '--quiet'
+
+
 
 # Define default substitution variables for use in Cloud Build Triggers
 substitutions:
