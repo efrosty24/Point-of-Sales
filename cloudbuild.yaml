@@ -1,0 +1,66 @@
+steps:
+  # 1. Install Dependencies for Backend (Required for deployment bundle)
+  - name: 'gcr.io/cloud-builders/npm'
+    id: Install_Backend
+    args: ['install']
+    dir: 'src/backend'
+
+  # 2. Build and Install Dependencies for Frontend
+  - name: 'gcr.io/cloud-builders/npm'
+    id: Build_Frontend
+    args:
+      - 'install'
+    dir: 'src/frontend'
+
+  # 3. Create Frontend Production Build
+  - name: 'gcr.io/cloud-builders/npm'
+    id: Create_Frontend_Build
+    args:
+      - 'run'
+      - 'build'
+      # Inject the API URL secure variable into the build process
+    env:
+      - 'VITE_APP_API_URL=${_VITE_APP_API_URL}'
+    dir: 'src/frontend'
+
+  # 4. Deploy Backend Service (default)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: Deploy_Backend
+    args:
+      - 'app'
+      - 'deploy'
+      - 'src/backend/app.yaml'  # Use the specific app.yaml for the backend
+      # We explicitly skip promoting traffic during the monorepo deployment steps
+      # to ensure both are deployed before traffic switches.
+      - '--no-promote'
+      - '--quiet'
+
+  # 5. Deploy Frontend Service (frontend)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: Deploy_Frontend
+    args:
+      - 'app'
+      - 'deploy'
+      - 'src/frontend/app.yaml' # Use the specific app.yaml for the frontend
+      - '--no-promote'
+      - '--quiet'
+
+  # 6. Promote Traffic (Promotes the last deployed service, or run gcloud app services set-traffic)
+  # This step ensures traffic is routed to the new versions of BOTH services.
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: Promote_Traffic
+    args:
+      - 'app'
+      - 'services'
+      - 'set-traffic'
+      - 'default' # Replace 'default' with the name of the service you want to promote first
+      - '--splits'
+      - 'default=1' # Send 100% of traffic to the default service latest version
+      - '--split-by'
+      - 'version'
+      - '--migrate' # Optional: gracefully migrate existing user sessions
+      - '--quiet'
+
+# Define default substitution variables for use in Cloud Build Triggers
+substitutions:
+  _VITE_APP_API_URL: 'https://point-of-sales-476509.uc.r.appspot.com'
