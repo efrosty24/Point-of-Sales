@@ -9,6 +9,9 @@ import Cashier from "./pages/Cashier";
 import SalesReport from "./pages/SalesReport.jsx";
 import CustomerList from "./pages/CustomerList.jsx";
 import "./index.css";
+import InventoryManagement from "./pages/InventoryManagement.jsx";
+import Employees from "./pages/Employees.jsx";
+import DiscountManagement from "./pages/DiscountManagement.jsx";
 
 const user = JSON.parse(localStorage.getItem("user"));
 
@@ -21,6 +24,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 <Route path="salesreport" element={<SalesReport />} />
                 <Route path="cashier" element={<Cashier />} />
                 <Route path="CustomerList" element={<CustomerList />} />
+                <Route path="inventory" element={<InventoryManagement />} />
+                <Route path="employees" element={<Employees />} />
+                <Route path="discounts" element={<DiscountManagement />} />
             </Route>
         </Routes>
     </BrowserRouter>
