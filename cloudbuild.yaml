@@ -53,12 +53,8 @@ steps:
       - 'app'
       - 'services'
       - 'set-traffic'
-      - 'default' # Replace 'default' with the name of the service you want to promote first
-      - '--splits'
-      - 'default=1' # Send 100% of traffic to the default service latest version
-      - '--split-by'
-      - 'version'
-      - '--migrate' # Optional: gracefully migrate existing user sessions
+      - 'default=1'
+      - 'frontend=1'
       - '--quiet'
 
 # Define default substitution variables for use in Cloud Build Triggers
