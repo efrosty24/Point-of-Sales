@@ -17,7 +17,7 @@ entrypoint: npm start
 env_variables:
   # 1. Database Credentials (Used by the mysql2 driver in your code)
   DB_USER: "root"               # The username you created for application access
-  DB_PASS: "POSsystem25!" # Replace with your actual secure password
+  DB_PASSWORD: "POSsystem25!" # Replace with your actual secure password
   DB_NAME: "POSDB"                # The database name
   
   # 2. Cloud SQL Connection Name (CRITICAL for the Cloud SQL Proxy)

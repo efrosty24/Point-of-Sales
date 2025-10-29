@@ -6,7 +6,7 @@ const mysql = require('mysql2');
 // ====================================================================
 
 const DB_USER = process.env.DB_USER;
-const DB_PASS = process.env.DB_PASS;
+const DB_PASSWORD = process.env.DB_PASS;
 const DB_NAME = process.env.DB_NAME;
 const CLOUD_SQL_CONNECTION_NAME = process.env.CLOUD_SQL_CONNECTION_NAME;
 
@@ -14,7 +14,7 @@ const isAppEngine = !!CLOUD_SQL_CONNECTION_NAME;
 
 let connectionOptions = {
     user: DB_USER,
-    password: DB_PASS,
+    password: DB_PASSWORD,
     database: DB_NAME,
     
     // Recommended: Use a Connection Pool for scalability, not a single connection
@@ -33,7 +33,7 @@ if (isAppEngine) {
 } else {
     // 2. Local Development/Testing (Standard TCP/IP)
     // Assumes your local host/DB host is defined in .env
-    connectionOptions.host = process.env.DB_HOST || '127.0.0.1'; 
+    connectionOptions.host = process.env.DB_HOST;
     connectionOptions.port = process.env.DB_PORT || 3306;
     connectionOptions.user = process.env.DB_USER;
     connectionOptions.password = process.env.DB_PASSWORD;
@@ -61,4 +61,4 @@ pool.getConnection((err, connection) => {
     connection.release(); 
 });
 
-module.exports = pool.promise();
+module.exports = pool;

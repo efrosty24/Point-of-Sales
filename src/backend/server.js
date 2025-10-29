@@ -38,6 +38,12 @@ async function ensureGuestCustomer() {
     INSERT INTO Customers (CustomerID, FirstName, LastName, Email, Phone)
     VALUES (?, 'Guest', '', NULL, '1234567890')
   `;
+  /*
+  const [rows] = await db.query(selectSql, [GUEST_ID]);
+  if (rows.length === 0) {
+      await db.query(insertSql, [GUEST_ID]);
+  }
+*/
 
   await new Promise((resolve, reject) => {
     db.query(selectSql, [GUEST_ID], (e, rows) => {
@@ -46,7 +52,6 @@ async function ensureGuestCustomer() {
       db.query(insertSql, [GUEST_ID], (e2) => (e2 ? reject(e2) : resolve()));
     });
   });
-
   console.log(`[init] Guest customer ensured with ID=${GUEST_ID}`);
 }
 
