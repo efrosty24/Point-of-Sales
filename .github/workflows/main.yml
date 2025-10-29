@@ -27,7 +27,7 @@ jobs:
 
       # 4. Build and Install Dependencies for Backend (default service)
       - name: Setup Backend
-        run: npm install
+        run: echo "Preparing backend for deployment"
         working-directory: ./src/backend # Navigate to your backend directory
 
       # 5. Build and Install Dependencies for Frontend (frontend service)
