@@ -1,5 +1,5 @@
 import { useState } from "react";
-import api from "utils/api.js";
+import api from "./utils/api.js";
 // import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./App.css";
