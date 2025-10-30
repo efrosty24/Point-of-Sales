@@ -1,5 +1,6 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "utils/api.js";
+// import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./App.css";
 
@@ -17,7 +18,7 @@ function App() {
         setError("");
 
         try {
-            const response = await axios.post("http://localhost:3001/api/login", {
+            const response = await api.post("/api/login", {
                 employeeId,
                 password,
             });
