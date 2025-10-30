@@ -6,7 +6,7 @@ const mysql = require('mysql2');
 // ====================================================================
 
 const DB_USER = process.env.DB_USER;
-const DB_PASSWORD = process.env.DB_PASS;
+const DB_PASSWORD = process.env.DB_PASSWORD;
 const DB_NAME = process.env.DB_NAME;
 const CLOUD_SQL_CONNECTION_NAME = process.env.CLOUD_SQL_CONNECTION_NAME;
 
