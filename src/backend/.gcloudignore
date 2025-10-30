@@ -1,11 +1,3 @@
-# .gcloudignore for ./src/backend/
-
-# This file tells the gcloud deployment tool what NOT to send to App Engine.
-
-# We are intentionally NOT listing 'node_modules' here, because we want
-# to deploy the node_modules folder created by the 'npm install' command
-# in the GitHub Actions workflow. This ensures Express is found upon startup.
-
 # Ignore common local and environment files
 .env
 .DS_Store
