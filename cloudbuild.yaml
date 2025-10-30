@@ -32,7 +32,7 @@ steps:
       - 'src/backend/app.yaml'  # Use the specific app.yaml for the backend
       # We explicitly skip promoting traffic during the monorepo deployment steps
       # to ensure both are deployed before traffic switches.
-      - '--no-promote'
+      - '--promote'
       - '--quiet'
 
   # 5. Deploy Frontend Service (frontend)
