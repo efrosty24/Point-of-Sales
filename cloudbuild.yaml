@@ -2,7 +2,8 @@ steps:
   # 1. Install Dependencies for Backend (Required for deployment bundle)
   - name: 'gcr.io/cloud-builders/npm'
     id: Install_Backend
-    args: ['install']
+    args:
+      - 'install'
     dir: 'src/backend'
 
   # 2. Build and Install Dependencies for Frontend
