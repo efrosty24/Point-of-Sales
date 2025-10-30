@@ -2,7 +2,7 @@
 const db = require('../config/db.config');
 
 exports.findEmployeeById = (employeeId, cb) => {
-  const sql = 'SELECT * FROM employees WHERE EmployeeID = ? LIMIT 1';
+  const sql = 'SELECT * FROM Employees WHERE EmployeeID = ? LIMIT 1';
   db.query(sql, [employeeId], (err, rows) => {
     if (err) return cb(err);
     cb(null, rows[0] || null);
