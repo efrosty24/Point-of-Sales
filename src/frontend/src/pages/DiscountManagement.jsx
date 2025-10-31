@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import axios from "axios";
 import "./DiscountManagement.css";
+import api from "../utils/api.js"; 
 
 export default function DiscountManagement() {
   const [events, setEvents] = useState([]);
@@ -17,18 +17,18 @@ export default function DiscountManagement() {
 
   async function fetchEvents() {
     try {
-      const res = await axios.get("http://localhost:3001/admin/sale-events");
+      const res = await api.get("/admin/sale-events");
       setEvents(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
+    } catch {
       setEvents([]);
     }
   }
 
   async function fetchProducts() {
     try {
-      const res = await axios.get("http://localhost:3001/admin/inventory/products");
+      const res = await api.get("/admin/inventory/products");
       setProducts(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
+    } catch {
       setProducts([]);
     }
   }
@@ -36,9 +36,9 @@ export default function DiscountManagement() {
   async function fetchDiscounts(evId) {
     if (!evId) return setDiscounts([]);
     try {
-      const res = await axios.get(`http://localhost:3001/admin/sale-events/${evId}/discounts`);
+      const res = await api.get(`/admin/sale-events/${evId}/discounts`);
       setDiscounts(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
+    } catch {
       setDiscounts([]);
     }
   }
@@ -47,47 +47,68 @@ export default function DiscountManagement() {
     e.preventDefault();
     const form = new FormData(e.target);
     try {
-      const body = { Name: form.get('name'), Description: form.get('description'), StartDate: form.get('start'), EndDate: form.get('end') };
-      const res = await axios.post('http://localhost:3001/admin/sale-events', body);
+      const body = {
+        Name: form.get("name"),
+        Description: form.get("description"),
+        StartDate: form.get("start"),
+        EndDate: form.get("end"),
+      };
+      const res = await api.post("/admin/sale-events", body);
       if (res.status === 201 || (res.data && res.data.ok)) {
-        setMsg(res.data?.message || 'Event created');
+        setMsg(res.data?.message || "Event created");
         fetchEvents();
       } else {
         setMsg(res.data?.message || `Unexpected response: ${res.status}`);
       }
     } catch (err) {
-      setMsg(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create event');
+      setMsg(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Failed to create event"
+      );
     }
   }
 
   async function createDiscount(e) {
     e.preventDefault();
-    if (!selectedEventId) return setMsg('Select an event');
+    if (!selectedEventId) return setMsg("Select an event");
     const form = new FormData(e.target);
     try {
-      const body = { ProductID: Number(form.get('product')), DiscountType: form.get('type'), DiscountValue: Number(form.get('value')), Conditions: form.get('conditions') };
-      const res = await axios.post(`http://localhost:3001/admin/sale-events/${selectedEventId}/discounts`, body);
+      const body = {
+        ProductID: Number(form.get("product")),
+        DiscountType: form.get("type"),
+        DiscountValue: Number(form.get("value")),
+        Conditions: form.get("conditions"),
+      };
+      const res = await api.post(
+        `/admin/sale-events/${selectedEventId}/discounts`,
+        body
+      );
       if (res.status === 201 || (res.data && res.data.ok)) {
-        setMsg(res.data?.message || 'Discount created');
+        setMsg(res.data?.message || "Discount created");
         fetchDiscounts(selectedEventId);
       } else {
         setMsg(res.data?.message || `Unexpected response: ${res.status}`);
       }
     } catch (err) {
-      setMsg(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create discount');
+      setMsg(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Failed to create discount"
+      );
     }
   }
 
   async function deleteDiscount(id) {
-    if (!window.confirm('Delete discount?')) return;
+    if (!window.confirm("Delete discount?")) return;
     try {
-      const res = await axios.delete(`http://localhost:3001/admin/discounts/${id}`);
+      const res = await api.delete(`/admin/discounts/${id}`);
       if (res.data && res.data.ok) {
-        setMsg('Deleted');
+        setMsg("Deleted");
         fetchDiscounts(selectedEventId);
       }
-    } catch (err) {
-      setMsg('Failed to delete');
+    } catch {
+      setMsg("Failed to delete");
     }
   }
 

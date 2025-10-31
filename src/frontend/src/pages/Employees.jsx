@@ -1,35 +1,29 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import "./Employees.css";
+import api from "../utils/api.js"; 
 
 export default function Employees() {
   const [employees, setEmployees] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [showEdit, setShowEdit] = useState(null); 
-  const [form, setForm] = useState({ FirstName: "", LastName: "", Email: "", Phone: "", Role: "Cashier", UserPassword: "" });
+  const [showEdit, setShowEdit] = useState(null);
+  const [form, setForm] = useState({
+    FirstName: "", LastName: "", Email: "", Phone: "", Role: "Cashier", UserPassword: ""
+  });
 
-  useEffect(() => {
-    attemptFetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { attemptFetch(); }, []);
 
   async function attemptFetch() {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:3001/admin/employees");
-      if (Array.isArray(res.data)) {
-        setEmployees(res.data);
-      } else if (Array.isArray(res.data && res.data.employees)) {
-        setEmployees(res.data.employees);
-      } else if (Array.isArray(res.data && res.data.data)) {
-        setEmployees(res.data.data);
-      } else {
-        setEmployees([]);
-      }
+      const res = await api.get("/admin/employees");
+      if (Array.isArray(res.data)) setEmployees(res.data);
+      else if (Array.isArray(res.data?.employees)) setEmployees(res.data.employees);
+      else if (Array.isArray(res.data?.data)) setEmployees(res.data.data);
+      else setEmployees([]);
       setMessage("");
-    } catch (e) {
+    } catch {
       setEmployees(null);
       setMessage("Employee endpoints not available");
     } finally {
@@ -49,7 +43,7 @@ export default function Employees() {
         Role: form.Role,
         UserPassword: form.UserPassword || "changeme",
       };
-      const res = await axios.post("http://localhost:3001/admin/employees", body);
+      const res = await api.post("/admin/employees", body);
       if (res.data && (res.data.ok || res.status === 201)) {
         setMessage("Employee created");
         setShowCreate(false);
@@ -67,7 +61,14 @@ export default function Employees() {
 
   async function startEdit(emp) {
     setShowEdit(emp.EmployeeID);
-    setForm({ FirstName: emp.FirstName || "", LastName: emp.LastName || "", Email: emp.Email || "", Phone: emp.Phone || "", Role: emp.Role || "Cashier", UserPassword: "" });
+    setForm({
+      FirstName: emp.FirstName || "",
+      LastName: emp.LastName || "",
+      Email: emp.Email || "",
+      Phone: emp.Phone || "",
+      Role: emp.Role || "Cashier",
+      UserPassword: "",
+    });
   }
 
   async function saveEdit(e) {
@@ -77,8 +78,7 @@ export default function Employees() {
       setLoading(true);
       const id = showEdit;
       const body = { FirstName: form.FirstName, LastName: form.LastName, Email: form.Email, Phone: form.Phone, Role: form.Role };
-      // patch or put depending on backend
-      const res = await axios.patch(`http://localhost:3001/admin/employees/${id}`, body);
+      const res = await api.patch(`/admin/employees/${id}`, body); 
       if (res.data && res.data.ok) {
         setMessage("Employee updated");
         setShowEdit(null);
@@ -97,7 +97,7 @@ export default function Employees() {
     if (!window.confirm("Deactivate this employee?")) return;
     try {
       setLoading(true);
-      const res = await axios.delete(`http://localhost:3001/admin/employees/${id}`);
+      const res = await api.delete(`/admin/employees/${id}`);
       if (res.data && res.data.ok) {
         setMessage("Employee deactivated");
         attemptFetch();
@@ -112,8 +112,7 @@ export default function Employees() {
   }
 
   const addDemo = async () => {
-    // removed demo create helper — keep function for potential reuse
-    setMessage('Demo create removed; use the real API to add employees.');
+    setMessage("Demo create removed; use the real API to add employees.");
   };
 
   return (

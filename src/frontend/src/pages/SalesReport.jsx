@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import "./SalesReport.css";
+import api from "../utils/api.js";
 
 function SalesReport() {
   const [summary, setSummary] = useState({});
@@ -9,8 +9,8 @@ function SalesReport() {
 
   useEffect(() => {
     // Fetch sales summary
-    axios
-      .get("http://localhost:3001/admin/sales/summary")
+    api
+      .get("/admin/sales/summary")
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data[0] : res.data;
         setSummary(data || {});
@@ -18,14 +18,14 @@ function SalesReport() {
       .catch((err) => console.error("Error fetching summary:", err));
 
     // Fetch top products
-    axios
-      .get("http://localhost:3001/admin/sales/top-products?limit=10")
+    api
+      .get("/admin/sales/top-products", { params: { limit: 10 } })
       .then((res) => setTopProducts(Array.isArray(res.data) ? res.data : []))
       .catch((err) => console.error("Error fetching top products:", err));
 
     // Fetch revenue by category
-    axios
-      .get("http://localhost:3001/admin/sales/by-category")
+    api
+      .get("/admin/sales/by-category")
       .then((res) => setByCategory(Array.isArray(res.data) ? res.data : []))
       .catch((err) => console.error("Category revenue error:", err));
   }, []);
@@ -33,15 +33,16 @@ function SalesReport() {
   const formatCurrency = (val) =>
     val !== undefined && !isNaN(val) ? parseFloat(val).toFixed(2) : "0.00";
 
-  // Aggregate revenue per category in case multiple products belong to same category
- const categoryRevenueArray = Object.entries(
-  byCategory.reduce((acc, c) => {
-    const revenue = parseFloat(c.revenue) || 0; // lowercase
-    if (acc[c.CategoryName]) acc[c.CategoryName] += revenue;
-    else acc[c.CategoryName] = revenue;
-    return acc;
-  }, {})
 ).map(([name, revenue]) => ({ CategoryName: name, Revenue: revenue }));
+
+  const categoryRevenueArray = Object.entries(
+    byCategory.reduce((acc, c) => {
+      const revenue = parseFloat(c.revenue) || 0;
+      if (acc[c.CategoryName]) acc[c.CategoryName] += revenue;
+      else acc[c.CategoryName] = revenue;
+      return acc;
+    }, {})
+  ).map(([name, revenue]) => ({ CategoryName: name, Revenue: revenue }));
 
   return (
     <div className="sales-report-container">
@@ -91,7 +92,7 @@ function SalesReport() {
       </table>
 
       {/* Revenue by Category Table */}
-      <div style={{ height: '20px' }}></div>
+      <div style={{ height: "20px" }}></div>
       <h2>Revenue by Category</h2>
       <table className="sales-table">
         <thead>

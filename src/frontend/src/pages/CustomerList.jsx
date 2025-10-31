@@ -1,9 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import "./CustomerList.css";
-
-const BASE_URL = "http://localhost:3001/admin";
-
+import api from "../utils/api.js"; 
 export default function CustomerList() {
     const [customers, setCustomers] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -25,11 +23,10 @@ export default function CustomerList() {
     const pageSize = 8;
 
     const fetchCustomers = async (search = "") => {
-        const params = new URLSearchParams();
-        if (search) params.append("name", search);
-        const res = await fetch(`${BASE_URL}/customers?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to load customers");
-        const data = await res.json();
+        const params = {};
+        if (search) params.name = search; 
+        const res = await api.get("/admin/customers", { params });
+        const data = res.data;
         const mapped = (data.customers || []).map((c) => ({
             id: c.CustomerID,
             name: `${c.FirstName || ""} ${c.LastName || ""}`.trim(),
@@ -114,23 +111,15 @@ export default function CustomerList() {
 
         if (editCustomer) {
             const id = editCustomer.id;
-            const res = await fetch(`${BASE_URL}/customers/${id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
+            const res = await api.put(`/admin/customers/${id}`, payload);
+            if (res.status < 200 || res.status >= 300) {
                 console.error("Update failed");
                 return;
             }
             await fetchCustomers(searchTerm).catch(console.error);
         } else {
-            const res = await fetch(`${BASE_URL}/customers/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
+            const res = await api.post(`/admin/customers`, payload);
+            if (res.status < 200 || res.status >= 300) {
                 console.error("Create failed");
                 return;
             }
@@ -140,8 +129,8 @@ export default function CustomerList() {
     };
 
     const handleDelete = async (id) => {
-        const res = await fetch(`${BASE_URL}/customers/${id}`, { method: "DELETE" });
-        if (!res.ok && res.status !== 204) {
+        const res = await api.delete(`/admin/customers/${id}`);
+        if (res.status !== 200 && res.status !== 204) {
             console.error(res);
             console.error("Delete failed");
             return;
@@ -150,19 +139,14 @@ export default function CustomerList() {
     };
 
     const handleReactivate = async (id) => {
-        const res = await fetch(`${BASE_URL}/customers/${id}/reactivate`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ isActive: 1 }),
-        });
-        if (!res.ok) {
+        const res = await api.put(`/admin/customers/${id}/reactivate`, { isActive: 1 });
+        if (res.status < 200 || res.status >= 300) {
             console.error(res);
             console.error("Reactivate failed");
             return;
         }
         await fetchCustomers(searchTerm).catch(console.error);
     };
-
 
     const handleSearch = (e) => {
         const value = e.target.value;
