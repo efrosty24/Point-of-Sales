@@ -33,7 +33,6 @@ function SalesReport() {
   const formatCurrency = (val) =>
     val !== undefined && !isNaN(val) ? parseFloat(val).toFixed(2) : "0.00";
 
-).map(([name, revenue]) => ({ CategoryName: name, Revenue: revenue }));
 
   const categoryRevenueArray = Object.entries(
     byCategory.reduce((acc, c) => {
