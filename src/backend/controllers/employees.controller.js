@@ -75,7 +75,6 @@ exports.updateEmployee = (req, res) => {
     return res.status(400).json({ error: 'No update data is provided' });
   }
 
-  
   if (updateData.Password && !updateData.UserPassword) {
     updateData.UserPassword = updateData.Password;
   }
@@ -119,4 +118,71 @@ exports.deleteEmployee = (req, res) => {
     }
     return res.status(204).send();
   });
+};
+
+// ===== Dashboard =====
+const hourLabel = (h) => {
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const hr = (h % 12) || 12;
+  return `${hr} ${ampm}`;
+};
+
+function pCall(fn, ...args) {
+  return new Promise((resolve, reject) => {
+    fn(...args, (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+}
+
+exports.getEmployeeDashboard = async (req, res) => {
+  const employeeId = Number(req.params.id);
+  if (!employeeId) return res.status(400).json({ error: 'Invalid employee ID' });
+
+  try {
+    const [todayAgg, hourly, daily, monthly, recent] = await Promise.all([
+      pCall(svc.getTodayAggregates, employeeId),
+      pCall(svc.getHourlySalesToday, employeeId),   // devuelve hourNum, sales
+      pCall(svc.getDailySalesLast7, employeeId),
+      pCall(svc.getMonthlySalesLast6, employeeId),
+      pCall(svc.getRecentOrders, employeeId),
+    ]);
+
+    const todaySales = Number(todayAgg?.todaySales || 0);
+    const totalOrders = Number(todayAgg?.totalOrders || 0);
+    const avgPerOrder = totalOrders > 0 ? Number((todaySales / totalOrders).toFixed(2)) : 0;
+
+    const hourlySales = (hourly || []).map(r => ({
+      hour: hourLabel(Number(r.hourNum)),  // usar hourNum del SQL
+      sales: Number(r.sales || 0),
+    }));
+
+    const dailySales = (daily || []).map(r => ({
+      day: r.day,
+      sales: Number(r.sales || 0),
+    }));
+
+    const monthlySales = (monthly || []).map(r => ({
+      month: r.month,
+      sales: Number(r.sales || 0),
+    }));
+
+    const recentOrders = (recent || []).map(r => ({
+      id: String(r.OrderID),
+      date: r.DatePlaced,
+      total: Number(r.Total || 0),
+      status: r.Status || 'Completed',
+    }));
+
+    return res.json({
+      todaySales,
+      totalOrders,
+      avgPerOrder,
+      hourlySales,
+      dailySales,
+      monthlySales,
+      recentOrders,
+    });
+  } catch (err) {
+    console.error('Error in getEmployeeDashboard:', err);
+    return res.status(500).json({ error: 'Failed to load dashboard data' });
+  }
 };

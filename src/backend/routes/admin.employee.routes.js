@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/employees.controller');
-
+// Get employee dashboard data
+router.get('/:id/dashboard', ctrl.getEmployeeDashboard);
 // Create employee
 router.post('/', ctrl.addEmployee);
 
