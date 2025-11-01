@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import "./InventoryManagement.css";
+import api from "../utils/api.js"; 
 
 export default function InventoryManagement() {
   const [products, setProducts] = useState([]);
@@ -17,29 +17,27 @@ export default function InventoryManagement() {
   const [newProduct, setNewProduct] = useState({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", ReorderThreshold: "" });
   const [newSupplier, setNewSupplier] = useState({ Name: '', Phone: '', Email: '', Address: '' });
   const [newCategoryName, setNewCategoryName] = useState('');
-  
 
   useEffect(() => {
     fetchSuppliers();
     fetchCategories();
     fetchProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchCategories() {
     try {
-      const res = await axios.get("http://localhost:3001/admin/inventory/categories");
+      const res = await api.get("/admin/inventory/categories");
       setCategories(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
+    } catch {
       setCategories([]);
     }
   }
 
   async function fetchSuppliers() {
     try {
-      const res = await axios.get("http://localhost:3001/admin/inventory/suppliers");
+      const res = await api.get("/admin/inventory/suppliers");
       setSuppliers(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
+    } catch {
       setSuppliers([]);
     }
   }
@@ -50,9 +48,9 @@ export default function InventoryManagement() {
       const params = {};
       if (search) params.search = search;
       if (supplierFilter) params.supplier = supplierFilter;
-      const res = await axios.get("http://localhost:3001/admin/inventory/products", { params });
+      const res = await api.get("/admin/inventory/products", { params });
       setProducts(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
+    } catch {
       setProducts([]);
     } finally {
       setLoading(false);
@@ -76,7 +74,7 @@ export default function InventoryManagement() {
       return;
     }
     try {
-      const res = await axios.post("http://localhost:3001/admin/inventory/restock", {
+      const res = await api.post("/admin/inventory/restock", {
         SupplierID: Number(supplierFilter),
         items,
       });
@@ -87,7 +85,7 @@ export default function InventoryManagement() {
       } else {
         setMessage("Restock completed");
       }
-    } catch (e) {
+    } catch {
       setMessage("Restock failed");
     }
   }
@@ -130,8 +128,6 @@ export default function InventoryManagement() {
         </div>
 
         {message && <div className="message">{message}</div>}
-
-        
 
         <div className="table-wrap" role="region" aria-label="Products table">
           {loading ? (
@@ -186,7 +182,7 @@ export default function InventoryManagement() {
           <button className="btn primary" onClick={handleRestock}>Restock Selected</button>
           <button className="btn" onClick={() => setRestock({})}>Reset Quantities</button>
         </div>
-        {/* Create product modal */}
+
         {showCreate && (
           <div className="overlay">
             <form
@@ -204,7 +200,7 @@ export default function InventoryManagement() {
                 };
                 try {
                   setLoading(true);
-                  const res = await axios.post("http://localhost:3001/admin/inventory/products", body);
+                  const res = await api.post("/admin/inventory/products", body);
                   setMessage(res.data?.message || "Product created");
                   setShowCreate(false);
                   setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", ReorderThreshold: "" });
@@ -253,7 +249,6 @@ export default function InventoryManagement() {
                   className="btn primary"
                   type="submit"
                   onClick={(e) => {
-                    // quick client-side validation: ensure supplier is chosen (helps avoid FK/NOT NULL DB errors)
                     if (newProduct.SupplierID === "" || newProduct.SupplierID == null) {
                       e.preventDefault();
                       setMessage("Please select a supplier before creating the product.");
@@ -267,7 +262,6 @@ export default function InventoryManagement() {
           </div>
         )}
 
-        {/* Create supplier modal (persists to backend) */}
         {showSupplierCreate && (
           <div className="overlay">
             <form
@@ -281,9 +275,8 @@ export default function InventoryManagement() {
                   try {
                     setLoading(true);
                     const body = { Name: newSupplier.Name, Phone: newSupplier.Phone || null, Email: newSupplier.Email || null, Address: newSupplier.Address || null };
-                    const res = await axios.post('http://localhost:3001/admin/inventory/suppliers', body);
-                    // controller returns { ok: true, SupplierID }
-                    const id = res.data?.SupplierID || res.data?.supplier?.SupplierID || (res.data && res.data.insertId) || null;
+                    const res = await api.post("/admin/inventory/suppliers", body);
+                    const id = res.data?.SupplierID || res.data?.supplier?.SupplierID || res.data?.insertId || null;
                     const created = { SupplierID: id || Date.now() * -1, Name: newSupplier.Name, Phone: newSupplier.Phone || null, Email: newSupplier.Email || null, Address: newSupplier.Address || null };
                     setSuppliers((s) => [...s, created]);
                     if (id) {
@@ -291,7 +284,6 @@ export default function InventoryManagement() {
                       setNewProduct({ ...newProduct, SupplierID: id });
                       setMessage('Supplier created');
                     } else {
-                      // fallback if backend didn't return id
                       setMessage('Supplier created (no id returned)');
                     }
                     setShowSupplierCreate(false);
@@ -317,7 +309,7 @@ export default function InventoryManagement() {
             </form>
           </div>
         )}
-        {/* Create category modal (persists to backend) */}
+
         {showCategoryCreate && (
           <div className="overlay">
             <form
@@ -331,7 +323,7 @@ export default function InventoryManagement() {
                 try {
                   setLoading(true);
                   const body = { CategoryName: newCategoryName };
-                  const res = await axios.post('http://localhost:3001/admin/inventory/categories', body);
+                  const res = await api.post("/admin/inventory/categories", body);
                   const id = res.data?.CategoryID || res.data?.insertId || null;
                   const created = { CategoryID: id || Date.now() * -1, CategoryName: newCategoryName };
                   setCategories((c) => [...c, created]);
@@ -361,7 +353,6 @@ export default function InventoryManagement() {
             </form>
           </div>
         )}
-        
       </div>
     </div>
   );

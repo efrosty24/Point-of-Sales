@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import "./Dashboard.css";
+import api from "../utils/api.js"; 
 
 function Dashboard() {
   const [recentSales, setRecentSales] = useState([]);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:3001/admin/sales/recent")
+    api
+      .get("/admin/sales/recent")
       .then(res => setRecentSales(res.data))
       .catch(err => console.error(err));
   }, []);

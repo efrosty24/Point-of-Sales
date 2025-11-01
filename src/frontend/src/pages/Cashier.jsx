@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import "./Cashier.css";
 import ReceiptView from "../components/ReceiptView.jsx";
 import Modal from "../components/Modal.jsx";
+import api from "../utils/api.js"; 
 
-const BASE_URL = "http://localhost:3001";
+
 const GUEST_KEY = "cashierGuest";
 
 const safeParse = (str, fallback) => { try { return str ? JSON.parse(str) : fallback; } catch { return fallback; } };
@@ -114,30 +115,23 @@ export default function Cashier() {
     const [receiptLoading, setReceiptLoading] = useState(false);
     const [receiptError, setReceiptError] = useState("");
 
-
     useEffect(() => { saveGuest(guest); }, [guest]);
 
+    // ===== axios endpoints (api) =====
 
     const fetchReceipt = useCallback(async (orderId) => {
         try {
             setReceiptLoading(true);
             setReceiptError("");
-            const res = await fetch(`${BASE_URL}/cashier/orders/${orderId}/receipt`);
-            console.log(res);
-            if (res.status === 404) {
+            const res = await api.get(`/cashier/orders/${orderId}/receipt`);
+            setReceipt(res.data);
+        } catch (err) {
+            if (err?.response?.status === 404) {
                 setReceipt(null);
                 setReceiptError("Receipt not found.");
-                return;
+            } else {
+                setReceiptError("Failed to load receipt.");
             }
-            if (!res.ok) {
-                const txt = await res.text().catch(() => "");
-                setReceiptError(txt || "Failed to load receipt.");
-                return;
-            }
-            const data = await res.json();
-            setReceipt(data);
-        } catch {
-            setReceiptError("Failed to load receipt.");
         } finally {
             setReceiptLoading(false);
         }
@@ -177,14 +171,8 @@ export default function Cashier() {
         const id = guest.lastRegisterListId;
         (async () => {
             try {
-                const res = await fetch(`${BASE_URL}/cashier/registerList/${id}`);
-                if (res.status === 404) {
-                    setCart([]);
-                    setGuest(prev => ({ ...prev, lastRegisterListId: null }));
-                    return;
-                }
-                if (!res.ok) return;
-                const data = await res.json();
+                const res = await api.get(`/cashier/registerList/${id}`);
+                const data = res.data;
                 const items = (data.items || []).map(r => {
                     const saved = r.SavedAmount != null ? Number(r.SavedAmount) : computeSaved(r.Qty, r.OriginalPrice, r.Price, r.DiscountType);
                     return {
@@ -209,8 +197,8 @@ export default function Cashier() {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const res = await fetch(`${BASE_URL}/admin/inventory/categories`);
-                const data = await res.json();
+                const res = await api.get(`/admin/inventory/categories`);
+                const data = res.data;
                 if (Array.isArray(data)) setCategories(data);
             } catch (err) {
                 console.error("Failed to fetch categories:", err);
@@ -223,11 +211,12 @@ export default function Cashier() {
         const fetchProducts = async () => {
             try {
                 setLoading(true);
-                const params = new URLSearchParams();
-                if (search) params.append("search", search);
-                if (category !== "All") params.append("category", category);
-                const res = await fetch(`${BASE_URL}/cashier/products?${params}`);
-                const data = await res.json();
+                const params = {};
+                if (search) params.search = search;
+                if (category !== "All") params.category = category;
+
+                const res = await api.get(`/cashier/products`, { params });
+                const data = res.data;
                 if (Array.isArray(data)) {
                     setProducts(
                         data.map((p) => ({
@@ -267,13 +256,9 @@ export default function Cashier() {
             items: [],
             taxRate: 0.0825,
         };
-        const res = await fetch(`${BASE_URL}/cashier/registerList`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.RegisterListID) {
+        const res = await api.post(`/cashier/registerList`, payload);
+        const data = res.data || {};
+        if (!data.RegisterListID) {
             throw new Error((data && (data.error || data.message)) || 'OPEN_REGISTER_FAILED');
         }
         const newId = Number(data.RegisterListID);
@@ -296,23 +281,9 @@ export default function Cashier() {
             if (!okIds) throw new Error('BAD_CUSTOMER_OR_GUEST');
             if (badItems) throw new Error('BAD_ITEMS');
 
-            const res = await fetch(`${BASE_URL}/cashier/registerList`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const res = await api.post(`/cashier/registerList`, payload);
+            const data = res.data || {};
 
-            const ct = res.headers.get('content-type') || '';
-            let body;
-            if (ct.includes('application/json')) { try { body = await res.clone().json(); } catch { body = {}; } }
-            else { try { body = await res.clone().text(); } catch { body = ''; } }
-
-            if (!res.ok) {
-                console.log(JSON.stringify(body));
-                throw new Error((typeof body === 'string' && body) || body.error || 'DB_ERROR');
-            }
-
-            const data = ct.includes('application/json') ? body : {};
             const merged = nextCart.map((c) => {
                 const line = (data.items || []).find((i) => i.ProductID === Number(c.ProductID));
                 if (!line) return c;
@@ -341,12 +312,8 @@ export default function Cashier() {
     const deleteItemFromServer = async (productID) => {
         if (!guest.lastRegisterListId) return;
         try {
-            const res = await fetch(`${BASE_URL}/cashier/registerList/${guest.lastRegisterListId}/items/${productID}`, { method: 'DELETE' });
-            if (!res.ok) {
-                try { console.error(await res.text()); } catch {}
-                return;
-            }
-            const data = await res.json();
+            const res = await api.delete(`/cashier/registerList/${guest.lastRegisterListId}/items/${productID}`);
+            const data = res.data;
             const items = (data.items || []).map(r => {
                 const saved = r.SavedAmount != null ? Number(r.SavedAmount) : computeSaved(r.Qty, r.OriginalPrice, r.Price, r.DiscountType);
                 return {
@@ -375,16 +342,8 @@ export default function Cashier() {
     const updateRegisterIdentity = async ({ customerId, guestId }) => {
         try {
             const id = await ensureRegister();
-            const res = await fetch(`${BASE_URL}/cashier/registerList/${id}/identity`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ customerId, guestId }),
-            });
-            if (!res.ok) {
-                try { console.error(await res.text()); } catch {}
-                return;
-            }
-            const data = await res.json();
+            const res = await api.patch(`/cashier/registerList/${id}/identity`, { customerId, guestId });
+            const data = res.data;
             const items = (data.items || []).map(r => {
                 const saved = r.SavedAmount != null ? Number(r.SavedAmount) : computeSaved(r.Qty, r.OriginalPrice, r.Price, r.DiscountType);
                 return {
@@ -447,8 +406,10 @@ export default function Cashier() {
 
     const handlePhoneSearch = async () => {
         try {
-            const res = await fetch(`${BASE_URL}/cashier/customers/lookup?phone=${encodeURIComponent(phone.trim())}`);
-            const data = await res.json();
+            const res = await api.get(`/cashier/customers/lookup`, {
+                params: { phone: phone.trim() }
+            });
+            const data = res.data;
             if (Array.isArray(data) && data.length > 0) {
                 const found = data[0];
                 await updateRegisterIdentity({ customerId: Number(found.CustomerID), guestId: null });
@@ -488,24 +449,14 @@ export default function Cashier() {
                 items: cart.map((c) => ({ ProductID: Number(c.ProductID), Qty: normalizeQty(c.Qty) })),
                 taxRate,
             };
-            const res = await fetch(`${BASE_URL}/cashier/register`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const ct = res.headers.get('content-type') || '';
-            let body;
-            if (ct.includes('application/json')) { try { body = await res.clone().json(); } catch { body = {}; } }
-            else { try { body = await res.clone().text(); } catch { body = ''; } }
 
+            const res = await api.post(`/cashier/register`, payload);
             if (res.status === 201) {
-                const orderId = typeof body === "object" && body && body.orderId ? Number(body.orderId) : null;
-                const orderTotal = (typeof body === "object" && body && Number.isFinite(Number(body.total))) ? Number(body.total) : total;
+                const body = res.data || {};
+                const orderId = body && body.orderId ? Number(body.orderId) : null;
+                const orderTotal = Number.isFinite(Number(body.total)) ? Number(body.total) : total;
 
-                // snapshot before clearing
-                const snapshot = cart.map(c => ({ ...c }));
-
-                // clear cart and guest/session
+                
                 setCart([]);
                 setCustomerName("Guest");
                 setPhone("");
@@ -515,51 +466,19 @@ export default function Cashier() {
                     return fresh;
                 });
 
-                // open modal
+                
                 setShowReceipt(true);
                 if (orderId) {
                     fetchReceipt(orderId);
-                } else {
-                    // // build sample payload with all fields your view expects
-                    // const snapSubtotal = snapshot.reduce((s, c) => {
-                    //     const lt = Number(c.LineTotal);
-                    //     return s + (Number.isFinite(lt) ? lt : (Number(c.Qty)||0) * Number(c.Price ?? c.FinalPrice ?? 0));
-                    // }, 0);
-                    // const snapDiscount = snapshot.reduce((s, c) => s + (Number(c.SavedAmount) || 0), 0);
-                    // const snapTax = round2(snapSubtotal * taxRate);
-                    // setReceipt({
-                    //     OrderID: 0,
-                    //     CustomerID: hasRealCustomer ? Number(guest.customerId) : null,
-                    //     GuestID: hasRealCustomer ? null : Number(guest.sessionId),
-                    //     EmployeeID: null,
-                    //     Date: new Date().toISOString(),
-                    //     Status: "Placed",
-                    //     CustomerName: hasRealCustomer ? (customerName || "Customer") : "Guest",
-                    //     Subtotal: snapSubtotal,
-                    //     Discount: snapDiscount,
-                    //     Tax: snapTax,
-                    //     Total: orderTotal,
-                    //     Items: snapshot.map(c => ({
-                    //         ProductID: c.ProductID,
-                    //         Name: c.Name,
-                    //         Qty: Number(c.Qty) || 0,
-                    //         UnitPrice: Number(c.Price ?? c.FinalPrice ?? 0),
-                    //         OriginalPrice: Number(c.OriginalPrice ?? c.Price ?? c.FinalPrice ?? 0),
-                    //         LineTotal: Number.isFinite(Number(c.LineTotal)) ? Number(c.LineTotal)
-                    //             : (Number(c.Qty)||0) * Number(c.Price ?? c.FinalPrice ?? 0),
-                    //         SavedAmount: Number(c.SavedAmount) || 0,
-                    //         DiscountType: c.DiscountType || null,
-                    //         DiscountValue: c.DiscountValue != null ? Number(c.DiscountValue) : null
-                    //     }))
-                    // });
                 }
                 return;
             }
 
-            const errMsg = (typeof body === 'string' && body) || (body && (body.message || body.error)) || 'Checkout failed';
+            const errMsg = (res.data && (res.data.message || res.data.error)) || 'Checkout failed';
             alert(errMsg);
         } catch (err) {
-            alert("Checkout failed: " + (err?.message || String(err)));
+            const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || String(err);
+            alert("Checkout failed: " + msg);
         }
     };
 
@@ -757,3 +676,6 @@ export default function Cashier() {
         </div>
     );
 }
+
+
+        
