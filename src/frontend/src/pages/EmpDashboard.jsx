@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import {
-    LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+    LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Label
 } from "recharts";
 import { FaDollarSign, FaShoppingCart, FaChartLine } from "react-icons/fa";
 import { AuthContext } from "../AuthContext";
-import api from "../utils/api"; // axios instance configured with baseURL
+import api from "../utils/api";
 import "./EmpDashboard.css";
 
 export default function EmpDashboard() {
@@ -14,8 +14,9 @@ export default function EmpDashboard() {
 
     useEffect(() => {
         async function fetchDashboard() {
+            if (!user?.id) return;
             try {
-                const res = await api.get(`/employees/${user?.id || 1}/dashboard`);
+                const res = await api.get(`/admin/employees/${user.id}/dashboard`);
                 setDashboardData(res.data);
             } catch (err) {
                 console.error("Error fetching employee dashboard:", err);
@@ -30,13 +31,13 @@ export default function EmpDashboard() {
     if (!dashboardData) return <div className="emp-dashboard">No data available.</div>;
 
     const {
-        todaySales,
-        totalOrders,
-        avgPerOrder,
-        hourlySales,
-        dailySales,
-        monthlySales,
-        recentOrders
+        todaySales = null,
+        totalOrders = null,
+        avgPerOrder = null,
+        hourlySales = [],
+        dailySales = [],
+        monthlySales = [],
+        recentOrders = []
     } = dashboardData;
 
     return (
@@ -51,24 +52,21 @@ export default function EmpDashboard() {
                     <div className="kpi-icon"><FaDollarSign /></div>
                     <div>
                         <h4>Today's Sales</h4>
-                        <p>${todaySales.toFixed(2)}</p>
-                        <span className="trend positive">+12%</span>
+                        <p>{todaySales !== null ? `$${Number(todaySales).toFixed(2)}` : "–"}</p>
                     </div>
                 </div>
                 <div className="kpi-card">
                     <div className="kpi-icon"><FaShoppingCart /></div>
                     <div>
-                        <h4>Total Orders</h4>
-                        <p>{totalOrders}</p>
-                        <span className="trend positive">+8%</span>
+                        <h4>Today's Total Orders</h4>
+                        <p>{totalOrders !== null ? totalOrders : "–"}</p>
                     </div>
                 </div>
                 <div className="kpi-card">
                     <div className="kpi-icon"><FaChartLine /></div>
                     <div>
-                        <h4>Avg. per Order</h4>
-                        <p>${avgPerOrder.toFixed(2)}</p>
-                        <span className="trend negative">-2%</span>
+                        <h4>Today's Avg. per Order</h4>
+                        <p>{avgPerOrder !== null ? `$${Number(avgPerOrder).toFixed(2)}` : "–"}</p>
                     </div>
                 </div>
             </div>
@@ -77,34 +75,48 @@ export default function EmpDashboard() {
                 <div className="chart-card">
                     <h4>Hourly Sales</h4>
                     <ResponsiveContainer width="100%" height={250}>
-                        <LineChart data={hourlySales}>
+                        <LineChart data={hourlySales.length ? hourlySales : [{ hour: "No Data", sales: 0 }]} margin={{ top: 10, right: 2, left: 2, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="hour" />
-                            <YAxis />
+                            <XAxis dataKey="hour">
+                                <Label value="Hour" offset={-5} position="insideBottom" style={{textAnchor: "middle", fontSize: 12, fill: "#555", fontWeight: 600 }} />
+                            </XAxis>
+                            <YAxis>
+                                <Label value="Sales ($)" angle={-90} position="insideLeft" style={{textAnchor: "middle", fontSize: 12, fill: "#555", fontWeight: 600 }} />
+                            </YAxis>
                             <Tooltip />
                             <Line type="monotone" dataKey="sales" stroke="#2e7d32" strokeWidth={2} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
+
                 <div className="chart-card">
                     <h4>Daily Sales</h4>
                     <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={dailySales}>
+                        <BarChart data={dailySales.length ? dailySales : [{ day: "No Data", sales: 0 }]} margin={{ top: 10, right: 2, left: 2, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="day" />
-                            <YAxis />
+                            <XAxis dataKey="day" >
+                                <Label value="Day" offset={-7} position="insideBottom" style={{textAnchor: "middle", fontSize: 12, fill: "#555", fontWeight: 600 }} />
+                            </XAxis>
+                            <YAxis>
+                                <Label value="Sales ($)" angle={-90} position="insideLeft" style={{textAnchor: "middle", fontSize: 12, fill: "#555", fontWeight: 600 }}/>
+                            </YAxis>
                             <Tooltip />
                             <Bar dataKey="sales" fill="#4caf50" radius={[6, 6, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
+
                 <div className="chart-card">
                     <h4>Monthly Sales Growth</h4>
                     <ResponsiveContainer width="100%" height={250}>
-                        <LineChart data={monthlySales}>
+                        <LineChart data={monthlySales.length ? monthlySales : [{ month: "No Data", sales: 0 }]}  margin={{ top: 10, right: 2, left: 2, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
-                            <YAxis />
+                            <XAxis dataKey="month">
+                                <Label value="Month" offset={-5} position="insideBottom" style={{textAnchor: "middle", fontSize: 12, fill: "#555", fontWeight: 600 }} />
+                            </XAxis>
+                            <YAxis>
+                                <Label value="Sales ($)" angle={-90} position="insideLeft" style={{textAnchor: "middle", fontSize: 12, fill: "#555", fontWeight: 600 }} />
+                            </YAxis>
                             <Tooltip />
                             <Line type="monotone" dataKey="sales" stroke="#388e3c" strokeWidth={2} />
                         </LineChart>
@@ -125,18 +137,24 @@ export default function EmpDashboard() {
                         </tr>
                         </thead>
                         <tbody>
-                        {recentOrders.map((order) => (
-                            <tr key={order.id}>
-                                <td>{order.id}</td>
-                                <td>{order.date}</td>
-                                <td>{order.total.toFixed(2)}</td>
-                                <td>
-                                        <span className={`status-badge ${order.status.toLowerCase()}`}>
-                                            {order.status}
+                        {recentOrders.length > 0 ? (
+                            recentOrders.map((order) => (
+                                <tr key={order.id}>
+                                    <td>{order.id}</td>
+                                    <td>{order.date}</td>
+                                    <td>{Number(order.total).toFixed(2)}</td>
+                                    <td>
+                                        <span className={`status-badge ${order.status?.toLowerCase() || ""}`}>
+                                            {order.status || "Unknown"}
                                         </span>
-                                </td>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="4" className="no-orders">No recent orders</td>
                             </tr>
-                        ))}
+                        )}
                         </tbody>
                     </table>
                 </div>
