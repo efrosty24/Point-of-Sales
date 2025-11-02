@@ -1,13 +1,16 @@
-// Navbar.jsx
+import { useContext } from "react";
 import "./Navbar.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { AuthContext } from "../AuthContext";
 
 function Navbar({ user }) {
     const navigate = useNavigate();
+    const { setUser } = useContext(AuthContext);
+
 
     const handleSignOut = () => {
-        localStorage.removeItem("user");
+        setUser(null);
         delete axios.defaults.headers.common["Authorization"];
         navigate("/", { replace: true });
     };
