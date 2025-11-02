@@ -6,7 +6,6 @@
     box-sizing: border-box;
 }
 
-/* Header */
 .dashboard-header {
     text-align: left;
     margin-bottom: 1.5rem;
@@ -24,7 +23,6 @@
     color: #555;
 }
 
-/* KPI Cards */
 .kpi-row {
     display: flex;
     flex-wrap: wrap;
@@ -79,7 +77,6 @@
 .trend.positive { color: #2e7d32; }
 .trend.negative { color: #e53935; }
 
-/* Charts Grid */
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -105,12 +102,10 @@
     margin-bottom: 1rem;
 }
 
-/* Full-width charts (if needed) */
 .chart-card.full-width {
     grid-column: 1 / -1;
 }
 
-/* Recent Orders */
 .recent-orders-card {
     background: #fff;
     border-radius: 12px;
@@ -178,7 +173,6 @@ tr:hover td {
     font-style: italic;
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
     .charts-grid { grid-template-columns: repeat(2, 1fr); }
 }
