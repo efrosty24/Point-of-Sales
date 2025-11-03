@@ -12,6 +12,8 @@ const adminEmployeesRoutes = require('./routes/admin.employee.routes');
 const adminCustomerRoutes = require('./routes/admin.customers.route');
 const adminOrdersRoutes = require('./routes/admin.orders.routes');
 const cashierRoutes = require('./routes/cashier.routes');
+const customerRoutes = require('./routes/admin.customers.route');
+const adminsearchRoutes = require('./routes/admin.search.routes');
 
 const app = express();
 const port = process.env.PORT || process.env.APP_PORT || 8080;
@@ -50,7 +52,8 @@ app.use('/admin/employees', adminEmployeesRoutes);
 app.use('/admin/customers', adminCustomerRoutes);
 app.use('/admin/orders', adminOrdersRoutes);
 app.use('/cashier', cashierRoutes);
-
+app.use('/admin/customers', customerRoutes);
+app.use("/admin/search", adminsearchRoutes);
 
 
 // Ensure guest customer exists, create if not

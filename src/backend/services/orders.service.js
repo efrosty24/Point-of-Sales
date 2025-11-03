@@ -6,6 +6,7 @@ exports.listRecent = (limit = 5, cb) => {
     SELECT 
       o.OrderID,
       o.DatePlaced,
+      o.Status,
       COALESCE(SUM(od.Quantity * od.Price), 0) AS Total,
       c.FirstName, c.LastName
     FROM Orders o

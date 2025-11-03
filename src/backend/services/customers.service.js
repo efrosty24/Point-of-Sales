@@ -137,3 +137,13 @@ exports.reactivateCustomer = (customerId, callback) => {
   `;
     db.query(sql, [customerId], callback);
 };
+
+exports.getRecent = (limit, callback) => {
+  const sql = `
+    SELECT CustomerID, FirstName, LastName, Email, Phone
+    FROM Customers
+    ORDER BY CustomerID DESC
+    LIMIT ?
+  `;
+  db.query(sql, [limit], callback);
+};
