@@ -186,8 +186,8 @@
 }
 
 .arrow {
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
     transition: transform 0.2s ease;
     margin-left: auto;
 }

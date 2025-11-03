@@ -1,17 +1,18 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
-import { useEffect } from "react";
+import { useEffect, useContext } from "react";
+import { AuthContext } from "../AuthContext";
 import "./NavMenus.css";
 
 function NavMenus() {
     const navigate = useNavigate();
-    const user = JSON.parse(localStorage.getItem("user"));
+    const { user } = useContext(AuthContext);
 
     useEffect(() => {
-        if (!user) navigate("/login");
+        if (!user) navigate("/");
     }, [navigate, user]);
-
+    if (!user) return null;
     return (
         <div className="layout">
             <Sidebar />

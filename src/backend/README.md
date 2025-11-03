@@ -220,6 +220,129 @@ Delete an employee by ID.
 
 ---
 
+### GET `/admin/employees/:id/dashboard`
+Returns summarized sales analytics and performance metrics for a specific employee.
+
+**Description**  
+Fetches aggregate sales data (today’s totals, order count, averages, trends, and recent activity) for the employee identified by `:id`.  
+The data is computed dynamically from the `Orders` table.
+
+---
+
+**Path parameter**
+- `:id` — Employee ID *(integer, required)*
+
+---
+
+**Sample Response**
+```json
+{
+  "todaySales": 1240.55,
+  "totalOrders": 63,
+  "avgPerOrder": 19.68,
+  "hourlySales": [
+    { "hour": "8 AM", "sales": 90 },
+    { "hour": "9 AM", "sales": 120 },
+    { "hour": "10 AM", "sales": 220 },
+    { "hour": "11 AM", "sales": 310 },
+    { "hour": "12 PM", "sales": 380 },
+    { "hour": "1 PM", "sales": 270 },
+    { "hour": "2 PM", "sales": 230 },
+    { "hour": "3 PM", "sales": 340 }
+  ],
+  "dailySales": [
+    { "day": "Mon", "sales": 2800 },
+    { "day": "Tue", "sales": 3100 },
+    { "day": "Wed", "sales": 2950 },
+    { "day": "Thu", "sales": 3350 },
+    { "day": "Fri", "sales": 3700 },
+    { "day": "Sat", "sales": 4600 },
+    { "day": "Sun", "sales": 3200 }
+  ],
+  "monthlySales": [
+    { "month": "May", "sales": 15800 },
+    { "month": "Jun", "sales": 17600 },
+    { "month": "Jul", "sales": 19200 },
+    { "month": "Aug", "sales": 21000 },
+    { "month": "Sep", "sales": 23400 },
+    { "month": "Oct", "sales": 25800 }
+  ],
+  "recentOrders": [
+    { "id": "1", "date": "2025-10-30", "total": 54.90, "status": "Completed" },
+    { "id": "2", "date": "2025-10-30", "total": 37.50, "status": "Pending" },
+    { "id": "3", "date": "2025-10-29", "total": 18.25, "status": "Completed" },
+    { "id": "4", "date": "2025-10-29", "total": 63.80, "status": "Cancelled" },
+    { "id": "5", "date": "2025-10-29", "total": 22.10, "status": "Completed" }
+  ]
+}
+```
+
+---
+
+**Response Fields**
+
+| Field | Type | Description |
+|--------|------|-------------|
+| `todaySales` | number | Total sales for the current day (excluding cancelled orders). |
+| `totalOrders` | number | Number of orders placed today (excluding cancelled). |
+| `avgPerOrder` | number | Average sales per order today (`todaySales / totalOrders`). |
+| `hourlySales` | array | Sales per hour for the current day. |
+| `dailySales` | array | Total daily sales for the last 7 days. |
+| `monthlySales` | array | Total monthly sales for the last 6 months. |
+| `recentOrders` | array | Five most recent orders from the employee. |
+
+---
+
+**Errors**
+```json
+{ "error": "Invalid employee ID" }
+{ "error": "Failed to load dashboard data" }
+```
+
+---
+
+**Example Test**
+```bash
+curl -sS "http://127.0.0.1:8080/admin/employees/3/dashboard" | jq .
+```
+
+**Example Response**
+```json
+{
+  "todaySales": 88.77,
+  "totalOrders": 2,
+  "avgPerOrder": 44.38,
+  "hourlySales": [
+    { "hour": "4 PM", "sales": 34.64 },
+    { "hour": "6 PM", "sales": 54.13 }
+  ],
+  "dailySales": [
+    { "day": "Sun", "sales": 129.11 },
+    { "day": "Mon", "sales": 179.19 },
+    { "day": "Tue", "sales": 53.28 },
+    { "day": "Wed", "sales": 0 },
+    { "day": "Thu", "sales": 0 },
+    { "day": "Fri", "sales": 0 },
+    { "day": "Sat", "sales": 88.77 }
+  ],
+  "monthlySales": [
+    { "month": "Jun", "sales": 0 },
+    { "month": "Jul", "sales": 0 },
+    { "month": "Aug", "sales": 0 },
+    { "month": "Sep", "sales": 0 },
+    { "month": "Oct", "sales": 361.58 },
+    { "month": "Nov", "sales": 88.77 }
+  ],
+  "recentOrders": [
+    { "id": "79", "date": "2025-11-01", "total": 34.64, "status": "Completed" },
+    { "id": "78", "date": "2025-11-01", "total": 54.13, "status": "Completed" },
+    { "id": "74", "date": "2025-10-28", "total": 31.28, "status": "Placed" },
+    { "id": "73", "date": "2025-10-28", "total": 16.41, "status": "Placed" },
+    { "id": "76", "date": "2025-10-28", "total": 2.89, "status": "Placed" }
+  ]
+}
+```
+---
 ## Quick demo (Terminal)
 
 ```bash

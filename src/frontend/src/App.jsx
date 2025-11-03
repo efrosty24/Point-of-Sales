@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import api from "./utils/api.js";
 // import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./App.css";
+import { AuthContext } from "./AuthContext";
+
 
 function App() {
     const [employeeId, setEmployeeId] = useState("");
@@ -11,6 +13,7 @@ function App() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { setUser } = useContext(AuthContext);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -26,10 +29,9 @@ function App() {
             const message = response.data.message?.trim();
             if (response.data.success) {
                 if (response.data.success) {
-                    localStorage.setItem("user", JSON.stringify(response.data.employee));
-                    // alert("Welcome " + response.data.employee.name);
-                    navigate("/dashboard", { replace: true });
-
+                    setUser(response.data.employee);
+                    console.log(response.data);
+                    navigate("/dashboard");
                 }
             } else if (message === "InvalidUP") {
                 alert("Wrong username or password");
