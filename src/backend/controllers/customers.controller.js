@@ -118,3 +118,12 @@ exports.reactivateCustomer = (req, res) => {
         return res.status(200).json({ message: `${id} reactivated` });
     });
 };
+
+exports.recent = (req, res) => {
+  const limit = Number(req.query.limit) || 5;
+
+  svc.getRecent(limit, (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB_ERROR' });
+    res.json(rows);
+  });
+};

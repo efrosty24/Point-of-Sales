@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/customers.controller');
 
+router.get('/recent', ctrl.recent);
+
 // POST path for adding a customer
 router.post('/', ctrl.addCustomer);
 

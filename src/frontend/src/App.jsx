@@ -28,7 +28,8 @@ function App() {
                 if (response.data.success) {
                     localStorage.setItem("user", JSON.stringify(response.data.employee));
                     // alert("Welcome " + response.data.employee.name);
-                     navigate("/dashboard");
+                    navigate("/dashboard", { replace: true });
+
                 }
             } else if (message === "InvalidUP") {
                 alert("Wrong username or password");
