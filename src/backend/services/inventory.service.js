@@ -77,6 +77,17 @@ exports.addProduct = (productData, callback) => {
     ];
     db.query(sql, values, callback);
 };
+
+
+
+exports.getRestockOrdersByStatus = (status, callback) => {
+    const sql = "SELECT RestockOrderID, ProductID, Quantity, Status, DatePlaced FROM RestockOrders WHERE Status = ?";
+    db.query(sql, [status], (err, rows) => {
+        if (err) return callback(err);
+        callback(null, rows);
+    });
+};
+
 /**
  * POST /admin/inventory/restock
  * Body: { SupplierID, items: [{ ProductID, Qty }] }

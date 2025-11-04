@@ -38,6 +38,16 @@ exports.getLowStockProducts = (req, res) => {
   });
 };
 
+exports.getRestockOrders = (req, res) => {
+    const { status } = req.query;
+    const filterStatus = status || "Pending";
+
+    svc.getRestockOrdersByStatus(filterStatus, (err, rows) => {
+        if (err) return res.status(500).json({ error: "DB error" });
+        res.json(rows);
+    });
+};
+
 exports.addProduct = (req, res) => {
     const productData = req.body;
     if (!productData || !productData.Name || !productData.Price || !productData.Stock) {

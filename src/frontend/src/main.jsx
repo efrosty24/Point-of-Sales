@@ -10,6 +10,7 @@ import SalesReport from "./pages/SalesReport.jsx";
 import CustomerList from "./pages/CustomerList.jsx";
 import InventoryManagement from "./pages/InventoryManagement.jsx";
 import Employees from "./pages/Employees.jsx";
+import Suppliers from "./pages/SupplierList.jsx";
 import DiscountManagement from "./pages/DiscountManagement.jsx";
 import { AuthProvider, AuthContext } from "./AuthContext";
 import "./index.css";
@@ -29,6 +30,7 @@ function MainRouter() {
                     <Route path="/customerlist" element={<CustomerList />} />
                     <Route path="/inventory" element={<InventoryManagement />} />
                     <Route path="/employees" element={<Employees />} />
+                    <Route path="/suppliers" element={<Suppliers />} />
                     <Route path="/discounts" element={<DiscountManagement />} />
                 </Route>
             </Routes>

@@ -17,6 +17,10 @@ router.get('/suppliers/:id/products', ctrl.listSupplierProducts);
 // Get low-stock products
 router.get('/low-stock', ctrl.getLowStockProducts);
 
+router.get("/restock-orders", ctrl.getRestockOrders);
+
+
+
 // Suppliers CRUD
 router.get('/suppliers/:id', ctrl.getSupplierById);
 router.post('/suppliers', ctrl.createSupplier);

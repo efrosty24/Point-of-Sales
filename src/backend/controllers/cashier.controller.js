@@ -87,7 +87,6 @@ exports.postCheckout = (req, res) => {
         if (err) return res.status(500).json({ error: String(err.message || err) });
         if (!result || !result.OrderID) return res.status(500).json({ error: "ORDER_CREATE_FAILED" });
 
-        // respond exactly what the client expects
         return res.status(201).json({
             orderId: Number(result.OrderID),
             total: Number(result.total),

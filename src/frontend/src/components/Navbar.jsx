@@ -1,18 +1,62 @@
-import { useContext } from "react";
+import { useContext, useState, useRef, useEffect } from "react";
 import "./Navbar.css";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { AuthContext } from "../AuthContext";
+import { Bell } from "lucide-react";
 
 function Navbar({ user }) {
     const navigate = useNavigate();
     const { setUser } = useContext(AuthContext);
-
+    const [notifications, setNotifications] = useState([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef();
 
     const handleSignOut = () => {
         setUser(null);
         delete axios.defaults.headers.common["Authorization"];
         navigate("/", { replace: true });
+    };
+
+    const toggleDropdown = () => setShowDropdown(!showDropdown);
+
+    const unreadCount = notifications.filter(n => !n.read).length;
+
+    useEffect(() => {
+        fetchRestockNotifications();
+
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const fetchRestockNotifications = async () => {
+        try {
+            const res = await axios.get("/admin/inventory/restock-orders", {
+                params: { status: "Pending" },
+            });
+            const data = Array.isArray(res.data) ? res.data : [];
+
+            const formatted = data.map(order => ({
+                id: order.RestockOrderID,
+                message: `Pending restock: Product ${order.ProductID} (${order.Quantity} units)`,
+                read: false,
+            }));
+
+            setNotifications(formatted);
+        } catch (err) {
+            console.error("Error fetching restock notifications:", err);
+        }
+    };
+
+
+
+    const markAllAsRead = () => {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     };
 
     return (
@@ -22,6 +66,38 @@ function Navbar({ user }) {
             </div>
 
             <div className="navbar-right">
+                <div className="notification-wrapper" ref={dropdownRef}>
+                    <button
+                        className="notification-btn"
+                        onClick={toggleDropdown}
+                        aria-label="Notifications"
+                        title="Notifications"
+                    >
+                        <Bell size={22} />
+                        {unreadCount > 0 && <span className="notification-dot" />}
+                    </button>
+
+                    {showDropdown && (
+                        <div className="notification-dropdown">
+                            <div className="dropdown-header">
+                                <span>Restock Notifications</span>
+                                <button onClick={markAllAsRead}>Mark all as read</button>
+                            </div>
+                            <ul className="notification-list">
+                                {notifications.length === 0 ? (
+                                    <li className="empty">No pending restocks</li>
+                                ) : (
+                                    notifications.map((n) => (
+                                        <li key={n.id} className={!n.read ? "unread" : ""}>
+                                            {n.message}
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+
                 <div className="navbar-user">
                     <div className="user-info">
                         <div className="user-name">{user?.name || "User"}</div>
@@ -45,7 +121,12 @@ function Navbar({ user }) {
                             aria-hidden="true"
                         >
                             <circle cx="12" cy="8" r="4" stroke="#2e7d32" strokeWidth="2" />
-                            <path d="M4 20c1.8-3.2 5-5 8-5s6.2 1.8 8 5" stroke="#2e7d32" strokeWidth="2" fill="none" />
+                            <path
+                                d="M4 20c1.8-3.2 5-5 8-5s6.2 1.8 8 5"
+                                stroke="#2e7d32"
+                                strokeWidth="2"
+                                fill="none"
+                            />
                         </svg>
                         <span className="avatar-text">Sign Out</span>
                     </button>

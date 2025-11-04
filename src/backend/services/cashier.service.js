@@ -13,7 +13,7 @@ exports.lookupCustomersByPhone = (phone, cb) => {
     if (!p) return cb(null, []);
 
     const sql = `
-    SELECT CustomerID, FirstName, LastName, Phone, Email
+    SELECT CustomerID, FirstName, LastName, Phone, Email, Points
     FROM Customers
     WHERE REPLACE(REPLACE(REPLACE(Phone,'-',''),'(',''),')','') = ?
     ORDER BY CustomerID DESC
@@ -449,7 +449,6 @@ exports.removeRegisterItem = ({ registerListId, productId }, cb) => {
 
                 conn.commit((eC) => {
                   if (eC) return conn.rollback(() => { conn.release(); cb(eC); });
-                  // devolver snapshot actualizado
                   exports.getRegister(registerListId, (eGet, data) => {
                     conn.release();
                     if (eGet) return cb(eGet);
@@ -855,26 +854,29 @@ exports.getOrderReceipt = (orderId, cb) => {
                     const loadName = (done) => {
                         if (head.CustomerID) {
                             db.query(
-                                `SELECT FirstName, LastName FROM Customers WHERE CustomerID = ?`,
+                                `SELECT FirstName, LastName, Points FROM Customers WHERE CustomerID = ?`,
                                 [head.CustomerID],
                                 (eC, rC) => {
-                                    if (eC) return done(null, null);
+                                    if (eC) return done(null, { name: null, points: 0 });
                                     if (rC && rC.length) {
                                         const c = rC[0];
                                         const full = [c.FirstName, c.LastName].filter(Boolean).join(' ').trim();
-                                        return done(null, full || 'Customer');
+                                        return done(null, {
+                                            name: full || 'Customer',
+                                            points: c.Points || 0
+                                        });
                                     }
-                                    done(null, 'Customer');
+                                    done(null, { name: 'Customer', points: 0 });
                                 }
                             );
                         } else if (head.GuestID) {
-                            done(null, 'Guest');
+                            done(null, { name: 'Guest', points: 0 });
                         } else {
-                            done(null, 'Guest');
+                            done(null, { name: 'Guest', points: 0 });
                         }
                     };
 
-                    loadName((_eN, displayName) => {
+                    loadName((_eN, customerData) => {
                         const cashierName = head.EmpFirst;
 
                         const payload = {
@@ -885,7 +887,8 @@ exports.getOrderReceipt = (orderId, cb) => {
                             CashierName: cashierName,
                             Date: head.DatePlaced,
                             Status: head.Status || 'Placed',
-                            CustomerName: displayName || (head.CustomerID ? 'Customer' : 'Guest'),
+                            CustomerName: customerData?.name || (head.CustomerID ? 'Customer' : 'Guest'),
+                            CustomerPoints: customerData?.points || 0,
                             Subtotal: subtotal,
                             Discount: discountTotal,
                             Tax: tax,
@@ -895,6 +898,7 @@ exports.getOrderReceipt = (orderId, cb) => {
 
                         cb(null, payload);
                     });
+
                 }
             );
         }

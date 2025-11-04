@@ -144,7 +144,110 @@
     opacity: 1;
 }
 
+.notification-wrapper {
+    position: relative;
+    margin-right: 1rem;
+}
+
+.notification-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    transition: transform 0.2s ease;
+}
+
+.notification-btn:hover {
+    transform: scale(1.1);
+}
+
+.notification-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: #ff3b3b;
+    border-radius: 50%;
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 45px;
+    right: 0;
+    width: 360px;
+    background: white;
+    color: #333;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    z-index: 100;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+}
+
+.dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0.6rem;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f8f8;
+    font-weight: 600;
+}
+
+.dropdown-header button {
+    background: none;
+    width: 40%;
+    border: none;
+    color: #2e7d32;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.notification-list {
+    max-height: 240px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.notification-list li {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+}
+
+.notification-list li.unread {
+    background-color: #e8f5e9;
+    font-weight: 600;
+}
+
+.notification-list li.empty {
+    text-align: center;
+    padding: 1rem;
+    color: #888;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 768px) {
+    .notification-wrapper {
+        margin-right: 0.5rem;
+    }
+
+    .notification-dropdown {
+        width: 220px;
+        top: 40px;
+    }
 
     .hover-signout {
         height: 34px;
@@ -176,3 +279,4 @@
         font-size: 0.9rem;
     }
 }
+

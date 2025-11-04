@@ -115,8 +115,10 @@ export default function ReceiptView({ data, currency = "USD" }) {
                         <span className="tx-num">{fmt(totals.subtotal)}</span>
                     </div>
                     <div className="tx-row">
-                        <span className="tx-label">Discount</span>
-                        <span className="tx-num">-{fmt(totals.discount)}</span>
+                        <span className="tx-label">
+                            Discount{data?.RedeemingPoints && <span className="redeeming-note-receipt">(500 points redeemed)</span>}
+                        </span>
+                        <span className="tx-num">-{new Intl.NumberFormat(navigator.language, { style: "currency", currency: "USD" }).format(Number(data?.DiscountTotal ?? data?.Discount ?? 0))}</span>
                     </div>
                     <div className="tx-row">
                         <span className="tx-label">Tax</span>
@@ -154,15 +156,20 @@ export default function ReceiptView({ data, currency = "USD" }) {
                     <div className="rx-center rx-muted">Glad to see you again!</div>
                     <div className="rx-center rx-meta">{placedAt}</div>
                     {data?.CustomerID != null && (
-                        <div className="rx-center rx-muted">
-                            CustomerID:{' '}
-                            {(() => {
-                                const idStr = String(data.CustomerID || '');
-                                const visibleCount = Math.ceil(idStr.length * 0.25);
-                                const hiddenCount = idStr.length - visibleCount;
-                                return 'x'.repeat(hiddenCount) + idStr.slice(-visibleCount);
-                            })()}
-                        </div>
+                        <>
+                            <div className="rx-center rx-muted">
+                                CustomerID:{' '}
+                                {(() => {
+                                    const idStr = String(data.CustomerID || '');
+                                    const visibleCount = Math.ceil(idStr.length * 0.25);
+                                    const hiddenCount = idStr.length - visibleCount;
+                                    return 'x'.repeat(hiddenCount) + idStr.slice(-visibleCount);
+                                })()}
+                            </div>
+                            <div className="rx-center rx-muted">
+                                Your Points: {data?.CustomerPoints ?? 0}
+                            </div>
+                        </>
                     )}
                     {data?.GuestID != null && (
                         <div className="rx-center rx-muted">
