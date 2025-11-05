@@ -46,6 +46,7 @@ exports.addToRegister = (req, res) => {
         },
         (err, result) => {
             if (err) {
+                console.error('Error addToRegister body:', err);
                 const msg = String(err.message || '');
                 if (msg === 'EMPTY_CART') return res.status(400).json({ error: 'EMPTY_CART' });
                 if (msg.startsWith('BAD_QTY')) return res.status(400).json({ error: 'BAD_QTY', ProductID: msg.split(':')[1] || null });

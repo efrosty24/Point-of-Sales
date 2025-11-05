@@ -40,13 +40,25 @@ exports.getLowStockProducts = (req, res) => {
 
 exports.getRestockOrders = (req, res) => {
     const { status } = req.query;
-    const filterStatus = status || "Pending";
+    const filterStatus = status || "pending";
 
     svc.getRestockOrdersByStatus(filterStatus, (err, rows) => {
         if (err) return res.status(500).json({ error: "DB error" });
         res.json(rows);
     });
 };
+
+
+exports.markRestockOrderAsRead = (req, res) => {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: "Invalid restock order ID" });
+
+    svc.markAsRead(Number(id), (err, result) => {
+        if (err) return res.status(500).json({ error: "DB error" });
+        res.json({ success: true });
+    });
+};
+
 
 exports.addProduct = (req, res) => {
     const productData = req.body;

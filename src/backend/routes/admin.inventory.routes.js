@@ -18,8 +18,7 @@ router.get('/suppliers/:id/products', ctrl.listSupplierProducts);
 router.get('/low-stock', ctrl.getLowStockProducts);
 
 router.get("/restock-orders", ctrl.getRestockOrders);
-
-
+router.patch("/restock-orders/:id", ctrl.markRestockOrderAsRead);
 
 // Suppliers CRUD
 router.get('/suppliers/:id', ctrl.getSupplierById);

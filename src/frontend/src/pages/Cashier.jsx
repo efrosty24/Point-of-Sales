@@ -255,29 +255,48 @@ export default function Cashier() {
         setGuest(prev => ({ ...prev, lastRegisterListId: newId }));
         return newId;
     }, [guest.lastRegisterListId, hasRealCustomer, guest.customerId, guest.sessionId]);
-
     const updateRegisterSnapshot = async (nextCart) => {
         try {
             const payload = {
                 customerId: hasRealCustomer ? Number(guest.customerId) : null,
                 guestId: hasRealCustomer ? null : Number(guest.sessionId),
                 employeeId: 3,
-                items: nextCart.map((c) => ({ ProductID: Number(c.ProductID), Qty: normalizeQty(c.Qty) })),
+                items: nextCart.map((c) => ({
+                    ProductID: Number(c.ProductID),
+                    Qty: normalizeQty(c.Qty),
+                })),
                 taxRate: 0.0825,
             };
-            const okIds = (payload.customerId != null && Number.isFinite(payload.customerId)) ||
+
+            const okIds =
+                (payload.customerId != null && Number.isFinite(payload.customerId)) ||
                 (payload.guestId != null && Number.isFinite(payload.guestId));
-            const badItems = !payload.items.every(i => Number.isFinite(i.ProductID) && Number.isFinite(i.Qty) && i.Qty > 0);
             if (!okIds) throw new Error('BAD_CUSTOMER_OR_GUEST');
+
+            const badItems = !payload.items.every(
+                (i) => Number.isFinite(i.ProductID) && Number.isFinite(i.Qty) && i.Qty > 0
+            );
             if (badItems) throw new Error('BAD_ITEMS');
 
             const res = await api.post(`/cashier/registerList`, payload);
             const data = res.data || {};
 
             const merged = nextCart.map((c) => {
-                const line = (data.items || []).find((i) => i.ProductID === Number(c.ProductID));
+                const line = (data.items || []).find(
+                    (i) => i.ProductID === Number(c.ProductID)
+                );
                 if (!line) return c;
-                const saved = line.SavedAmount != null ? Number(line.SavedAmount) : computeSaved(line.Qty, line.OriginalPrice, line.Price, line.DiscountType);
+
+                const saved =
+                    line.SavedAmount != null
+                        ? Number(line.SavedAmount)
+                        : computeSaved(
+                            line.Qty,
+                            line.OriginalPrice,
+                            line.Price,
+                            line.DiscountType
+                        );
+
                 return {
                     ...c,
                     Price: Number(line.Price),
@@ -285,10 +304,16 @@ export default function Cashier() {
                     LineTotal: Number(line.LineTotal),
                     SavedAmount: Number.isFinite(saved) ? saved : 0,
                     DiscountType: line.DiscountType || c.DiscountType || null,
-                    DiscountValue: line.DiscountValue != null ? Number(line.DiscountValue) : (c.DiscountValue != null ? Number(c.DiscountValue) : null),
+                    DiscountValue:
+                        line.DiscountValue != null
+                            ? Number(line.DiscountValue)
+                            : c.DiscountValue != null
+                                ? Number(c.DiscountValue)
+                                : null,
                     DiscountLabel: line.DiscountLabel || c.DiscountLabel || null,
                 };
             });
+
             setCart(merged);
 
             if (data.RegisterListID) {
@@ -296,8 +321,16 @@ export default function Cashier() {
             }
         } catch (err) {
             console.error('updateRegisterSnapshot error:', err);
+            if (err.response?.data?.error) {
+                console.error('Backend error message:', err.response.data.error);
+            } else if (err.message) {
+                console.error('Error message:', err.message);
+            } else {
+                console.error('Unknown error:', err);
+            }
         }
     };
+
 
     const deleteItemFromServer = async (productID) => {
         if (!guest.lastRegisterListId) return;
