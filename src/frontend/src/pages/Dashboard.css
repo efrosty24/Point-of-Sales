@@ -1,14 +1,104 @@
-/* Dashboard container */
+/* --- Dashboard Container --- */
 .dashboard-container {
+  background-color: #f8fafc;
+  min-height: 100vh;
+  padding: 24px 32px;
+  font-family: "Inter", sans-serif;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 25px;
+}
+
+.dashboard-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.role-label {
+  color: #777;
+  font-size: 0.9rem;
+}
+
+/* --- Sales Report Cards --- */
+.report-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 36px;
+}
+
+.report-card {
+  flex: 1;
+  min-width: 220px;
+  background: linear-gradient(135deg, #e6f4ff, #ffffff);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+}
+
+.report-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.report-icon {
+  font-size: 2.2rem;
+  color: #1e88e5;
+  background: #d0e6ff;
+  padding: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-card h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.report-card p {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e88e5;
+  margin: 4px 0 0 0;
+}
+
+/* --- Charts --- */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.chart-card {
+  background: #fff;
+  border-radius: 12px;
   padding: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.dashboard-title {
-  font-size: 24px;
-  margin-bottom: 16px;
+.chart-card h4 {
+  margin-bottom: 12px;
+  color: #333;
+  font-weight: 600;
 }
 
-/* Sales table */
+/* --- Sales Table --- */
 .sales-table {
   width: 100%;
   border-collapse: collapse;
@@ -42,19 +132,28 @@
   color: white;
 }
 
-.no-sales {
-  font-style: italic;
-  color: #888;
+.low-stock-row {
+  background-color: #ffe6e6; /* light red */
 }
 
-/* Modal overlay */
+.low-stock-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: #ff4d4d;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+/* --- Modal --- */
 .order-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5); /* semi-transparent */
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -62,7 +161,6 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
-/* Modal card */
 .order-modal-content {
   background: #fff;
   border-radius: 12px;
@@ -76,7 +174,6 @@
   position: relative;
 }
 
-/* Close button */
 .close-btn {
   position: absolute;
   top: 12px;
@@ -90,11 +187,10 @@
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
-
   display: flex;
-  align-items: center;     /* vertical center */
-  justify-content: center; /* horizontal center */
-  line-height: 1;          /* ensures perfect centering */
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   padding: 0;
   transition: background 0.2s;
 }
@@ -103,44 +199,27 @@
   background-color: #d32f2f;
 }
 
-/* Modal table */
-.order-modal-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 16px;
-}
-
-.order-modal-content th,
-.order-modal-content td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
-}
-
-.order-modal-content th {
-  background-color: #f4f4f4;
-  font-weight: 600;
-}
-
-/* Table row hover effect */
-.order-modal-content tbody tr:hover {
-  background-color: #f0f8ff;
-}
-
-/* Fade in animation */
+/* Fade in and slide down animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-/* Slide down animation */
 @keyframes slideDown {
   from { transform: translateY(-20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* Responsive adjustments */
+/* --- Responsive --- */
 @media (max-width: 768px) {
+  .report-row {
+    flex-direction: column;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
   .order-modal-content {
     padding: 16px;
   }
@@ -150,18 +229,4 @@
     height: 28px;
     font-size: 16px;
   }
-}
-
-.low-stock-row {
-  background-color: #ffe6e6; /* light red */
-}
-
-.low-stock-badge {
-  display: inline-block;
-  padding: 2px 6px;
-  background-color: #ff4d4d;
-  color: white;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: bold;
 }
