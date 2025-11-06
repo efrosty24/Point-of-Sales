@@ -81,6 +81,17 @@ exports.removeRegisterItem = (req, res) => {
     });
 };
 
+exports.deleteRegisterList = (req, res) => {
+    const registerListId = Number(req.params.id);
+    if (!Number.isFinite(registerListId)) {
+        return res.status(400).json({ error: 'BAD_PARAMS' });
+    }
+    svc.deleteRegisterList({ registerListId }, (err, result) => {
+        if (err) return res.status(500).json({ error: 'DB_ERROR', message: String(err.message || '') });
+        if (!result || result.affectedRows === 0) return res.status(404).json({ error: 'NOT_FOUND' });
+        return res.json({ RegisterListID: registerListId, deleted: true, affected: result.affectedRows });
+    });
+};
 
 exports.postCheckout = (req, res) => {
     const { registerListId, employeeId } = req.body || {};
