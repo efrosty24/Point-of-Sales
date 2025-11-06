@@ -6,6 +6,8 @@ import Modal from "../components/Modal.jsx";
 import api from "../utils/api.js";
 import { Info } from "lucide-react";
 
+
+
 const GUEST_KEY = "cashierGuest";
 
 const safeParse = (str, fallback) => { try { return str ? JSON.parse(str) : fallback; } catch { return fallback; } };
@@ -46,8 +48,7 @@ const computeSaved = (qty, originalPrice, unitPrice, discountType) => {
     return round2(perUnitSave * q);
 };
 
-// Stepper: "-" must always work; "+" is disabled at cap/OOS
-function QtyStepper({ value, onSet, labelId, disablePlus = false }) {
+function QtyStepper({ value, onSet, labelId }) {
     const min = 0, max = 999;
     const clamp = (n) => Math.min(max, Math.max(min, n));
     const parseDigits = (str) => {
@@ -64,17 +65,17 @@ function QtyStepper({ value, onSet, labelId, disablePlus = false }) {
     };
     const onKeyDown = (e) => {
         const cur = Number.isFinite(Number(value)) ? Number(value) : 0;
-        if (e.key === "ArrowUp" && !disablePlus) { e.preventDefault(); onSet(clamp(cur + 1)); }
-    else if (e.key === "ArrowDown") { e.preventDefault(); onSet(clamp(cur - 1)); }
-    else if (e.key === "Home") { e.preventDefault(); onSet(min); }
-    else if (e.key === "End") { e.preventDefault(); onSet(max); }
+        if (e.key === "ArrowUp") { e.preventDefault(); onSet(clamp(cur + 1)); }
+        else if (e.key === "ArrowDown") { e.preventDefault(); onSet(clamp(cur - 1)); }
+        else if (e.key === "Home") { e.preventDefault(); onSet(min); }
+        else if (e.key === "End") { e.preventDefault(); onSet(max); }
     };
     const display = value === "" ? "" : String(value);
     const curVal = Number.isFinite(Number(value)) ? Number(value) : 0;
 
     return (
         <div className="qty-controls" role="group" aria-labelledby={labelId}>
-            <button type="button" onClick={() => onSet(Math.max(min, curVal - 1))}>−</button>
+            <button type="button" onClick={() => onSet(clamp(curVal - 1))} disabled={curVal <= min}>−</button>
             <input
                 type="text"
                 className="qty-input"
@@ -89,7 +90,7 @@ function QtyStepper({ value, onSet, labelId, disablePlus = false }) {
                 aria-valuemax={max}
                 aria-labelledby={labelId}
             />
-            <button type="button" onClick={() => onSet(Math.min(max, curVal + 1))} disabled={disablePlus}>+</button>
+            <button type="button" onClick={() => onSet(clamp(curVal + 1))} disabled={curVal >= max}>+</button>
         </div>
     );
 }
@@ -117,7 +118,14 @@ export default function Cashier() {
     const [receiptLoading, setReceiptLoading] = useState(false);
     const [receiptError, setReceiptError] = useState("");
 
+
+
+
     useEffect(() => { saveGuest(guest); }, [guest]);
+
+    // ===== axios endpoints (api) =====
+
+
 
     const handlePrintReceipt = () => window.print();
 
@@ -148,7 +156,6 @@ export default function Cashier() {
         setSearchParams(next);
     };
 
-    // restore existing register items
     useEffect(() => {
         if (!guest.lastRegisterListId) return;
         const id = guest.lastRegisterListId;
@@ -190,7 +197,6 @@ export default function Cashier() {
         fetchCategories();
     }, []);
 
-    // fetch products and coerce Stock to number
     useEffect(() => {
         const fetchProducts = async () => {
             try {
@@ -209,14 +215,12 @@ export default function Cashier() {
                             FinalPrice: Number(p.FinalPrice),
                             DiscountType: p.DiscountType || null,
                             DiscountValue: p.DiscountValue != null ? Number(p.DiscountValue) : null,
-                            Stock: Number(p.Stock ?? 0),
                             ImgPath:
                                 p.ImgPath && p.ImgPath.endsWith("/")
                                     ? (p.ImgPath || "/products/") + (p.ImgName || "placeholder.jpg")
                                     : p.ImgPath || "/products/placeholder.jpg",
                         }))
                     );
-                    console.log(data);
                 }
             } catch (err) {
                 console.error("Failed to fetch products:", err);
@@ -231,7 +235,7 @@ export default function Cashier() {
     const visible = useMemo(() => products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [products, currentPage]);
 
     const normalizeQty = (q) => (q === "" || !Number.isFinite(Number(q)) ? 0 : Number(q));
-    const getQty = (id) => normalizeQty(cart.find((c) => c.ProductID === id)?.Qty ?? 0);
+    const getQty = (id) => cart.find((c) => c.ProductID === id)?.Qty ?? 0;
 
     const ensureRegister = useCallback(async () => {
         if (guest.lastRegisterListId) return Number(guest.lastRegisterListId);
@@ -251,8 +255,6 @@ export default function Cashier() {
         setGuest(prev => ({ ...prev, lastRegisterListId: newId }));
         return newId;
     }, [guest.lastRegisterListId, hasRealCustomer, guest.customerId, guest.sessionId]);
-
-    // snapshot post; preserve local Qty unless server caps lower
     const updateRegisterSnapshot = async (nextCart) => {
         try {
             const payload = {
@@ -280,27 +282,34 @@ export default function Cashier() {
             const data = res.data || {};
 
             const merged = nextCart.map((c) => {
-                const line = (data.items || []).find((i) => i.ProductID === Number(c.ProductID));
+                const line = (data.items || []).find(
+                    (i) => i.ProductID === Number(c.ProductID)
+                );
                 if (!line) return c;
 
-                const serverQty = Number(line.Qty);
-                const localQty = normalizeQty(c.Qty);
-                const finalQty = Number.isFinite(serverQty) && serverQty < localQty ? serverQty : localQty;
-
-                const saved = line.SavedAmount != null
-                    ? Number(line.SavedAmount)
-                    : computeSaved(line.Qty, line.OriginalPrice, line.Price, line.DiscountType);
+                const saved =
+                    line.SavedAmount != null
+                        ? Number(line.SavedAmount)
+                        : computeSaved(
+                            line.Qty,
+                            line.OriginalPrice,
+                            line.Price,
+                            line.DiscountType
+                        );
 
                 return {
                     ...c,
-                    Qty: finalQty,
                     Price: Number(line.Price),
                     OriginalPrice: Number(line.OriginalPrice ?? c.OriginalPrice ?? line.Price),
                     LineTotal: Number(line.LineTotal),
                     SavedAmount: Number.isFinite(saved) ? saved : 0,
                     DiscountType: line.DiscountType || c.DiscountType || null,
-                    DiscountValue: line.DiscountValue != null ? Number(line.DiscountValue)
-                        : c.DiscountValue != null ? Number(c.DiscountValue) : null,
+                    DiscountValue:
+                        line.DiscountValue != null
+                            ? Number(line.DiscountValue)
+                            : c.DiscountValue != null
+                                ? Number(c.DiscountValue)
+                                : null,
                     DiscountLabel: line.DiscountLabel || c.DiscountLabel || null,
                 };
             });
@@ -312,8 +321,16 @@ export default function Cashier() {
             }
         } catch (err) {
             console.error('updateRegisterSnapshot error:', err);
+            if (err.response?.data?.error) {
+                console.error('Backend error message:', err.response.data.error);
+            } else if (err.message) {
+                console.error('Error message:', err.message);
+            } else {
+                console.error('Unknown error:', err);
+            }
         }
     };
+
 
     const deleteItemFromServer = async (productID) => {
         if (!guest.lastRegisterListId) return;
@@ -367,6 +384,7 @@ export default function Cashier() {
                 };
             });
             setCart(items);
+            console.log(data)
             if (customerId != null) {
                 setGuest(prev => ({ ...prev, customerId: Number(customerId), sessionId: null }));
                 setCustomerName((data.CustomerName) || "Customer");
@@ -382,61 +400,22 @@ export default function Cashier() {
         }
     };
 
-    // Add with stock cap
     const addToCart = (product) => {
-        const stock = Number(product.Stock ?? 0);
-        if (stock <= 0) return;
-        setCart(prev => {
-            const idx = prev.findIndex((c) => c.ProductID === product.ProductID);
-            if (idx >= 0) {
-                const next = [...prev];
-                const cur = normalizeQty(next[idx].Qty);
-                if (cur >= stock) return prev;
-                next[idx] = { ...next[idx], Qty: cur + 1 };
-                updateRegisterSnapshot(next);
-                return next;
-            } else {
-                const next = [...prev, { ...product, Qty: 1 }];
-                updateRegisterSnapshot(next);
-                return next;
-            }
-        });
+        const nextCart = [...cart];
+        const idx = nextCart.findIndex((c) => c.ProductID === product.ProductID);
+        if (idx >= 0) nextCart[idx].Qty = normalizeQty(nextCart[idx].Qty) + 1;
+        else nextCart.push({ ...product, Qty: 1 });
+        updateRegisterSnapshot(nextCart);
     };
 
-    // Single source of truth for qty updates; delete only when target becomes 0; never filter on typing
-    const setCartQty = (productID, nextVal) => {
-        const prod = products.find((p) => p.ProductID === productID);
-        const stock = Number(prod?.Stock ?? 0);
-
-        setCart(prev => {
-            const idx = prev.findIndex(c => c.ProductID === productID);
-            if (idx < 0) return prev;
-
-            const currentQty = normalizeQty(prev[idx].Qty);
-
-            if (nextVal === "") {
-                const next = prev.map(c => c.ProductID === productID ? { ...c, Qty: "" } : c);
-                return next;
-            }
-
-            const parsed = typeof nextVal === "number" ? nextVal : Number(nextVal);
-            const desired = Number.isFinite(parsed) ? parsed : currentQty;
-            const targetQty = Math.max(0, Math.min(desired, stock));
-
-            if (targetQty === currentQty) return prev;
-
-            const next = prev.map(c => c.ProductID === productID ? { ...c, Qty: targetQty } : c);
-
-            if (targetQty === 0) {
-                const filtered = next.filter(c => c.ProductID !== productID);
-                console.log(""filtered);
-                deleteItemFromServer(productID);
-                return filtered;
-            }
-
-            updateRegisterSnapshot(next);
-            return next;
-        });
+    const setCartQty = (productID, next) => {
+        const n = next === "" ? "" : Number(next);
+        const nextCart = cart
+            .map((c) => (c.ProductID === productID ? { ...c, Qty: n } : c))
+            .filter((c) => normalizeQty(c.Qty) > 0 || c.Qty === "");
+        const targetItem = nextCart.find((c) => c.ProductID === productID);
+        const qtyVal = targetItem ? normalizeQty(targetItem.Qty) : 0;
+        if (qtyVal <= 0) deleteItemFromServer(productID); else updateRegisterSnapshot(nextCart);
     };
 
     const subtotal = cart.reduce((sum, item) => {
@@ -459,12 +438,15 @@ export default function Cashier() {
         try {
             setReceiptLoading(true);
             setReceiptError("");
+
             const res = await api.get(`/cashier/orders/${orderId}/receipt`);
             const data = res.data;
+
             const updatedReceipt = {
                 ...data,
                 RedeemingPoints: effectiveDiscount
             };
+
             setReceipt(updatedReceipt);
         } catch (err) {
             if (err?.response?.status === 404) {
@@ -477,6 +459,7 @@ export default function Cashier() {
             setReceiptLoading(false);
         }
     }, [effectiveDiscount]);
+
 
     const handlePhoneSearch = async () => {
         if (cart.length > 0) {
@@ -538,6 +521,8 @@ export default function Cashier() {
             if (res.status === 201) {
                 const body = res.data || {};
                 const orderId = body && body.orderId ? Number(body.orderId) : null;
+                const orderTotal = Number.isFinite(Number(body.total)) ? Number(body.total) : total;
+
 
                 setCart([]);
                 setCustomerName("Guest");
@@ -548,6 +533,7 @@ export default function Cashier() {
                     saveGuest(fresh);
                     return fresh;
                 });
+
 
                 setShowReceipt(true);
                 if (orderId) {
@@ -581,7 +567,7 @@ export default function Cashier() {
                     ) : (
                         <div className="product-grid">
                             {visible.map((p) => {
-                                const qtyInCart = getQty(p.ProductID);
+                                const qty = getQty(p.ProductID);
                                 const labelId = `prod-${p.ProductID}-label`;
                                 const type = (p.DiscountType || "").toLowerCase();
                                 const val = p.DiscountValue != null ? Number(p.DiscountValue) : null;
@@ -596,17 +582,9 @@ export default function Cashier() {
                                 }
                                 const showInlinePrices = type !== "bogo" && Number(p.OriginalPrice) > Number(p.FinalPrice);
 
-                                const stock = Number(p.Stock ?? 0);
-                                const isOutBase = stock <= 0;
-                                const isLow = stock > 0 && stock < 10;
-
-                                const isGridOOS = isOutBase || qtyInCart >= stock;
-
                                 return (
-                                    <div key={p.ProductID} className={`product-card ${qtyInCart > 0 ? "in-cart" : ""}`}>
+                                    <div key={p.ProductID} className={`product-card ${qty > 0 ? "in-cart" : ""}`}>
                                         {hasDiscount && (<span className="discount-badge" aria-label={`Discount ${badgeText}`}>{badgeText}</span>)}
-                                        {isLow && !isGridOOS && (<span className="stock-badge" aria-label="Low stock">Low stock</span>)}
-
                                         <img src={p.ImgPath} alt={p.Name}
                                              onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = "/products/placeholder.jpg"; }}/>
                                         <div className="product-info">
@@ -624,22 +602,10 @@ export default function Cashier() {
                                             )}
                                         </div>
 
-                                        {isGridOOS ? (
-                                            <div className="oos-pill" aria-live="polite">Out of stock</div>
-                                        ) : qtyInCart > 0 ? (
-                                            <QtyStepper
-                                                value={qtyInCart}
-                                                onSet={(next) => setCartQty(p.ProductID, next)}
-                                                labelId={labelId}
-                                                disablePlus={qtyInCart >= stock}
-                                            />
+                                        {qty > 0 ? (
+                                            <QtyStepper value={qty} onSet={(next) => setCartQty(p.ProductID, next)} labelId={labelId} />
                                         ) : (
-                                            <button
-                                                className="btn-primary"
-                                                onClick={() => addToCart(p)}
-                                            >
-                                                Add
-                                            </button>
+                                            <button className="btn-primary" onClick={() => addToCart(p)}>Add</button>
                                         )}
                                     </div>
                                 );
@@ -673,10 +639,11 @@ export default function Cashier() {
                                 <div className="points-tooltip-wrapper">
                                     <Info size={16} className="points-icon" />
                                     <span className="points-tooltip">
-                    5 pts per $1 spent. Greater than 500 pts = $5 off on next order.
-                  </span>
+                                        5 pts per $1 spent. Greater than 500 pts = $5 off on next order.
+                                    </span>
                                 </div>
                             </div>
+
                         )}
                     </div>
 
@@ -695,6 +662,8 @@ export default function Cashier() {
                         )}
                     </div>
                 </div>
+
+
 
                 {notFound && <div className="inline-error">Customer not found</div>}
 
@@ -715,10 +684,8 @@ export default function Cashier() {
                                         : type === "fixed" && val != null ? `${formatCurrency(val)} off`
                                             : type === "bogo" ? "BOGO" : null);
 
-                                const prod = products.find(pr => pr.ProductID === item.ProductID);
-                                const stock = Number(prod?.Stock ?? 0);
-                                const qty = normalizeQty(item.Qty);
-                                const disablePlus = stock <= 0 || qty >= stock;
+                                const isBogo = type === "bogo";
+                                const freeUnits = isBogo ? Math.floor(normalizeQty(item.Qty) / 2) : 0;
 
                                 return (
                                     <li key={item.ProductID} className="cart-item">
@@ -729,15 +696,11 @@ export default function Cashier() {
                                                 <span id={labelId}>{item.Name}</span>
                                                 <span className="cart-subtotal">{formatCurrency(line)}</span>
                                                 {label && (<span className="cart-discount-note" aria-label={`Discount ${label}`}>{label}</span>)}
+                                                {isBogo && freeUnits > 0 && (<span className="cart-discount-note">+ {freeUnits} free</span>)}
                                             </div>
                                         </div>
                                         <div className="cart-item-right">
-                                            <QtyStepper
-                                                value={item.Qty}
-                                                onSet={(next) => setCartQty(item.ProductID, next)}
-                                                labelId={labelId}
-                                                disablePlus={disablePlus}
-                                            />
+                                            <QtyStepper value={item.Qty} onSet={(next) => setCartQty(item.ProductID, next)} labelId={labelId} />
                                             <button className="btn-remove" onClick={() => deleteItemFromServer(item.ProductID)}>×</button>
                                         </div>
                                     </li>
@@ -756,8 +719,8 @@ export default function Cashier() {
                     <div className="summary-row">
                         <span>Discount{redeemPointsApplicable && <span className="redeeming-note">(redeeming 500 points)</span>}: </span>
                         <span>
-              -{formatCurrency(effectiveDiscount)}
-            </span>
+                            -{formatCurrency(effectiveDiscount)}
+                        </span>
                     </div>
 
                     <div className="summary-row">
@@ -819,6 +782,10 @@ export default function Cashier() {
                     </div>
                 )}
             </Modal>
+
+
         </div>
     );
 }
+
+
