@@ -3,7 +3,7 @@
 .DS_Store
 *.log
 npm-debug.log
-
+node_modules
 # Ignore configuration files not needed by the runtime (if present)
 .prettierrc
 .eslintrc.json
