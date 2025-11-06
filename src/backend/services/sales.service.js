@@ -82,7 +82,7 @@ exports.byCategory = ({ from, to }, cb) => {
  * GET /admin/sales/recent?limit=5
  * Fetches recent sales with customer info.
  */
-exports.fetchRecentSales = (limit = 5, cb) => {
+exports.fetchRecentSales = (limit = 100, cb) => {
   const sql = `
     SELECT o.OrderID, o.DatePlaced, o.Total, o.Status, c.FirstName, c.LastName
     FROM Orders o
