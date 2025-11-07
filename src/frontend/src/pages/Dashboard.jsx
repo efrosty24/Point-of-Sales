@@ -73,7 +73,7 @@ function Dashboard() {
   };
 
   const todayOrders = recentSales.filter(order => isToday(order.DatePlaced));
-  const todaySales = todayOrders.reduce((sum, o) => sum + ((Number(o.Total) || 0) + (Number(o.Tax) || 0)), 0);
+  const todaySales = todayOrders.reduce((sum, o) => sum + Number(o.Total || 0), 0);
   const todayOrdersCount = todayOrders.length;
   const avgSalePerOrder = todayOrdersCount > 0 ? todaySales / todayOrdersCount : 0;
 
@@ -379,14 +379,24 @@ function Dashboard() {
                 })}
               </tbody>
               <tfoot>
-                <tr>
-                  <td colSpan={3} style={{ textAlign: "right" }}><strong>Total:</strong></td>
-                  <td>
-                    <strong>
-                      ${selectedOrder.items?.reduce((sum, item) => sum + (Number(item.Price) || 0) * (Number(item.Quantity) || 0), 0).toFixed(2)}
-                    </strong>
-                  </td>
-                </tr>
+                 <tr>
+                    <td colSpan={3} style={{ textAlign: "right" }}><strong>Subtotal:</strong></td>
+                    <td>
+                      <strong>${formatCurrency(selectedOrder.total)}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} style={{ textAlign: "right" }}><strong>Tax:</strong></td>
+                    <td>
+                      <strong>${formatCurrency(Number(selectedOrder.header.Tax || 0))}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} style={{ textAlign: "right" }}><strong>Grand Total:</strong></td>
+                    <td>
+                      <strong>${formatCurrency(selectedOrder.total + (Number(selectedOrder.header.Tax) || 0))}</strong>
+                    </td>
+                  </tr>
               </tfoot>
             </table>
           </div>

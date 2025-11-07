@@ -12,14 +12,10 @@ exports.salesSummary = ({ from, to }, cb) => {
 
   const sql = `
     SELECT
-      COUNT(DISTINCT o.OrderID)                            AS orders,
-      COALESCE(SUM(od.Quantity), 0)                        AS units,
-      COALESCE(SUM(od.Quantity * od.Price), 0)             AS revenue,
-      CASE WHEN COUNT(DISTINCT o.OrderID) = 0 THEN 0
-           ELSE COALESCE(SUM(od.Quantity * od.Price), 0) / COUNT(DISTINCT o.OrderID)
-      END                                                  AS avg_ticket
+      COUNT(*) AS orders,
+      COALESCE(SUM(o.Total), 0) AS revenue,
+      CASE WHEN COUNT(*) = 0 THEN 0 ELSE COALESCE(SUM(o.Total),0)/COUNT(*) END AS avg_ticket
     FROM Orders o
-    JOIN OrderDetails od ON od.OrderID = o.OrderID
     ${where}
   `;
   db.query(sql, params, (err, rows) => cb(err, rows && rows[0]));
@@ -79,16 +75,16 @@ exports.byCategory = ({ from, to }, cb) => {
   db.query(sql, params, (err, rows) => cb(err, rows));
 };
 /**
- * GET /admin/sales/recent?limit=5
+ * GET /admin/sales/recent?limit=10
  * Fetches recent sales with customer info.
  */
-exports.fetchRecentSales = (limit = 100, cb) => {
+exports.fetchRecentSales = (limit = 10, cb) => {
   const sql = `
     SELECT o.OrderID, o.DatePlaced, o.Total, o.Status, c.FirstName, c.LastName
     FROM Orders o
     JOIN Customers c ON c.CustomerID = o.CustomerID
     ORDER BY o.DatePlaced DESC
-    LIMIT ?
+    LIMIT 10
   `;
   db.query(sql, [limit], (err, rows) => cb(err, rows));
 };
