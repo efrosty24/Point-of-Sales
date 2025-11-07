@@ -1,22 +1,21 @@
 const db = require('../config/db.config');
 
 
-exports.listRecent = (limit = 5, cb) => {
+exports.listRecent = (limit = 10, cb) => {
   const sql = `
     SELECT 
       o.OrderID,
       o.DatePlaced,
       o.Status,
-      COALESCE(SUM(od.Quantity * od.Price), 0) AS Total,
-      c.FirstName, c.LastName
+      o.Total,
+      c.FirstName, 
+      c.LastName
     FROM Orders o
-    LEFT JOIN OrderDetails od ON od.OrderID = o.OrderID
-    LEFT JOIN Customers c     ON c.CustomerID = o.CustomerID
-    GROUP BY o.OrderID, o.DatePlaced, c.FirstName, c.LastName
+    LEFT JOIN Customers c ON c.CustomerID = o.CustomerID
     ORDER BY o.DatePlaced DESC
     LIMIT ?;
   `;
-  db.query(sql, [Number(limit) || 5], (err, rows) => cb(err, rows));
+  db.query(sql, [Number(limit) || 10], (err, rows) => cb(err, rows));
 };
 
 exports.list = ({ from, to, customerId, employeeId }, cb) => {
@@ -45,7 +44,9 @@ exports.list = ({ from, to, customerId, employeeId }, cb) => {
 exports.getById = (orderId, cb) => {
   const headerSql = `
     SELECT o.OrderID, o.DatePlaced, o.CustomerID, o.EmployeeID,
-           c.FirstName AS CustomerFirst, c.LastName AS CustomerLast
+           c.FirstName AS CustomerFirst, c.LastName AS CustomerLast,
+           o.Total,
+           o.Tax
     FROM Orders o
     LEFT JOIN Customers c ON c.CustomerID = o.CustomerID
     WHERE o.OrderID = ? LIMIT 1;

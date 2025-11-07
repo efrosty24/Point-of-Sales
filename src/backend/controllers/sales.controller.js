@@ -31,7 +31,7 @@ exports.byCategory = (req, res) => {
 
 // --- Recent Sales ---
 exports.getRecentSales = (req, res) => {
-  const limit = Number(req.query.limit) || 100;
+  const limit = Number(req.query.limit) || 10;
   ordersSvc.listRecent(limit, (err, rows) => {
     if (err) return res.status(500).json({ error: 'Failed to fetch recent sales', details: err });
     res.json(rows.map(r => ({
