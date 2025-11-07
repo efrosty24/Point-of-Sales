@@ -114,9 +114,14 @@ function Sidebar() {
                             <Link to="/CustomerList" className="sidebar-sublink">Customers</Link>
                         </li>
                         {user?.isAdmin && (
-                            <li>
-                                <Link to="/employees" className="sidebar-sublink">Employees</Link>
-                            </li>
+                            <>
+                                <li>
+                                    <Link to="/employees" className="sidebar-sublink">Employees</Link>
+                                </li>
+                                <li>
+                                    <Link to="/suppliers" className="sidebar-sublink">Suppliers</Link>
+                                </li>
+                            </>
                         )}
                     </ul>
                 </li>

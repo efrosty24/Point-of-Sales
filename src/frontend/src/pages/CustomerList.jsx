@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { Plus, Search, Edit, Ban, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import "./CustomerList.css";
 import api from "../utils/api.js"; 
 export default function CustomerList() {
@@ -50,7 +50,8 @@ export default function CustomerList() {
         return customers.filter(
             (c) =>
                 c.name.toLowerCase().includes(term) ||
-                c.email.toLowerCase().includes(term)
+                c.email.toLowerCase().includes(term) ||
+                c.phone.toLowerCase().includes(term)
         );
     }, [customers, searchTerm]);
 
@@ -176,7 +177,7 @@ export default function CustomerList() {
                     <div className="search-box">
                         <input
                             type="text"
-                            placeholder="Search by name or email..."
+                            placeholder="Search by name or email or phone..."
                             value={searchTerm}
                             onChange={handleSearch}
                         />
@@ -222,9 +223,9 @@ export default function CustomerList() {
                                                 <button
                                                     className="delete-btn"
                                                     onClick={() => handleDelete(c.id)}
-                                                    title="Delete"
+                                                    title="Deactivate"
                                                 >
-                                                    <Trash2 />
+                                                    <Ban />
                                                 </button>
                                             </>
                                         )}

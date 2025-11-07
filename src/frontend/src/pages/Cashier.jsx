@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import "./Cashier.css";
 import ReceiptView from "../components/ReceiptView.jsx";
 import Modal from "../components/Modal.jsx";
-import api from "../utils/api.js"; 
+import api from "../utils/api.js";
+import { Info } from "lucide-react";
+
 
 
 const GUEST_KEY = "cashierGuest";
@@ -100,6 +102,7 @@ export default function Cashier() {
     const [category, setCategory] = useState("All");
     const [guest, setGuest] = useState(() => ensureSessionId(loadGuest()));
     const hasRealCustomer = guest.customerId != null;
+    const [points, setPoints] = useState(0);
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [customerName, setCustomerName] = useState("Guest");
@@ -115,27 +118,14 @@ export default function Cashier() {
     const [receiptLoading, setReceiptLoading] = useState(false);
     const [receiptError, setReceiptError] = useState("");
 
+
+
+
     useEffect(() => { saveGuest(guest); }, [guest]);
 
     // ===== axios endpoints (api) =====
 
-    const fetchReceipt = useCallback(async (orderId) => {
-        try {
-            setReceiptLoading(true);
-            setReceiptError("");
-            const res = await api.get(`/cashier/orders/${orderId}/receipt`);
-            setReceipt(res.data);
-        } catch (err) {
-            if (err?.response?.status === 404) {
-                setReceipt(null);
-                setReceiptError("Receipt not found.");
-            } else {
-                setReceiptError("Failed to load receipt.");
-            }
-        } finally {
-            setReceiptLoading(false);
-        }
-    }, []);
+
 
     const handlePrintReceipt = () => window.print();
 
@@ -265,29 +255,48 @@ export default function Cashier() {
         setGuest(prev => ({ ...prev, lastRegisterListId: newId }));
         return newId;
     }, [guest.lastRegisterListId, hasRealCustomer, guest.customerId, guest.sessionId]);
-
     const updateRegisterSnapshot = async (nextCart) => {
         try {
             const payload = {
                 customerId: hasRealCustomer ? Number(guest.customerId) : null,
                 guestId: hasRealCustomer ? null : Number(guest.sessionId),
                 employeeId: 3,
-                items: nextCart.map((c) => ({ ProductID: Number(c.ProductID), Qty: normalizeQty(c.Qty) })),
+                items: nextCart.map((c) => ({
+                    ProductID: Number(c.ProductID),
+                    Qty: normalizeQty(c.Qty),
+                })),
                 taxRate: 0.0825,
             };
-            const okIds = (payload.customerId != null && Number.isFinite(payload.customerId)) ||
+
+            const okIds =
+                (payload.customerId != null && Number.isFinite(payload.customerId)) ||
                 (payload.guestId != null && Number.isFinite(payload.guestId));
-            const badItems = !payload.items.every(i => Number.isFinite(i.ProductID) && Number.isFinite(i.Qty) && i.Qty > 0);
             if (!okIds) throw new Error('BAD_CUSTOMER_OR_GUEST');
+
+            const badItems = !payload.items.every(
+                (i) => Number.isFinite(i.ProductID) && Number.isFinite(i.Qty) && i.Qty > 0
+            );
             if (badItems) throw new Error('BAD_ITEMS');
 
             const res = await api.post(`/cashier/registerList`, payload);
             const data = res.data || {};
 
             const merged = nextCart.map((c) => {
-                const line = (data.items || []).find((i) => i.ProductID === Number(c.ProductID));
+                const line = (data.items || []).find(
+                    (i) => i.ProductID === Number(c.ProductID)
+                );
                 if (!line) return c;
-                const saved = line.SavedAmount != null ? Number(line.SavedAmount) : computeSaved(line.Qty, line.OriginalPrice, line.Price, line.DiscountType);
+
+                const saved =
+                    line.SavedAmount != null
+                        ? Number(line.SavedAmount)
+                        : computeSaved(
+                            line.Qty,
+                            line.OriginalPrice,
+                            line.Price,
+                            line.DiscountType
+                        );
+
                 return {
                     ...c,
                     Price: Number(line.Price),
@@ -295,10 +304,16 @@ export default function Cashier() {
                     LineTotal: Number(line.LineTotal),
                     SavedAmount: Number.isFinite(saved) ? saved : 0,
                     DiscountType: line.DiscountType || c.DiscountType || null,
-                    DiscountValue: line.DiscountValue != null ? Number(line.DiscountValue) : (c.DiscountValue != null ? Number(c.DiscountValue) : null),
+                    DiscountValue:
+                        line.DiscountValue != null
+                            ? Number(line.DiscountValue)
+                            : c.DiscountValue != null
+                                ? Number(c.DiscountValue)
+                                : null,
                     DiscountLabel: line.DiscountLabel || c.DiscountLabel || null,
                 };
             });
+
             setCart(merged);
 
             if (data.RegisterListID) {
@@ -306,8 +321,16 @@ export default function Cashier() {
             }
         } catch (err) {
             console.error('updateRegisterSnapshot error:', err);
+            if (err.response?.data?.error) {
+                console.error('Backend error message:', err.response.data.error);
+            } else if (err.message) {
+                console.error('Error message:', err.message);
+            } else {
+                console.error('Unknown error:', err);
+            }
         }
     };
+
 
     const deleteItemFromServer = async (productID) => {
         if (!guest.lastRegisterListId) return;
@@ -361,13 +384,16 @@ export default function Cashier() {
                 };
             });
             setCart(items);
+            console.log(data)
             if (customerId != null) {
                 setGuest(prev => ({ ...prev, customerId: Number(customerId), sessionId: null }));
-                setCustomerName((data.customerName) || "Customer");
+                setCustomerName((data.CustomerName) || "Customer");
+                setPoints(data.CustomerPoints || 0);
             } else if (guestId != null) {
                 const ensured = ensureSessionId({ customerId: null, sessionId: Number(guestId), lastRegisterListId: id });
                 setGuest(ensured);
                 setCustomerName("Guest");
+                setPoints(0);
             }
         } catch (e) {
             console.error('updateRegisterIdentity error:', e);
@@ -403,23 +429,63 @@ export default function Cashier() {
     const taxRate = 0.0825;
     const tax = round2(subtotal * taxRate);
     const total = round2(subtotal + tax);
+    const redeemPointsApplicable = hasRealCustomer && points >= 500 && subtotal >= 5;
+    const redeemDiscount = redeemPointsApplicable ? 5 : 0;
+    const effectiveDiscount = discount + redeemDiscount;
+    const effectiveTotal = round2(subtotal + tax - redeemDiscount);
+
+    const fetchReceipt = useCallback(async (orderId) => {
+        try {
+            setReceiptLoading(true);
+            setReceiptError("");
+
+            const res = await api.get(`/cashier/orders/${orderId}/receipt`);
+            const data = res.data;
+
+            const updatedReceipt = {
+                ...data,
+                RedeemingPoints: effectiveDiscount
+            };
+
+            setReceipt(updatedReceipt);
+        } catch (err) {
+            if (err?.response?.status === 404) {
+                setReceipt(null);
+                setReceiptError("Receipt not found.");
+            } else {
+                setReceiptError("Failed to load receipt.");
+            }
+        } finally {
+            setReceiptLoading(false);
+        }
+    }, [effectiveDiscount]);
+
 
     const handlePhoneSearch = async () => {
-        try {
-            const res = await api.get(`/cashier/customers/lookup`, {
-                params: { phone: phone.trim() }
-            });
-            const data = res.data;
-            if (Array.isArray(data) && data.length > 0) {
-                const found = data[0];
-                await updateRegisterIdentity({ customerId: Number(found.CustomerID), guestId: null });
-                setCustomerName(`${found.FirstName} ${found.LastName}`);
-                setNotFound(false);
-            } else {
+        if (cart.length > 0) {
+            try {
+                const res = await api.get(`/cashier/customers/lookup`, {
+                    params: {phone: phone.trim()}
+                });
+                const data = res.data;
+                if (Array.isArray(data) && data.length > 0) {
+                    const found = data[0];
+                    await updateRegisterIdentity({customerId: Number(found.CustomerID), guestId: null});
+                    setPoints(found.Points || 0);
+                    setCustomerName(`${found.FirstName} ${found.LastName}`);
+                    setNotFound(false);
+                } else {
+                    setNotFound(true);
+                    setCustomerName("Guest");
+                    setPoints(0);
+                }
+            } catch {
                 setNotFound(true);
+                setCustomerName("Guest");
+                setPoints(0);
             }
-        } catch {
-            setNotFound(true);
+        }else{
+            alert("Add items to cart to lookup customer");
         }
     };
 
@@ -430,6 +496,7 @@ export default function Cashier() {
             setGuest(ensured);
             await updateRegisterIdentity({ customerId: null, guestId: Number(ensured.sessionId) });
             setCustomerName("Guest");
+            setPoints(0);
             setNotFound(false);
         } else {
             await handlePhoneSearch();
@@ -459,6 +526,7 @@ export default function Cashier() {
                 
                 setCart([]);
                 setCustomerName("Guest");
+                setPoints(0);
                 setPhone("");
                 setGuest(() => {
                     const fresh = ensureSessionId({ customerId: null, sessionId: null, lastRegisterListId: null });
@@ -560,10 +628,33 @@ export default function Cashier() {
 
             <div className="cashier-right">
                 <div className="cart-header">
-                    <h2>Cart ({customerName})</h2>
+                    <div className="cart-title">
+                        <h2>
+                            Cart {hasRealCustomer ? customerName : "Guest"}
+                        </h2>
+
+                        {hasRealCustomer && (
+                            <div className="cart-points">
+                                <span className="points-value">{points} pts</span>
+                                <div className="points-tooltip-wrapper">
+                                    <Info size={16} className="points-icon" />
+                                    <span className="points-tooltip">
+                                        5 pts per $1 spent. Greater than 500 pts = $5 off on next order.
+                                    </span>
+                                </div>
+                            </div>
+
+                        )}
+                    </div>
+
                     <div className="cart-phone">
-                        <input type="tel" placeholder="Phone No." value={phone} onChange={(e) => setPhone(e.target.value)}
-                               className={notFound ? "error" : ""}/>
+                        <input
+                            type="tel"
+                            placeholder="Phone No."
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className={notFound ? "error" : ""}
+                        />
                         {hasRealCustomer ? (
                             <button onClick={handleChangeCustomer}>Change</button>
                         ) : (
@@ -571,6 +662,8 @@ export default function Cashier() {
                         )}
                     </div>
                 </div>
+
+
 
                 {notFound && <div className="inline-error">Customer not found</div>}
 
@@ -618,10 +711,28 @@ export default function Cashier() {
                 </div>
 
                 <div className="cart-summary">
-                    <div className="summary-row"><span>Subtotal:</span><span>{formatCurrency(subtotal)}</span></div>
-                    <div className="summary-row"><span>Discount:</span><span>-{formatCurrency(discount)}</span></div>
-                    <div className="summary-row"><span>Tax (8.25%):</span><span>{formatCurrency(tax)}</span></div>
-                    <div className="summary-row total"><span>Total:</span><span>{formatCurrency(total)}</span></div>
+                    <div className="summary-row">
+                        <span>Subtotal:</span>
+                        <span>{formatCurrency(subtotal)}</span>
+                    </div>
+
+                    <div className="summary-row">
+                        <span>Discount{redeemPointsApplicable && <span className="redeeming-note">(redeeming 500 points)</span>}: </span>
+                        <span>
+                            -{formatCurrency(effectiveDiscount)}
+                        </span>
+                    </div>
+
+                    <div className="summary-row">
+                        <span>Tax (8.25%):</span>
+                        <span>{formatCurrency(tax)}</span>
+                    </div>
+
+                    <div className="summary-row total">
+                        <span>Total:</span>
+                        <span>{formatCurrency(effectiveTotal)}</span>
+                    </div>
+
                     <button className="checkout-btn" onClick={handleCheckout}>Checkout</button>
                 </div>
             </div>

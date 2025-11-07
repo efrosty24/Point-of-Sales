@@ -77,6 +77,37 @@ exports.addProduct = (productData, callback) => {
     ];
     db.query(sql, values, callback);
 };
+
+
+
+exports.getRestockOrdersByStatus = (status, callback) => {
+    const sql = `
+        SELECT r.RestockOrderID, r.ProductID, p.Name AS ProductName,
+               r.Quantity, r.Status, r.DatePlaced
+        FROM RestockOrders r
+        INNER JOIN Products p ON r.ProductID = p.ProductID
+        WHERE r.Status = ?
+    `;
+    db.query(sql, [status], (err, rows) => {
+        if (err) return callback(err);
+        callback(null, rows);
+    });
+};
+
+
+exports.markAsRead = (restockOrderId, cb) => {
+    const sql = `
+        UPDATE RestockOrders
+        SET Status = 'read'
+        WHERE RestockOrderID = ?
+    `;
+    db.query(sql, [restockOrderId], (err, result) => {
+        if (err) return cb(err);
+        if (result.affectedRows === 0) return cb(new Error("Restock order not found"));
+        cb(null, result);
+    });
+};
+
 /**
  * POST /admin/inventory/restock
  * Body: { SupplierID, items: [{ ProductID, Qty }] }
