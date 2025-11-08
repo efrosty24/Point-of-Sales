@@ -208,6 +208,7 @@ exports.addToRegister = ({ customerId, guestId, employeeId, items, taxRate = 0 }
                           lines.push({
                             ProductID: pid,
                             Name: prod.Name,
+                            Stock: prod.Stock,
                             Qty: qty,
                             OriginalPrice: prod.Price,
                             Price: unit,

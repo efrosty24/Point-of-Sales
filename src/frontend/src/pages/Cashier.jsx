@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from 'react-router-dom';
 import "./Cashier.css";
 import ReceiptView from "../components/ReceiptView.jsx";
 import Modal from "../components/Modal.jsx";
 import api from "../utils/api.js";
 import { Info } from "lucide-react";
-
-
 
 const GUEST_KEY = "cashierGuest";
 
@@ -48,7 +46,7 @@ const computeSaved = (qty, originalPrice, unitPrice, discountType) => {
     return round2(perUnitSave * q);
 };
 
-function QtyStepper({ value, onSet, labelId }) {
+function QtyStepper({ value, onSet, labelId, disablePlusVisual = false }) {
     const min = 0, max = 999;
     const clamp = (n) => Math.min(max, Math.max(min, n));
     const parseDigits = (str) => {
@@ -74,8 +72,8 @@ function QtyStepper({ value, onSet, labelId }) {
     const curVal = Number.isFinite(Number(value)) ? Number(value) : 0;
 
     return (
-        <div className="qty-controls" role="group" aria-labelledby={labelId}>
-            <button type="button" onClick={() => onSet(clamp(curVal - 1))} disabled={curVal <= min}>−</button>
+        <div className={`qty-controls ${disablePlusVisual ? "disable-plus" : ""}`} role="group" aria-labelledby={labelId}>
+            <button type="button" className="btn-minus" onClick={() => onSet(clamp(curVal - 1))} disabled={curVal <= min}>−</button>
             <input
                 type="text"
                 className="qty-input"
@@ -90,10 +88,17 @@ function QtyStepper({ value, onSet, labelId }) {
                 aria-valuemax={max}
                 aria-labelledby={labelId}
             />
-            <button type="button" onClick={() => onSet(clamp(curVal + 1))} disabled={curVal >= max}>+</button>
+            <button
+                type="button"
+                className="btn-plus"
+                onClick={() => onSet(clamp(curVal + 1))}
+                disabled={curVal >= max}
+                aria-disabled={disablePlusVisual || undefined}
+            >+</button>
         </div>
     );
 }
+
 
 export default function Cashier() {
     const [products, setProducts] = useState([]);
@@ -118,14 +123,31 @@ export default function Cashier() {
     const [receiptLoading, setReceiptLoading] = useState(false);
     const [receiptError, setReceiptError] = useState("");
 
+    const [insufficient, setInsufficient] = useState(() => new Map());
+    const [outOfStock, setOutOfStock] = useState(() => new Map());
+    const lastChangeRef = useRef({ productId: null, delta: 0 });
 
+    const isInsufficient = (id) => insufficient.has(id);
+    const isOOS = (id) => outOfStock.has(id);
+    console.log("insufficient", insufficient);
 
+    const markInsufficient = useCallback((productID, disabled) => {
+        console.log("insufficient USE", productID, disabled);
+        setInsufficient(prev => {
+            const next = new Map(prev);
+            if (disabled) next.set(productID, true); else next.delete(productID);
+            return next;
+        });
+    }, []);
+    const setOutOfStockFlag = useCallback((productID, flag) => {
+        setOutOfStock(prev => {
+            const next = new Map(prev);
+            if (flag) next.set(productID, true); else next.delete(productID);
+            return next;
+        });
+    }, []);
 
     useEffect(() => { saveGuest(guest); }, [guest]);
-
-    // ===== axios endpoints (api) =====
-
-
 
     const handlePrintReceipt = () => window.print();
 
@@ -213,6 +235,7 @@ export default function Cashier() {
                             ...p,
                             OriginalPrice: Number(p.OriginalPrice),
                             FinalPrice: Number(p.FinalPrice),
+                            Stock: Number(p.Stock),
                             DiscountType: p.DiscountType || null,
                             DiscountValue: p.DiscountValue != null ? Number(p.DiscountValue) : null,
                             ImgPath:
@@ -221,6 +244,14 @@ export default function Cashier() {
                                     : p.ImgPath || "/products/placeholder.jpg",
                         }))
                     );
+                    setOutOfStock(() => {
+                        const m = new Map();
+                        for (const p of data) {
+                            const s = Number(p.Stock);
+                            if (Number.isFinite(s) && s <= 0) m.set(p.ProductID, true);
+                        }
+                        return m;
+                    });
                 }
             } catch (err) {
                 console.error("Failed to fetch products:", err);
@@ -255,6 +286,7 @@ export default function Cashier() {
         setGuest(prev => ({ ...prev, lastRegisterListId: newId }));
         return newId;
     }, [guest.lastRegisterListId, hasRealCustomer, guest.customerId, guest.sessionId]);
+
     const updateRegisterSnapshot = async (nextCart) => {
         try {
             const payload = {
@@ -319,7 +351,25 @@ export default function Cashier() {
             if (data.RegisterListID) {
                 setGuest((prev) => ({ ...prev, lastRegisterListId: data.RegisterListID }));
             }
+
         } catch (err) {
+            const be = err?.response?.data?.error || err?.message || "";
+            if (be === "INSUFFICIENT_STOCK") {
+                const pidRaw =
+                    err?.response?.data?.ProductID ??
+                    lastChangeRef.current?.productId ??
+                    (Array.isArray(nextCart) && nextCart.length ? nextCart[nextCart.length - 1].ProductID : null);
+
+                const pid = Number(pidRaw);
+
+                if (Number.isFinite(pid)) {
+                    markInsufficient(pid, true);
+                    setOutOfStockFlag(pid, true);
+                }
+
+                return;
+            }
+
             console.error('updateRegisterSnapshot error:', err);
             if (err.response?.data?.error) {
                 console.error('Backend error message:', err.response.data.error);
@@ -330,7 +380,6 @@ export default function Cashier() {
             }
         }
     };
-
 
     const deleteItemFromServer = async (productID) => {
         if (!guest.lastRegisterListId) return;
@@ -357,6 +406,8 @@ export default function Cashier() {
             if (data.RegisterListID) {
                 setGuest((prev) => ({ ...prev, lastRegisterListId: data.RegisterListID }));
             }
+            markInsufficient(productID, false);
+            setOutOfStockFlag(productID, false);
         } catch (e) {
             console.error('deleteItemFromServer error:', e);
         }
@@ -384,7 +435,6 @@ export default function Cashier() {
                 };
             });
             setCart(items);
-            console.log(data)
             if (customerId != null) {
                 setGuest(prev => ({ ...prev, customerId: Number(customerId), sessionId: null }));
                 setCustomerName((data.CustomerName) || "Customer");
@@ -405,18 +455,39 @@ export default function Cashier() {
         const idx = nextCart.findIndex((c) => c.ProductID === product.ProductID);
         if (idx >= 0) nextCart[idx].Qty = normalizeQty(nextCart[idx].Qty) + 1;
         else nextCart.push({ ...product, Qty: 1 });
-        updateRegisterSnapshot(nextCart);
+        updateRegisterSnapshot(nextCart).then(() => {
+            markInsufficient(product.ProductID, false);
+        }).catch(() => {});
     };
 
     const setCartQty = (productID, next) => {
+        const cur = Number(getQty(productID)) || 0;
         const n = next === "" ? "" : Number(next);
+        const delta = n === "" ? -cur : (Number(n) - cur);
+
+        lastChangeRef.current = { productId: Number(productID), delta };
+
         const nextCart = cart
             .map((c) => (c.ProductID === productID ? { ...c, Qty: n } : c))
             .filter((c) => normalizeQty(c.Qty) > 0 || c.Qty === "");
-        const targetItem = nextCart.find((c) => c.ProductID === productID);
-        const qtyVal = targetItem ? normalizeQty(targetItem.Qty) : 0;
-        if (qtyVal <= 0) deleteItemFromServer(productID); else updateRegisterSnapshot(nextCart);
+
+        const qtyVal = normalizeQty(n);
+        if (qtyVal <= 0) {
+            deleteItemFromServer(productID).then(() => {
+                markInsufficient(productID, false);
+                setOutOfStockFlag(productID, false);
+            });
+        } else {
+            updateRegisterSnapshot(nextCart).then(() => {
+                if (delta <= 0) {
+                    markInsufficient(productID, false);
+                    setOutOfStockFlag(productID, false);
+                }
+            }).catch(() => {
+            });
+        }
     };
+
 
     const subtotal = cart.reduce((sum, item) => {
         const lt = Number(item.LineTotal);
@@ -460,7 +531,6 @@ export default function Cashier() {
         }
     }, [effectiveDiscount]);
 
-
     const handlePhoneSearch = async () => {
         if (cart.length > 0) {
             try {
@@ -484,7 +554,7 @@ export default function Cashier() {
                 setCustomerName("Guest");
                 setPoints(0);
             }
-        }else{
+        } else {
             alert("Add items to cart to lookup customer");
         }
     };
@@ -521,8 +591,6 @@ export default function Cashier() {
             if (res.status === 201) {
                 const body = res.data || {};
                 const orderId = body && body.orderId ? Number(body.orderId) : null;
-                const orderTotal = Number.isFinite(Number(body.total)) ? Number(body.total) : total;
-
 
                 setCart([]);
                 setCustomerName("Guest");
@@ -534,6 +602,8 @@ export default function Cashier() {
                     return fresh;
                 });
 
+                setInsufficient(new Map());
+                setOutOfStock(new Map());
 
                 setShowReceipt(true);
                 if (orderId) {
@@ -582,9 +652,14 @@ export default function Cashier() {
                                 }
                                 const showInlinePrices = type !== "bogo" && Number(p.OriginalPrice) > Number(p.FinalPrice);
 
+                                const id = p.ProductID;
+                                const disablePlus = isInsufficient(id.toString()) || isOOS(id.toString());
+                                const hideQtyControls = isOOS(id);
+                                console.log(disablePlus, hideQtyControls);
+
                                 return (
-                                    <div key={p.ProductID} className={`product-card ${qty > 0 ? "in-cart" : ""}`}>
-                                        {hasDiscount && (<span className="discount-badge" aria-label={`Discount ${badgeText}`}>{badgeText}</span>)}
+                                    <div key={id} className={`product-card ${qty > 0 ? "in-cart" : ""} ${hideQtyControls ? "is-out" : ""}`}>
+                                    {hasDiscount && (<span className="discount-badge" aria-label={`Discount ${badgeText}`}>{badgeText}</span>)}
                                         <img src={p.ImgPath} alt={p.Name}
                                              onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = "/products/placeholder.jpg"; }}/>
                                         <div className="product-info">
@@ -602,10 +677,19 @@ export default function Cashier() {
                                             )}
                                         </div>
 
-                                        {qty > 0 ? (
-                                            <QtyStepper value={qty} onSet={(next) => setCartQty(p.ProductID, next)} labelId={labelId} />
+                                        {hideQtyControls ? (
+                                            <div className="oos-pill" role="note" aria-label="Out of Stock">Out of Stock</div>
+                                        ) : qty > 0 ? (
+                                            <QtyStepper value={qty} onSet={(next) => setCartQty(id, next)} labelId={labelId} />
                                         ) : (
-                                            <button className="btn-primary" onClick={() => addToCart(p)}>Add</button>
+                                            <button
+                                                className={`btn-primary ${disablePlus ? "plus-disabled" : ""}`}
+                                                onClick={() => addToCart(p)}
+                                                disabled={disablePlus}
+                                                aria-disabled={disablePlus}
+                                            >
+                                                Add
+                                            </button>
                                         )}
                                     </div>
                                 );
@@ -643,7 +727,6 @@ export default function Cashier() {
                                     </span>
                                 </div>
                             </div>
-
                         )}
                     </div>
 
@@ -662,8 +745,6 @@ export default function Cashier() {
                         )}
                     </div>
                 </div>
-
-
 
                 {notFound && <div className="inline-error">Customer not found</div>}
 
@@ -687,8 +768,18 @@ export default function Cashier() {
                                 const isBogo = type === "bogo";
                                 const freeUnits = isBogo ? Math.floor(normalizeQty(item.Qty) / 2) : 0;
 
+                                const id = item.ProductID;
+                                const disablePlus = isInsufficient(id) || isOOS(id);
+
+                                const onCartQtySet = (next) => {
+                                    const cur = Number(item.Qty) || 0;
+                                    const n = next === "" ? "" : Number(next);
+                                    if (n !== "" && n > cur && disablePlus) return;
+                                    setCartQty(id, next);
+                                };
+
                                 return (
-                                    <li key={item.ProductID} className="cart-item">
+                                    <li key={id} className="cart-item">
                                         <div className="cart-item-left">
                                             <img src={item.ImgPath} alt={item.Name}
                                                  onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = "/products/placeholder.jpg"; }}/>
@@ -700,8 +791,13 @@ export default function Cashier() {
                                             </div>
                                         </div>
                                         <div className="cart-item-right">
-                                            <QtyStepper value={item.Qty} onSet={(next) => setCartQty(item.ProductID, next)} labelId={labelId} />
-                                            <button className="btn-remove" onClick={() => deleteItemFromServer(item.ProductID)}>×</button>
+                                            <QtyStepper
+                                                value={item.Qty}
+                                                onSet={onCartQtySet}
+                                                labelId={labelId}
+                                                disablePlusVisual={disablePlus}
+                                            />
+                                            <button className="btn-remove" onClick={() => deleteItemFromServer(id)}>×</button>
                                         </div>
                                     </li>
                                 );
@@ -782,10 +878,6 @@ export default function Cashier() {
                     </div>
                 )}
             </Modal>
-
-
         </div>
     );
 }
-
-
