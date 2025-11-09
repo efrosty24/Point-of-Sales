@@ -14,7 +14,12 @@ export default function InventoryManagement() {
   const [showCreate, setShowCreate] = useState(false);
   const [showSupplierCreate, setShowSupplierCreate] = useState(false);
   const [showCategoryCreate, setShowCategoryCreate] = useState(false);
-  const [newProduct, setNewProduct] = useState({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", ReorderThreshold: "" });
+  const [showCategoryEdit, setShowCategoryEdit] = useState(false);
+  const [showCategoryManage, setShowCategoryManage] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [showProductEdit, setShowProductEdit] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [newProduct, setNewProduct] = useState({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: "", Image: "" });
   const [newSupplier, setNewSupplier] = useState({ Name: '', Phone: '', Email: '', Address: '' });
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -62,24 +67,45 @@ export default function InventoryManagement() {
   }
 
   async function handleRestock() {
-    const items = Object.entries(restock)
-      .map(([ProductID, Qty]) => ({ ProductID: Number(ProductID), Qty: Number(Qty) }))
-      .filter((it) => it.Qty > 0);
-    if (!items.length) {
-      setMessage("Enter quantities to restock");
-      return;
-    }
+    // Check if supplier is selected
     if (!supplierFilter) {
       setMessage("Select a supplier before restocking");
       return;
     }
+
+    // list of items to restock
+    const itemsToRestock = [];
+    for (const [productId, qty] of Object.entries(restock)) {
+      const quantity = Number(qty);
+      if (quantity > 0) {
+        // Find the product to check minimum quantity
+        const product = products.find(p => p.ProductID === Number(productId));
+        const minQuantity = product ? Math.ceil(product.ReorderThreshold * 1.1) : 0;
+        
+        // check if quantity meets minimum requirement
+        if (quantity < minQuantity) {
+          setMessage(`${product.Name} needs at least ${minQuantity} units (10% above threshold)`);
+          return;
+        }
+        
+        itemsToRestock.push({ ProductID: Number(productId), Qty: quantity });
+      }
+    }
+
+    if (itemsToRestock.length === 0) {
+      setMessage("Enter quantities to restock");
+      return;
+    }
+
+    // restock request
     try {
       const res = await api.post("/admin/inventory/restock", {
         SupplierID: Number(supplierFilter),
-        items,
+        items: itemsToRestock,
       });
+      
       if (res.data && res.data.ok) {
-        setMessage(`Restocked ${res.data.itemsUpdated || items.length} items`);
+        setMessage(`Restocked ${res.data.itemsUpdated || itemsToRestock.length} items`);
         setRestock({});
         fetchProducts();
       } else {
@@ -87,6 +113,65 @@ export default function InventoryManagement() {
       }
     } catch {
       setMessage("Restock failed");
+    }
+  }
+
+  async function handleDeleteCategory(id) {
+    if (!window.confirm("Delete this category? Products using it may be affected.")) return;
+    try {
+      await api.delete(`/admin/inventory/categories/${id}`);
+      setMessage("Category deleted");
+      fetchCategories();
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Failed to delete category");
+    }
+  }
+
+  async function handleUpdateCategory(e) {
+    e.preventDefault();
+    if (!editingCategory || !editingCategory.CategoryName) {
+      setMessage("Category name is required");
+      return;
+    }
+    try {
+      setLoading(true);
+      await api.patch(`/admin/inventory/categories/${editingCategory.CategoryID}`, {
+        CategoryName: editingCategory.CategoryName,
+      });
+      setMessage("Category updated");
+      setShowCategoryEdit(false);
+      setEditingCategory(null);
+      fetchCategories();
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Failed to update category");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateProduct(e) {
+    e.preventDefault();
+    if (!editingProduct) return;
+    try {
+      setLoading(true);
+      const body = {
+        Name: editingProduct.Name,
+        Brand: editingProduct.Brand,
+        Price: Number(editingProduct.Price || 0),
+        Stock: Number(editingProduct.Stock || 0),
+        SupplierID: editingProduct.SupplierID ? Number(editingProduct.SupplierID) : null,
+        CategoryID: editingProduct.CategoryID ? Number(editingProduct.CategoryID) : null,
+        ReorderThreshold: Number(editingProduct.ReorderThreshold || 0),
+      };
+      await api.patch(`/admin/inventory/products/${editingProduct.ProductID}`, body);
+      setMessage("Product updated");
+      setShowProductEdit(false);
+      setEditingProduct(null);
+      fetchProducts();
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Failed to update product");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -120,7 +205,7 @@ export default function InventoryManagement() {
             {categories.map(c => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
           </select>
 
-          <button className="btn" onClick={() => setShowCategoryCreate(true)}>+ Category</button>
+          <button className="btn" onClick={() => setShowCategoryManage(true)}>Manage Categories</button>
 
           <button className="btn" onClick={() => setShowSupplierCreate(true)}>+ Supplier</button>
 
@@ -136,6 +221,8 @@ export default function InventoryManagement() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>ID</th>
+                  <th>Image</th>
                   <th>Product</th>
                   <th>Brand</th>
                   <th className="align-right">Stock</th>
@@ -143,11 +230,25 @@ export default function InventoryManagement() {
                   <th className="align-right">Price</th>
                   <th>Supplier</th>
                   <th className="align-center">Restock</th>
+                  <th className="align-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map((p) => (
                   <tr key={p.ProductID}>
+                    <td>{p.ProductID}</td>
+                    <td>
+                      {p.ImgName ? (
+                        <img 
+                          src={`${p.ImgPath || '/products/'}${p.ImgName}`} 
+                          alt={p.Name}
+                          style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '0.85em', color: '#999' }}>—</span>
+                      )}
+                    </td>
                     <td className="product-cell">
                       <div className="product-name">{p.Name}</div>
                     </td>
@@ -164,13 +265,25 @@ export default function InventoryManagement() {
                         value={restock[p.ProductID] || ''}
                         onChange={(e) => updateQty(p.ProductID, e.target.value)}
                         aria-label={`Restock quantity for ${p.Name}`}
+                        placeholder={`Min: ${Math.ceil(p.ReorderThreshold * 1.1)}`}
                       />
+                    </td>
+                    <td className="align-center">
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setEditingProduct(p);
+                          setShowProductEdit(true);
+                        }}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="no-data">No products found.</td>
+                    <td colSpan={10} className="no-data">No products found.</td>
                   </tr>
                 )}
               </tbody>
@@ -351,6 +464,179 @@ export default function InventoryManagement() {
                 <button className="btn primary" type="submit">Create</button>
               </div>
             </form>
+          </div>
+        )}
+
+        {showCategoryEdit && editingCategory && (
+          <div className="overlay">
+            <form className="modal" onSubmit={handleUpdateCategory}>
+              <h3>Edit Category</h3>
+              <div className="form-grid">
+                <input
+                  className="input"
+                  placeholder="Category name"
+                  value={editingCategory.CategoryName}
+                  onChange={(e) =>
+                    setEditingCategory({ ...editingCategory, CategoryName: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    setShowCategoryEdit(false);
+                    setEditingCategory(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button className="btn primary" type="submit">
+                  Update
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {showProductEdit && editingProduct && (
+          <div className="overlay">
+            <form className="modal" onSubmit={handleUpdateProduct}>
+              <h3>Edit Product</h3>
+              <div className="form-grid">
+                <input 
+                  className="input" 
+                  placeholder="Name" 
+                  value={editingProduct.Name} 
+                  onChange={(e) => setEditingProduct({ ...editingProduct, Name: e.target.value })} 
+                  required 
+                />
+                <input 
+                  className="input" 
+                  placeholder="Brand" 
+                  value={editingProduct.Brand || ''} 
+                  onChange={(e) => setEditingProduct({ ...editingProduct, Brand: e.target.value })} 
+                />
+                <input 
+                  className="input" 
+                  placeholder="Price" 
+                  type="number" 
+                  step="0.01" 
+                  value={editingProduct.Price} 
+                  onChange={(e) => setEditingProduct({ ...editingProduct, Price: e.target.value })} 
+                />
+                <input 
+                  className="input" 
+                  placeholder="Stock" 
+                  type="number" 
+                  value={editingProduct.Stock} 
+                  onChange={(e) => setEditingProduct({ ...editingProduct, Stock: e.target.value })} 
+                />
+                <select
+                  className="select"
+                  value={editingProduct.SupplierID || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, SupplierID: e.target.value === "" ? "" : Number(e.target.value) })}
+                  required
+                >
+                  <option value="">Select supplier</option>
+                  {suppliers.map((s) => (
+                    <option key={s.SupplierID} value={s.SupplierID}>{s.Name}</option>
+                  ))}
+                </select>
+                <select
+                  className="select"
+                  value={editingProduct.CategoryID || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, CategoryID: e.target.value === "" ? "" : Number(e.target.value) })}
+                  required
+                >
+                  <option value="">Select category</option>
+                  {categories.map(c => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
+                </select>
+                <input 
+                  className="input" 
+                  placeholder="Reorder threshold" 
+                  type="number" 
+                  value={editingProduct.ReorderThreshold} 
+                  onChange={(e) => setEditingProduct({ ...editingProduct, ReorderThreshold: e.target.value })} 
+                />
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    setShowProductEdit(false);
+                    setEditingProduct(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button className="btn primary" type="submit">
+                  Update
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {showCategoryManage && (
+          <div className="overlay">
+            <div className="modal" style={{ maxWidth: '600px' }}>
+              <h3>Manage Categories</h3>
+              <div style={{ marginBottom: '20px' }}>
+                <button className="btn primary" onClick={() => setShowCategoryCreate(true)}>+ Add Category</button>
+              </div>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Category Name</th>
+                      <th className="align-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map((c) => (
+                      <tr key={c.CategoryID}>
+                        <td>{c.CategoryName}</td>
+                        <td className="align-center">
+                          <button
+                            className="btn"
+                            onClick={() => {
+                              setEditingCategory(c);
+                              setShowCategoryEdit(true);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn"
+                            onClick={() => handleDeleteCategory(c.CategoryID)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {categories.length === 0 && (
+                      <tr>
+                        <td colSpan={2} className="no-data">No categories found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => setShowCategoryManage(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
