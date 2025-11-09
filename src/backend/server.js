@@ -20,6 +20,7 @@ const port = process.env.PORT || process.env.APP_PORT || 8080;
 const allowedOrigins = [
     // URLS for both CLOUD and Local Deployment
     'https://point-of-sales-476509.uc.r.appspot.com',
+    'https://point-of-sales-476509.uc.r.appspot.com/',
     'http://localhost:3000',
     'http://localhost:5173'
 ];
