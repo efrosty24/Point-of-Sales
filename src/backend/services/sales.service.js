@@ -75,10 +75,9 @@ exports.byCategory = ({ from, to }, cb) => {
       c.CategoryName,
       COALESCE(SUM(od.Quantity * od.Price), 0) AS revenue
     FROM Orders o
-    JOIN OrderDetails od ON od.OrderID   = o.OrderID        /* 1 */
-    JOIN Products     p  ON p.ProductID  = od.ProductID     /* 2 */
-    JOIN Categories   c  ON c.CategoryID = p.CategoryID     /* 3 */
-    /* opcional 4to JOIN (no altera el GROUP BY de categoría) */
+    JOIN OrderDetails od ON od.OrderID   = o.OrderID        
+    JOIN Products     p  ON p.ProductID  = od.ProductID     
+    JOIN Categories   c  ON c.CategoryID = p.CategoryID     
     LEFT JOIN Suppliers s ON s.SupplierID = p.SupplierID
     ${where}
     GROUP BY c.CategoryID, c.CategoryName
