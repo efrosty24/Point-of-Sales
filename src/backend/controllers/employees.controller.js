@@ -105,20 +105,21 @@ exports.updateEmployee = (req, res) => {
 
 // Delete employee
 exports.deleteEmployee = (req, res) => {
-  const employeeId = req.params.id;
-  if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
+    const employeeId = req.params.id;
+    if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
 
-  svc.deleteEmployee(employeeId, (err, result) => {
-    if (err) {
-      console.error('Database error occurred deleting employee:', err);
-      return res.status(500).json({ error: 'Failed to delete employee data.' });
-    }
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: `Employee with ID ${employeeId} not found` });
-    }
-    return res.status(204).send();
-  });
+    svc.deleteEmployee(employeeId, (err, result) => {
+        if (err) {
+            console.error('Database error occurred deleting employee:', err);
+            return res.status(500).json({ error: 'Failed to delete employee data.' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: `Employee with ID ${employeeId} not found` });
+        }
+        return res.status(200).json({ message: 'Employee deleted successfully.' });
+    });
 };
+
 
 // ===== Dashboard =====
 const hourLabel = (h) => {
