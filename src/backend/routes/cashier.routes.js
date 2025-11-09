@@ -11,6 +11,7 @@ router.post('/register', ctrl.postCheckout);
 // RegisterList Activity
 router.post('/registerList', ctrl.addToRegister);
 router.get('/registerList/:id', ctrl.getRegister);
+router.delete('/registerList/:id/cart', ctrl.deleteRegisterList);
 router.delete('/registerList/:id/items/:productId', ctrl.removeRegisterItem);
 router.patch('/registerList/:id/identity', ctrl.updateRegisterIdentity);
 

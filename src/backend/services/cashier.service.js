@@ -208,6 +208,7 @@ exports.addToRegister = ({ customerId, guestId, employeeId, items, taxRate = 0 }
                           lines.push({
                             ProductID: pid,
                             Name: prod.Name,
+                            Stock: prod.Stock,
                             Qty: qty,
                             OriginalPrice: prod.Price,
                             Price: unit,
@@ -414,55 +415,64 @@ exports.getRegister = (registerListId, cb) => {
 };
 
 exports.removeRegisterItem = ({ registerListId, productId }, cb) => {
-  db.getConnection((err, conn) => {
-    if (err) return cb(err);
-    conn.beginTransaction((errTx) => {
-      if (errTx) { conn.release(); return cb(errTx); }
+    db.getConnection((err, conn) => {
+        if (err) return cb(err);
 
-      conn.query(
-        `SELECT Quantity FROM RegisterItems
-         WHERE RegisterListID = ? AND ProductID = ?
-         FOR UPDATE`,
-        [registerListId, productId],
-        (eSel, rows) => {
-          if (eSel) return conn.rollback(() => { conn.release(); cb(eSel); });
-
-          const prevQty = rows?.[0]?.Quantity ? Number(rows[0].Quantity) : 0;
-
-          const releaseStock = (done) => {
-            if (prevQty <= 0) return done();
-            conn.query(
-              `UPDATE Products SET Stock = Stock + ? WHERE ProductID = ?`,
-              [prevQty, productId],
-              (eUp) => done(eUp || null)
-            );
-          };
-
-          releaseStock((eRel) => {
-            if (eRel) return conn.rollback(() => { conn.release(); cb(eRel); });
+        conn.beginTransaction((errTx) => {
+            if (errTx) {
+                conn.release();
+                return cb(errTx);
+            }
 
             conn.query(
-              `DELETE FROM RegisterItems WHERE RegisterListID = ? AND ProductID = ?`,
-              [registerListId, productId],
-              (eDel) => {
-                if (eDel) return conn.rollback(() => { conn.release(); cb(eDel); });
+                `DELETE FROM RegisterItems WHERE RegisterListID = ? AND ProductID = ?`,
+                [registerListId, productId],
+                (eDel) => {
+                    if (eDel) {
+                        return conn.rollback(() => {
+                            conn.release();
+                            cb(eDel);
+                        });
+                    }
 
-                conn.commit((eC) => {
-                  if (eC) return conn.rollback(() => { conn.release(); cb(eC); });
-                  exports.getRegister(registerListId, (eGet, data) => {
-                    conn.release();
-                    if (eGet) return cb(eGet);
-                    cb(null, data);
-                  });
-                });
-              }
+                    conn.commit((eC) => {
+                        if (eC) {
+                            return conn.rollback(() => {
+                                conn.release();
+                                cb(eC);
+                            });
+                        }
+
+                        exports.getRegister(registerListId, (eGet, data) => {
+                            conn.release();
+                            if (eGet) return cb(eGet);
+                            cb(null, data);
+                        });
+                    });
+                }
             );
-          });
-        }
-      );
+        });
     });
-  });
 };
+
+
+
+exports.deleteRegisterList = ({ registerListId }, cb) => {
+    db.getConnection((err, conn) => {
+        if (err) return cb(err);
+
+        conn.query(
+            `DELETE FROM RegisterList WHERE RegisterListID = ?`,
+            [registerListId],
+            (eDel, result) => {
+                conn.release();
+                if (eDel) return cb(eDel);
+                cb(null, result);
+            }
+        );
+    });
+};
+
 
 exports.updateRegisterIdentity = ({ registerListId, customerId, guestId }, cb) => {
   const hasCust = customerId != null;
@@ -567,6 +577,7 @@ exports.listProductsForCashier = ({ search = '', category = null }, cb) => {
             d.DiscountType,
             d.DiscountValue,
             p.ImgPath,
+            p.Stock,
             p.ImgName,
             p.QuantityValue,
             p.QuantityUnit

@@ -232,6 +232,29 @@
     padding: 0;
 }
 
+
+.product-card.is-out .btn-primary,
+.product-card.is-out .qty-controls { display: none; }
+
+.oos-pill {
+    display: inline-block;
+    padding: 6px 6px;
+    border-radius: 6px;
+    background: #eee;
+    color: #666;
+    margin-top: 10px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.qty-controls.disable-plus .btn-plus {
+    background: #c7e0cc;
+    cursor: not-allowed;
+    transform: none;
+    pointer-events: none;
+}
+
+
 .pagination {
     display: flex;
     justify-content: center;
