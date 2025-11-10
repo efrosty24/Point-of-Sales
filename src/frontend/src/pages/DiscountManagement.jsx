@@ -13,12 +13,15 @@ export default function DiscountManagement() {
   useEffect(() => {
     fetchEvents();
     fetchProducts();
+    fetchAllDiscounts();
   }, []);
 
   async function fetchEvents() {
     try {
       const res = await api.get("/admin/sale-events");
-      setEvents(Array.isArray(res.data) ? res.data : []);
+      const eventList = Array.isArray(res.data) ? res.data : [];
+      setEvents(eventList);
+
     } catch {
       setEvents([]);
     }
@@ -33,11 +36,49 @@ export default function DiscountManagement() {
     }
   }
 
+  async function fetchAllDiscounts() {
+    try {
+      const eventsRes = await api.get("/admin/sale-events");
+      const eventList = Array.isArray(eventsRes.data) ? eventsRes.data : [];
+      
+      const allDiscounts = [];
+      for (const event of eventList) {
+        try {
+          const res = await api.get(`/admin/sale-events/${event.SaleEventID}/discounts`);
+          const discountsFromThisEvent = Array.isArray(res.data) ? res.data : [];
+          
+          for (const discount of discountsFromThisEvent) {
+            discount.EventName = event.Name;
+            allDiscounts.push(discount);
+          }
+        } catch {
+        }
+      }
+      
+      setDiscounts(allDiscounts);
+    } catch {
+      setDiscounts([]);
+    }
+  }
+
   async function fetchDiscounts(evId) {
-    if (!evId) return setDiscounts([]);
+    // If no event selected, show all discounts
+    if (!evId) {
+      fetchAllDiscounts();
+      return;
+    }
+    
     try {
       const res = await api.get(`/admin/sale-events/${evId}/discounts`);
-      setDiscounts(Array.isArray(res.data) ? res.data : []);
+      const eventDiscounts = Array.isArray(res.data) ? res.data : [];
+      
+      const selectedEvent = events.find(e => e.SaleEventID === evId);
+      
+      for (const discount of eventDiscounts) {
+        discount.EventName = selectedEvent?.Name || '—';
+      }
+      
+      setDiscounts(eventDiscounts);
     } catch {
       setDiscounts([]);
     }
@@ -57,6 +98,7 @@ export default function DiscountManagement() {
       if (res.status === 201 || (res.data && res.data.ok)) {
         setMsg(res.data?.message || "Event created");
         fetchEvents();
+        fetchAllDiscounts();
       } else {
         setMsg(res.data?.message || `Unexpected response: ${res.status}`);
       }
@@ -86,7 +128,7 @@ export default function DiscountManagement() {
       );
       if (res.status === 201 || (res.data && res.data.ok)) {
         setMsg(res.data?.message || "Discount created");
-        fetchDiscounts(selectedEventId);
+        fetchAllDiscounts();
       } else {
         setMsg(res.data?.message || `Unexpected response: ${res.status}`);
       }
@@ -105,7 +147,7 @@ export default function DiscountManagement() {
       const res = await api.delete(`/admin/discounts/${id}`);
       if (res.data && res.data.ok) {
         setMsg("Deleted");
-        fetchDiscounts(selectedEventId);
+        fetchAllDiscounts();
       }
     } catch {
       setMsg("Failed to delete");
@@ -136,7 +178,7 @@ export default function DiscountManagement() {
         <section className="card-section">
           <h3 className="section-title">Events</h3>
           <div className="form-row">
-            <select className="select" onChange={(e) => { const id = Number(e.target.value) || null; setSelectedEventId(id); fetchDiscounts(id); }}>
+            <select className="select" value={selectedEventId || ""} onChange={(e) => { const id = Number(e.target.value) || null; setSelectedEventId(id); fetchDiscounts(id); }}>
               <option value="">-- select event --</option>
               {events.map(ev => <option key={ev.SaleEventID} value={ev.SaleEventID}>{ev.Name} ({ev.StartDate}→{ev.EndDate})</option>)}
             </select>
@@ -151,10 +193,10 @@ export default function DiscountManagement() {
               <option value="">-- select product --</option>
               {products.map(p => <option key={p.ProductID} value={p.ProductID}>{p.Name}</option>)}
             </select>
-            <select name="type" className="select" defaultValue="percentage">
-              <option value="percentage">percentage</option>
-              <option value="fixed">fixed</option>
-              <option value="bogo">bogo</option>
+            <select name="type" className="select" defaultValue="percentage" required>
+              <option value="percentage">Percentage</option>
+              <option value="fixed">Fixed</option>
+              <option value="bogo">BOGO</option>
             </select>
             <input name="value" className="input" type="number" step="0.01" placeholder="Value" required />
             <input name="conditions" className="input" placeholder="Conditions" />
@@ -169,6 +211,7 @@ export default function DiscountManagement() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Event</th>
                   <th>Product</th>
                   <th>Type</th>
                   <th className="align-right">Value</th>
@@ -179,6 +222,7 @@ export default function DiscountManagement() {
               <tbody>
                 {discounts.map(d => (
                   <tr key={d.DiscountID}>
+                    <td>{d.EventName || '—'}</td>
                     <td>{d.ProductName}</td>
                     <td>{d.DiscountType}</td>
                     <td className="align-right">{d.DiscountValue}</td>
@@ -188,7 +232,7 @@ export default function DiscountManagement() {
                 ))}
                 {discounts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="no-data">No discounts found.</td>
+                    <td colSpan={6} className="no-data">No discounts found.</td>
                   </tr>
                 )}
               </tbody>
