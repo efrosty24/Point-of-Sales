@@ -11,12 +11,20 @@ exports.salesSummary = ({ from, to }, cb) => {
   if (to)   { where += ' AND DATE(o.DatePlaced) <= ?'; params.push(to); }
 
   const sql = `
+    WITH base AS (
+      SELECT o.OrderID, o.Total, o.DatePlaced, o.CustomerID, o.EmployeeID
+      FROM Orders o
+      ${where}
+    )
     SELECT
-      COUNT(*) AS orders,
-      COALESCE(SUM(o.Total), 0) AS revenue,
-      CASE WHEN COUNT(*) = 0 THEN 0 ELSE COALESCE(SUM(o.Total),0)/COUNT(*) END AS avg_ticket
-    FROM Orders o
-    ${where}
+      COUNT(*)                                             AS orders,
+      COALESCE(SUM(base.Total), 0)                         AS revenue,
+      CASE WHEN COUNT(*) = 0 THEN 0
+           ELSE COALESCE(SUM(base.Total),0)/COUNT(*) END   AS avg_ticket
+    FROM base
+    JOIN Customers  c  ON c.CustomerID  = base.CustomerID
+    JOIN Employees  e  ON e.EmployeeID  = base.EmployeeID
+    JOIN (SELECT DISTINCT OrderID FROM OrderDetails) od ON od.OrderID = base.OrderID
   `;
   db.query(sql, params, (err, rows) => cb(err, rows && rows[0]));
 };
@@ -35,13 +43,15 @@ exports.topProducts = ({ from, to, limit = 10 }, cb) => {
     SELECT
       p.ProductID,
       p.Name,
+      c.CategoryName,                                     
       COALESCE(SUM(od.Quantity), 0)            AS units,
       COALESCE(SUM(od.Quantity * od.Price), 0) AS revenue
     FROM Orders o
-    JOIN OrderDetails od ON od.OrderID = o.OrderID
-    JOIN Products p ON p.ProductID = od.ProductID
+    JOIN OrderDetails od ON od.OrderID   = o.OrderID       
+    JOIN Products     p  ON p.ProductID  = od.ProductID    
+    JOIN Categories   c  ON c.CategoryID = p.CategoryID    
     ${where}
-    GROUP BY p.ProductID, p.Name
+    GROUP BY p.ProductID, p.Name, c.CategoryName
     ORDER BY units DESC, revenue DESC
     LIMIT ?
   `;
@@ -65,9 +75,10 @@ exports.byCategory = ({ from, to }, cb) => {
       c.CategoryName,
       COALESCE(SUM(od.Quantity * od.Price), 0) AS revenue
     FROM Orders o
-    JOIN OrderDetails od ON od.OrderID = o.OrderID
-    JOIN Products p ON p.ProductID = od.ProductID
-    JOIN Categories c ON c.CategoryID = p.CategoryID
+    JOIN OrderDetails od ON od.OrderID   = o.OrderID        
+    JOIN Products     p  ON p.ProductID  = od.ProductID     
+    JOIN Categories   c  ON c.CategoryID = p.CategoryID     
+    LEFT JOIN Suppliers s ON s.SupplierID = p.SupplierID
     ${where}
     GROUP BY c.CategoryID, c.CategoryName
     ORDER BY revenue DESC
@@ -84,7 +95,7 @@ exports.fetchRecentSales = (limit = 10, cb) => {
     FROM Orders o
     JOIN Customers c ON c.CustomerID = o.CustomerID
     ORDER BY o.DatePlaced DESC
-    LIMIT 10
+    LIMIT ?
   `;
   db.query(sql, [limit], (err, rows) => cb(err, rows));
 };

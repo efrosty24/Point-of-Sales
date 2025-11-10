@@ -219,46 +219,52 @@ export default function Cashier() {
         fetchCategories();
     }, []);
 
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                setLoading(true);
-                const params = {};
-                if (search) params.search = search;
-                if (category !== "All") params.category = category;
 
-                const res = await api.get(`/cashier/products`, { params });
-                const data = res.data;
-                if (Array.isArray(data)) {
-                    setProducts(
-                        data.map((p) => ({
-                            ...p,
-                            OriginalPrice: Number(p.OriginalPrice),
-                            FinalPrice: Number(p.FinalPrice),
-                            Stock: Number(p.Stock),
-                            DiscountType: p.DiscountType || null,
-                            DiscountValue: p.DiscountValue != null ? Number(p.DiscountValue) : null,
-                            ImgPath:
-                                p.ImgPath && p.ImgPath.endsWith("/")
-                                    ? (p.ImgPath || "/products/") + (p.ImgName || "placeholder.jpg")
-                                    : p.ImgPath || "/products/placeholder.jpg",
-                        }))
-                    );
-                    setOutOfStock(() => {
-                        const m = new Map();
-                        for (const p of data) {
-                            const s = Number(p.Stock);
-                            if (Number.isFinite(s) && s <= 0) m.set(p.ProductID, true);
-                        }
-                        return m;
-                    });
-                }
-            } catch (err) {
-                console.error("Failed to fetch products:", err);
-            } finally {
-                setLoading(false);
+    const fetchProducts = async () => {
+        try {
+            setLoading(true);
+            const params = {};
+            if (search) params.search = search;
+            if (category !== "All") params.category = category;
+
+            const res = await api.get(`/cashier/products`, { params });
+            const data = res.data;
+            if (Array.isArray(data)) {
+                setProducts(
+                    data.map((p) => ({
+                        ...p,
+                        OriginalPrice: Number(p.OriginalPrice),
+                        FinalPrice: Number(p.FinalPrice),
+                        Stock: Number(p.Stock),
+                        DiscountType: p.DiscountType || null,
+                        DiscountValue: p.DiscountValue != null ? Number(p.DiscountValue) : null,
+                        ImgPath:
+                            p.ImgPath && p.ImgPath.endsWith("/")
+                                ? (p.ImgPath || "/products/") + (p.ImgName || "placeholder.jpg")
+                                : p.ImgPath || "/products/placeholder.jpg",
+                    }))
+                );
+                setOutOfStock(() => {
+                    const m = new Map();
+                    for (const p of data) {
+                        const s = Number(p.Stock);
+                        if (Number.isFinite(s) && s <= 0) m.set(p.ProductID, true);
+                    }
+                    return m;
+                });
             }
-        };
+        } catch (err) {
+            console.error("Failed to fetch products:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchProducts();
+    }, [search, category]);
+
+    useEffect(() => {
         fetchProducts();
     }, [search, category]);
 
@@ -604,7 +610,7 @@ export default function Cashier() {
 
                 setInsufficient(new Map());
                 setOutOfStock(new Map());
-
+                await fetchProducts();
                 setShowReceipt(true);
                 if (orderId) {
                     fetchReceipt(orderId);

@@ -425,30 +425,71 @@ exports.removeRegisterItem = ({ registerListId, productId }, cb) => {
             }
 
             conn.query(
-                `DELETE FROM RegisterItems WHERE RegisterListID = ? AND ProductID = ?`,
+                `SELECT Quantity
+                 FROM RegisterItems
+                 WHERE RegisterListID = ? AND ProductID = ?`,
                 [registerListId, productId],
-                (eDel) => {
-                    if (eDel) {
+                (eSel, rows) => {
+                    if (eSel) {
                         return conn.rollback(() => {
                             conn.release();
-                            cb(eDel);
+                            cb(eSel);
                         });
                     }
 
-                    conn.commit((eC) => {
-                        if (eC) {
-                            return conn.rollback(() => {
-                                conn.release();
-                                cb(eC);
-                            });
-                        }
-
-                        exports.getRegister(registerListId, (eGet, data) => {
+                    if (rows.length === 0) {
+                        conn.rollback(() => {
                             conn.release();
-                            if (eGet) return cb(eGet);
-                            cb(null, data);
+                            cb(new Error("Register item not found"));
                         });
-                    });
+                        return;
+                    }
+
+                    const qty = rows[0].Quantity;
+
+                    conn.query(
+                        `DELETE FROM RegisterItems
+                         WHERE RegisterListID = ? AND ProductID = ?`,
+                        [registerListId, productId],
+                        (eDel) => {
+                            if (eDel) {
+                                return conn.rollback(() => {
+                                    conn.release();
+                                    cb(eDel);
+                                });
+                            }
+
+                            conn.query(
+                                `UPDATE Products
+                                 SET Stock = Stock + ?
+                                 WHERE ProductID = ?`,
+                                [qty, productId],
+                                (eUpd) => {
+                                    if (eUpd) {
+                                        return conn.rollback(() => {
+                                            conn.release();
+                                            cb(eUpd);
+                                        });
+                                    }
+
+                                    conn.commit((eC) => {
+                                        if (eC) {
+                                            return conn.rollback(() => {
+                                                conn.release();
+                                                cb(eC);
+                                            });
+                                        }
+
+                                        exports.getRegister(registerListId, (eGet, data) => {
+                                            conn.release();
+                                            if (eGet) return cb(eGet);
+                                            cb(null, data);
+                                        });
+                                    });
+                                }
+                            );
+                        }
+                    );
                 }
             );
         });
