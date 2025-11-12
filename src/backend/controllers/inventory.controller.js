@@ -61,27 +61,51 @@ exports.markRestockOrderAsRead = (req, res) => {
 
 
 exports.addProduct = (req, res) => {
-    const productData = req.body;
-    if (!productData || !productData.Name || !productData.Price || !productData.Stock) {
-        return res.status(400).json({ error: 'Missing product data or required fields' });
+  const raw = req.body || {};
+  if (!raw.Name || raw.Price == null || raw.Stock == null) {
+    return res.status(400).json({ error: 'Missing product data or required fields' });
+  }
+  if (raw.SupplierID == null || raw.CategoryID == null) {
+    return res.status(400).json({ error: 'SupplierID and CategoryID are required' });
+  }
+  const productData = {
+    Name: String(raw.Name).trim(),
+    Brand: raw.Brand ? String(raw.Brand).trim() : null,
+    Price: Number(raw.Price) || 0,
+    Stock: Number(raw.Stock) || 0,
+    ReorderThreshold: Number(raw.ReorderThreshold ?? 0),
+    IsPricePerQty: Number(raw.IsPricePerQty ?? 0) ? 1 : 0,
+    QuantityValue: Number(raw.QuantityValue ?? 1) || 1,
+    QuantityUnit: (raw.QuantityUnit ?? 'unit').toString().trim() || 'unit',
+    SupplierID: Number(raw.SupplierID),
+    CategoryID: Number(raw.CategoryID),
+    ImgName: raw.ImgName ?? null,
+    ImgPath: raw.ImgPath ?? null,
+    Description: raw.Description ?? null,
+  };
+  if (!Number.isInteger(productData.SupplierID) || !Number.isInteger(productData.CategoryID)) {
+    return res.status(400).json({ error: 'SupplierID and CategoryID must be integers' });
+  }
+
+  svc.addProduct(productData, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: 'DB error', detail: err.code || err.message });
     }
-    svc.addProduct(productData, (err, result) => {
-        if (err) return res.status(500).json({ error: 'DB error' });
-        return res.status(201).json({
-            message: 'Product added',
-            product: {
-                ProductID: result.insertId,
-                Name: productData.Name,
-                Brand: productData.Brand,
-                Price: productData.Price,
-                Stock: productData.Stock,
-                CategoryID: productData.CategoryID,
-                QuantityValue: productData.QuantityValue,
-                QuantityUnit: productData.QuantityUnit,
-                Description: productData.Description
-            }
-        });
+    return res.status(201).json({
+      message: 'Product added',
+      product: {
+        ProductID: result.insertId,
+        Name: productData.Name,
+        Brand: productData.Brand,
+        Price: productData.Price,
+        Stock: productData.Stock,
+        CategoryID: productData.CategoryID,
+        QuantityValue: productData.QuantityValue,
+        QuantityUnit: productData.QuantityUnit,
+        Description: productData.Description
+      }
     });
+  });
 };
 
 exports.listCategories = (req, res) => {

@@ -34,10 +34,10 @@ router.patch('/categories/:id', ctrl.updateCategory);
 router.delete('/categories/:id', ctrl.deleteCategory);
 
 // Products CRUD
+router.get('/products/search', ctrl.searchProducts);
 router.get('/products/:id', ctrl.getProductById);
 router.patch('/products/:id', ctrl.updateProduct);
 router.delete('/products/:id', ctrl.deactivateProduct);
 router.patch('/products/:id/reactivate', ctrl.reactivateProduct);
-router.get('/products', ctrl.searchProducts);
 
 module.exports = router;
