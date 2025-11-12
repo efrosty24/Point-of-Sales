@@ -61,7 +61,7 @@ function Sidebar() {
                                     <path d="M3 3v18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                     <path d="M9 17v-6M13 17v-10M17 17v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                 </svg>
-                                {!collapsed && <span>Sales Report</span>}
+                                {!collapsed && <span>Reports</span>}
                             </Link>
                         </li>
 

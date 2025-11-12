@@ -81,7 +81,6 @@ function Dashboard() {
     <div className="dashboard-container">
       <div className="dashboard-header">
         <h1>Admin Dashboard</h1>
-        <p className="role-label">Admin</p>
       </div>
 
       {/* --- SALES REPORT CARDS --- */}
