@@ -12,6 +12,7 @@
   },
   "private": true,
   "dependencies": {
+    "multer": "^2.0.2",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.5"
   }
