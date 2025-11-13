@@ -20,7 +20,7 @@ export default function InventoryManagement() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [showProductEdit, setShowProductEdit] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [newProduct, setNewProduct] = useState({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: "", Image: "" });
+  const [newProduct, setNewProduct] = useState({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: "", ImgPath: ""});
   const [newSupplier, setNewSupplier] = useState({ Name: '', Phone: '', Email: '', Address: '' });
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -185,6 +185,8 @@ export default function InventoryManagement() {
         SupplierID: editingProduct.SupplierID ? Number(editingProduct.SupplierID) : null,
         CategoryID: editingProduct.CategoryID ? Number(editingProduct.CategoryID) : null,
         ReorderThreshold: Number(editingProduct.ReorderThreshold || 0),
+        ImgPath: editingProduct.ImgPath || null,
+        ImgName: editingProduct.ImgPath ? editingProduct.ImgPath.substring(editingProduct.ImgPath.lastIndexOf('/') + 1) : null
       };
       await api.patch(`/admin/inventory/products/${editingProduct.ProductID}`, body);
       setMessage("Product updated");
@@ -282,9 +284,9 @@ export default function InventoryManagement() {
                   <tr key={p.ProductID}>
                     <td>{p.ProductID}</td>
                     <td>
-                      {p.ImgName ? (
+                      {p.ImgPath ? (
                         <img 
-                          src={`${p.ImgPath || '/products/'}${p.ImgName}`} 
+                          src={p.ImgPath}
                           alt={p.Name}
                           style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                           onError={(e) => { e.target.style.display = 'none'; }}
@@ -365,14 +367,22 @@ export default function InventoryManagement() {
                   IsPricePerQty: false,
                   QuantityValue: 1,
                   QuantityUnit: "unit",
+                  ImgPath: newProduct.ImgPath || null,
+                  ImgName: newProduct.ImgPath ? newProduct.ImgPath.substring(newProduct.ImgPath.lastIndexOf('/') + 1) : null,
                 };
+
+                if (body.SupplierID === null || body.CategoryID === null) {
+                  setMessage("SupplierID and CategoryID are required.");
+                  return;
+                }
+
                 console.log("Creating product with data:", body);
                 try {
                   setLoading(true);
                   const res = await api.post("/admin/inventory/products", body);
                   setMessage(res.data?.message || "Product created");
                   setShowCreate(false);
-                  setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", ReorderThreshold: "" });
+                  setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", ReorderThreshold: "", ImgPath: ""});
                   fetchProducts();
                 } catch (err) {
                   console.error("Create product error:", err?.response?.data || err);
@@ -388,6 +398,7 @@ export default function InventoryManagement() {
                 <input className="input" placeholder="Brand" value={newProduct.Brand} onChange={(e) => setNewProduct({ ...newProduct, Brand: e.target.value })} />
                 <input className="input" placeholder="Price" type="number" step="0.01" value={newProduct.Price} onChange={(e) => setNewProduct({ ...newProduct, Price: e.target.value })} />
                 <input className="input" placeholder="Stock" type="number" value={newProduct.Stock} onChange={(e) => setNewProduct({ ...newProduct, Stock: e.target.value })} />
+                <input className="input" placeholder="Image URL (ImgPath)"  value={newProduct.ImgPath} onChange={(e) => setNewProduct({ ...newProduct, ImgPath: e.target.value })}/>
                 <select
                   className="select"
                   value={newProduct.SupplierID}
@@ -591,6 +602,21 @@ export default function InventoryManagement() {
                   value={editingProduct.Stock} 
                   onChange={(e) => setEditingProduct({ ...editingProduct, Stock: e.target.value })} 
                 />
+
+                  <div className="grid-span-2">
+                      <input
+                          className="input"
+                          placeholder="Image URL (ImgPath)"
+                          value={editingProduct.ImgPath || ''}
+                          onChange={(e) => setEditingProduct({
+                              ...editingProduct,
+                              ImgPath: e.target.value,
+                              // Also update ImgName based on URL for consistency
+                              ImgName: e.target.value ? e.target.value.substring(e.target.value.lastIndexOf('/') + 1) : null
+                          })}
+                      />
+                      <p className="url-helper-text">Current URL: {editingProduct.ImgPath || 'None'}</p>
+                  </div>
                 <select
                   className="select"
                   value={editingProduct.SupplierID || ''}

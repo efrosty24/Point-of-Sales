@@ -102,7 +102,9 @@ exports.addProduct = (req, res) => {
         CategoryID: productData.CategoryID,
         QuantityValue: productData.QuantityValue,
         QuantityUnit: productData.QuantityUnit,
-        Description: productData.Description
+        Description: productData.Description,
+        ImgName: productData.ImgName ?? null,
+        ImgPath: productData.ImgPath ?? null
       }
     });
   });

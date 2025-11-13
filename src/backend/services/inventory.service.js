@@ -35,6 +35,7 @@ exports.listInventoryProducts = ({ search, category, supplier }, cb) => {
       p.QuantityValue,
       p.QuantityUnit,
       p.SupplierID,
+      p.ImgPath,
       s.Name AS SupplierName,
       (p.Stock <= p.ReorderThreshold) AS IsLow
     FROM Products p
@@ -291,7 +292,7 @@ exports.getProductById = (id, callback) => {
   const sql = `
     SELECT 
       p.ProductID, p.Name, p.Brand, p.Price, p.Stock, p.ReorderThreshold,
-      p.Description, p.IsPricePerQty, p.QuantityValue, p.QuantityUnit,
+      p.Description, p.IsPricePerQty, p.QuantityValue, p.QuantityUnit, p.ImgPath, p.ImgName
       c.CategoryName, s.Name AS SupplierName, p.IsActive
     FROM Products p
     JOIN Categories c ON p.CategoryID = c.CategoryID
