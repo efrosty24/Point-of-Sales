@@ -107,7 +107,7 @@
   border: 1px solid #e6e9ef;
 }
 
-.low-stock { color: #dc2626; font-weight: 600; }
+.data-table td.low-stock { color: #dc2626; font-weight: 600; }
 
 .no-data { text-align: center; padding: 26px; color: #6b7280; }
 
@@ -129,8 +129,20 @@
 }
 
 /* modal / overlay used for Add Product */
-.overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(2,6,23,0.4); z-index: 50; }
+.overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(2,6,23,0.4); z-index: 100; }
+.overlay + .overlay { z-index: 110; } /* Nested modals appear above */
 .modal { background: #fff; padding: 18px; border-radius: 8px; width: 640px; max-width: 95%; box-shadow: 0 6px 24px rgba(2,6,23,0.2); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .form-grid .input, .form-grid .select { width: 100%; padding: 10px 12px; border: 1px solid #e6e9ef; border-radius: 6px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.grid-span-2 {
+    grid-column: 1 / 3;
+}
+.overlay .url-helper-text {
+    display: flex;
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 4px;
+    padding-left: 12px;
+}

@@ -8,6 +8,7 @@ export default function InventoryManagement() {
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [restock, setRestock] = useState({});
   const [message, setMessage] = useState("");
@@ -19,7 +20,7 @@ export default function InventoryManagement() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [showProductEdit, setShowProductEdit] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [newProduct, setNewProduct] = useState({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: "", Image: "" });
+  const [newProduct, setNewProduct] = useState({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: "", ImgPath: ""});
   const [newSupplier, setNewSupplier] = useState({ Name: '', Phone: '', Email: '', Address: '' });
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -28,6 +29,10 @@ export default function InventoryManagement() {
     fetchCategories();
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [search, supplierFilter, categoryFilter]);
 
   async function fetchCategories() {
     try {
@@ -53,6 +58,7 @@ export default function InventoryManagement() {
       const params = {};
       if (search) params.search = search;
       if (supplierFilter) params.supplier = supplierFilter;
+      if (categoryFilter) params.category = categoryFilter;
       const res = await api.get("/admin/inventory/products", { params });
       setProducts(Array.isArray(res.data) ? res.data : []);
     } catch {
@@ -67,22 +73,35 @@ export default function InventoryManagement() {
   }
 
   async function handleRestock() {
-    // Check if supplier is selected
     if (!supplierFilter) {
       setMessage("Select a supplier before restocking");
       return;
     }
 
-    // list of items to restock
     const itemsToRestock = [];
     for (const [productId, qty] of Object.entries(restock)) {
       const quantity = Number(qty);
       if (quantity > 0) {
-        // Find the product to check minimum quantity
         const product = products.find(p => p.ProductID === Number(productId));
+        
+        if (!product) {
+          console.log(`Skipping ProductID ${productId} - not in current view`);
+          continue;
+        }
+        
         const minQuantity = product ? Math.ceil(product.ReorderThreshold * 1.1) : 0;
         
-        // check if quantity meets minimum requirement
+        console.log("Product to restock:", {
+          productId,
+          quantity,
+          product: {
+            ProductID: product.ProductID,
+            Name: product.Name,
+            SupplierID: product.SupplierID,
+            SupplierName: product.SupplierName
+          }
+        });
+        
         if (quantity < minQuantity) {
           setMessage(`${product.Name} needs at least ${minQuantity} units (10% above threshold)`);
           return;
@@ -97,22 +116,26 @@ export default function InventoryManagement() {
       return;
     }
 
-    // restock request
     try {
-      const res = await api.post("/admin/inventory/restock", {
+      const payload = {
         SupplierID: Number(supplierFilter),
         items: itemsToRestock,
-      });
+      };
+      console.log("Restock payload:", payload);
+      
+      const res = await api.post("/admin/inventory/restock", payload);
       
       if (res.data && res.data.ok) {
-        setMessage(`Restocked ${res.data.itemsUpdated || itemsToRestock.length} items`);
+        setMessage(`Restocked ${res.data.itemsUpdated || itemsToRestock.length} item(s) successfully`);
         setRestock({});
         fetchProducts();
       } else {
         setMessage("Restock completed");
       }
-    } catch {
-      setMessage("Restock failed");
+    } catch (err) {
+      const errorMsg = err?.response?.data?.error || err?.message || "Restock failed";
+      console.error("Restock error:", err?.response?.data || err);
+      setMessage(`Error: ${errorMsg}`);
     }
   }
 
@@ -162,6 +185,8 @@ export default function InventoryManagement() {
         SupplierID: editingProduct.SupplierID ? Number(editingProduct.SupplierID) : null,
         CategoryID: editingProduct.CategoryID ? Number(editingProduct.CategoryID) : null,
         ReorderThreshold: Number(editingProduct.ReorderThreshold || 0),
+        ImgPath: editingProduct.ImgPath || null,
+        ImgName: editingProduct.ImgPath ? editingProduct.ImgPath.substring(editingProduct.ImgPath.lastIndexOf('/') + 1) : null
       };
       await api.patch(`/admin/inventory/products/${editingProduct.ProductID}`, body);
       setMessage("Product updated");
@@ -170,6 +195,20 @@ export default function InventoryManagement() {
       fetchProducts();
     } catch (err) {
       setMessage(err?.response?.data?.error || "Failed to update product");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteProduct(id) {
+    if (!window.confirm("Delete this product?")) return;
+    try {
+      setLoading(true);
+      const res = await api.delete(`/admin/inventory/products/${id}`);
+      setMessage(res.data?.message || "Product deleted");
+      await fetchProducts();
+    } catch (err) {
+      setMessage(err?.response?.data?.error || err?.response?.data?.message || "Failed to delete product");
     } finally {
       setLoading(false);
     }
@@ -193,14 +232,21 @@ export default function InventoryManagement() {
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <select className="select" value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)}>
+          <select 
+            className="select" 
+            value={supplierFilter} 
+            onChange={(e) => {
+              setSupplierFilter(e.target.value);
+              setRestock({});
+            }}
+          >
             <option value="">All suppliers</option>
             {suppliers.map((s) => (
               <option key={s.SupplierID} value={s.SupplierID}>{s.Name}</option>
             ))}
           </select>
 
-          <select className="select" value={""} onChange={() => {}}>
+          <select className="select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
             <option value="">All categories</option>
             {categories.map(c => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
           </select>
@@ -238,9 +284,9 @@ export default function InventoryManagement() {
                   <tr key={p.ProductID}>
                     <td>{p.ProductID}</td>
                     <td>
-                      {p.ImgName ? (
+                      {p.ImgPath ? (
                         <img 
-                          src={`${p.ImgPath || '/products/'}${p.ImgName}`} 
+                          src={p.ImgPath}
                           alt={p.Name}
                           style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                           onError={(e) => { e.target.style.display = 'none'; }}
@@ -261,7 +307,7 @@ export default function InventoryManagement() {
                       <input
                         className="input-number"
                         type="number"
-                        min="0"
+                        min={Math.ceil(p.ReorderThreshold * 1.1)}
                         value={restock[p.ProductID] || ''}
                         onChange={(e) => updateQty(p.ProductID, e.target.value)}
                         aria-label={`Restock quantity for ${p.Name}`}
@@ -275,8 +321,15 @@ export default function InventoryManagement() {
                           setEditingProduct(p);
                           setShowProductEdit(true);
                         }}
+                        style={{ marginRight: '4px' }}
                       >
                         Edit
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() => handleDeleteProduct(p.ProductID)}
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -292,8 +345,9 @@ export default function InventoryManagement() {
         </div>
 
         <div className="actions-footer">
-          <button className="btn primary" onClick={handleRestock}>Restock Selected</button>
+          <button className="btn primary" onClick={handleRestock} disabled={!supplierFilter}>Restock Selected</button>
           <button className="btn" onClick={() => setRestock({})}>Reset Quantities</button>
+          {!supplierFilter}
         </div>
 
         {showCreate && (
@@ -310,15 +364,28 @@ export default function InventoryManagement() {
                   SupplierID: newProduct.SupplierID ? Number(newProduct.SupplierID) : null,
                   CategoryID: newProduct.CategoryID ? Number(newProduct.CategoryID) : null,
                   ReorderThreshold: Number(newProduct.ReorderThreshold || 0),
+                  IsPricePerQty: false,
+                  QuantityValue: 1,
+                  QuantityUnit: "unit",
+                  ImgPath: newProduct.ImgPath || null,
+                  ImgName: newProduct.ImgPath ? newProduct.ImgPath.substring(newProduct.ImgPath.lastIndexOf('/') + 1) : null,
                 };
+
+                if (body.SupplierID === null || body.CategoryID === null) {
+                  setMessage("SupplierID and CategoryID are required.");
+                  return;
+                }
+
+                console.log("Creating product with data:", body);
                 try {
                   setLoading(true);
                   const res = await api.post("/admin/inventory/products", body);
                   setMessage(res.data?.message || "Product created");
                   setShowCreate(false);
-                  setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", ReorderThreshold: "" });
+                  setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", ReorderThreshold: "", ImgPath: ""});
                   fetchProducts();
                 } catch (err) {
+                  console.error("Create product error:", err?.response?.data || err);
                   setMessage(err?.response?.data?.error || "Failed to create product");
                 } finally {
                   setLoading(false);
@@ -331,6 +398,7 @@ export default function InventoryManagement() {
                 <input className="input" placeholder="Brand" value={newProduct.Brand} onChange={(e) => setNewProduct({ ...newProduct, Brand: e.target.value })} />
                 <input className="input" placeholder="Price" type="number" step="0.01" value={newProduct.Price} onChange={(e) => setNewProduct({ ...newProduct, Price: e.target.value })} />
                 <input className="input" placeholder="Stock" type="number" value={newProduct.Stock} onChange={(e) => setNewProduct({ ...newProduct, Stock: e.target.value })} />
+                <input className="input" placeholder="Image URL (ImgPath)"  value={newProduct.ImgPath} onChange={(e) => setNewProduct({ ...newProduct, ImgPath: e.target.value })}/>
                 <select
                   className="select"
                   value={newProduct.SupplierID}
@@ -534,6 +602,21 @@ export default function InventoryManagement() {
                   value={editingProduct.Stock} 
                   onChange={(e) => setEditingProduct({ ...editingProduct, Stock: e.target.value })} 
                 />
+
+                  <div className="grid-span-2">
+                      <input
+                          className="input"
+                          placeholder="Image URL (ImgPath)"
+                          value={editingProduct.ImgPath || ''}
+                          onChange={(e) => setEditingProduct({
+                              ...editingProduct,
+                              ImgPath: e.target.value,
+                              // Also update ImgName based on URL for consistency
+                              ImgName: e.target.value ? e.target.value.substring(e.target.value.lastIndexOf('/') + 1) : null
+                          })}
+                      />
+                      <p className="url-helper-text">Current URL: {editingProduct.ImgPath || 'None'}</p>
+                  </div>
                 <select
                   className="select"
                   value={editingProduct.SupplierID || ''}
@@ -583,17 +666,17 @@ export default function InventoryManagement() {
 
         {showCategoryManage && (
           <div className="overlay">
-            <div className="modal" style={{ maxWidth: '600px' }}>
+            <div className="modal" style={{ maxWidth: '700px', width: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
               <h3>Manage Categories</h3>
               <div style={{ marginBottom: '20px' }}>
-                <button className="btn primary" onClick={() => setShowCategoryCreate(true)}>+ Add Category</button>
+                <button className="btn primary" onClick={() => { setShowCategoryCreate(true); setShowCategoryManage(false); }}>+ Add Category</button>
               </div>
-              <div className="table-wrap">
-                <table className="data-table">
+              <div className="table-wrap" style={{ overflowY: 'auto', flex: 1, overflowX: 'visible' }}>
+                <table className="data-table" style={{ width: '100%', tableLayout: 'auto' }}>
                   <thead>
                     <tr>
-                      <th>Category Name</th>
-                      <th className="align-center">Actions</th>
+                      <th style={{ width: '50%' }}>Category Name</th>
+                      <th style={{ width: '50%' }} className="align-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -601,21 +684,29 @@ export default function InventoryManagement() {
                       <tr key={c.CategoryID}>
                         <td>{c.CategoryName}</td>
                         <td className="align-center">
-                          <button
-                            className="btn"
-                            onClick={() => {
-                              setEditingCategory(c);
-                              setShowCategoryEdit(true);
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn"
-                            onClick={() => handleDeleteCategory(c.CategoryID)}
-                          >
-                            Delete
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setEditingCategory(c);
+                                setShowCategoryEdit(true);
+                                setShowCategoryManage(false);
+                              }}
+                              style={{ padding: '6px 12px', fontSize: '14px', whiteSpace: 'nowrap' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                handleDeleteCategory(c.CategoryID);
+                                setShowCategoryManage(false);
+                              }}
+                              style={{ padding: '6px 12px', fontSize: '14px', background: '#fee', color: '#c00', whiteSpace: 'nowrap' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
