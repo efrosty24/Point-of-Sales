@@ -583,6 +583,7 @@ exports.updateRegisterIdentity = ({ registerListId, customerId, guestId }, cb) =
 exports.listProductsForCashier = ({ search = '', category = null }, cb) => {
     const where = [];
     const args = [];
+    where.push('p.IsActive = 1');
 
     const trimmed = String(search || '').trim();
     if (trimmed) {
