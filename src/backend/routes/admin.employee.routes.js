@@ -15,4 +15,7 @@ router.get('/', ctrl.getEmployees);
 // Delete employee
 router.delete('/:id', ctrl.deleteEmployee);
 
+router.get('/performance', ctrl.getEmployeePerformance);
+
+
 module.exports = router;

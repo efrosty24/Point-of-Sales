@@ -7,10 +7,20 @@ const db = require('../config/db.config');
  */
 exports.listInventoryProducts = ({ search, category, supplier }, cb) => {
   const params = [];
-  let where = 'WHERE 1=1';
-  if (search)   { where += ' AND (p.Name LIKE ? OR p.Brand LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
-  if (category) { where += ' AND p.CategoryID = ?'; params.push(category); }
-  if (supplier) { where += ' AND p.SupplierID = ?'; params.push(supplier); }
+  let where = 'WHERE p.IsActive = 1';
+
+  if (search) {
+    where += ' AND (p.Name LIKE ? OR p.Brand LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  if (category) {
+    where += ' AND p.CategoryID = ?';
+    params.push(category);
+  }
+  if (supplier) {
+    where += ' AND p.SupplierID = ?';
+    params.push(supplier);
+  }
 
   const sql = `
     SELECT 
@@ -40,72 +50,67 @@ exports.listInventoryProducts = ({ search, category, supplier }, cb) => {
  * Fields used: Products(Name, Brand, ProductID, Stock, ReorderThreshold, Price, IsPricePerQty, QuantityValue, QuantityUnit,
  * SupplierID, ImgName, ImgPath, DateAdded, CategoryID, Description)
  */
-
 exports.addProduct = (productData, callback) => {
-    const sql = `
-        INSERT INTO Products (
-            Name,
-            Brand,
-            Stock,
-            ReorderThreshold,
-            Price,
-            IsPricePerQty,
-            QuantityValue,
-            QuantityUnit,
-            SupplierID,
-            ImgName,
-            ImgPath,
-            CategoryID,
-            Description
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-    `;
+  const sql = `
+    INSERT INTO Products (
+      Name,
+      Brand,
+      Stock,
+      ReorderThreshold,
+      Price,
+      IsPricePerQty,
+      QuantityValue,
+      QuantityUnit,
+      SupplierID,
+      ImgName,
+      ImgPath,
+      CategoryID,
+      Description
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  `;
 
-    const values = [
-        productData.Name,
-        productData.Brand || null,        // NULLABLE
-        productData.Stock,
-        productData.ReorderThreshold,
-        productData.Price,
-        productData.IsPricePerQty,
-        productData.QuantityValue,
-        productData.QuantityUnit,
-        productData.SupplierID,
-        productData.ImgName || null,      // NULLABLE
-        productData.ImgPath || null,      // NULLABLE
-        productData.CategoryID,
-        productData.Description || null   // NULLABLE
-    ];
-    db.query(sql, values, callback);
+  const values = [
+    productData.Name,
+    productData.Brand || null,        
+    productData.Stock,
+    productData.ReorderThreshold,
+    productData.Price,
+    productData.IsPricePerQty,
+    productData.QuantityValue,
+    productData.QuantityUnit,
+    productData.SupplierID,
+    productData.ImgName || null,      
+    productData.ImgPath || null,      
+    productData.CategoryID,
+    productData.Description || null   
+  ];
+  db.query(sql, values, callback);
 };
-
-
-
 exports.getRestockOrdersByStatus = (status, callback) => {
-    const sql = `
-        SELECT r.RestockOrderID, r.ProductID, p.Name AS ProductName,
-               r.Quantity, r.Status, r.DatePlaced
-        FROM RestockOrders r
-        INNER JOIN Products p ON r.ProductID = p.ProductID
-        WHERE r.Status = ?
-    `;
-    db.query(sql, [status], (err, rows) => {
-        if (err) return callback(err);
-        callback(null, rows);
-    });
+  const sql = `
+    SELECT r.RestockOrderID, r.ProductID, p.Name AS ProductName,
+           r.Quantity, r.Status, r.DatePlaced
+    FROM RestockOrders r
+    INNER JOIN Products p ON r.ProductID = p.ProductID
+    WHERE r.Status = ?
+  `;
+  db.query(sql, [status], (err, rows) => {
+    if (err) return callback(err);
+    callback(null, rows);
+  });
 };
-
 
 exports.markAsRead = (restockOrderId, cb) => {
-    const sql = `
-        UPDATE RestockOrders
-        SET Status = 'read'
-        WHERE RestockOrderID = ?
-    `;
-    db.query(sql, [restockOrderId], (err, result) => {
-        if (err) return cb(err);
-        if (result.affectedRows === 0) return cb(new Error("Restock order not found"));
-        cb(null, result);
-    });
+  const sql = `
+    UPDATE RestockOrders
+    SET Status = 'read'
+    WHERE RestockOrderID = ?
+  `;
+  db.query(sql, [restockOrderId], (err, result) => {
+    if (err) return cb(err);
+    if (result.affectedRows === 0) return cb(new Error("Restock order not found"));
+    cb(null, result);
+  });
 };
 
 /**
@@ -114,7 +119,6 @@ exports.markAsRead = (restockOrderId, cb) => {
  * Minimal MVP: increases stock and logs the restock in RestockOrders (one row per product).
  * Schema fields used: Products(Stock, ProductID), RestockOrders(ProductID, SupplierID, Quantity, Status, DatePlaced)
  */
-
 exports.simpleRestock = ({ SupplierID, items }, cb) => {
   if (!SupplierID || !Array.isArray(items) || items.length === 0) {
     return cb(new Error('Invalid payload'));
@@ -173,12 +177,13 @@ exports.getLowStockProducts = (callback) => {
     FROM Products p
     JOIN Categories c ON p.CategoryID = c.CategoryID
     JOIN Suppliers s ON p.SupplierID = s.SupplierID
-    WHERE p.Stock <= p.ReorderThreshold
+    WHERE p.IsActive = 1
+      AND p.Stock <= p.ReorderThreshold
     ORDER BY p.Stock ASC;
   `;
-
   db.query(sql, callback);
 };
+
 /**
  * GET /admin/inventory/suppliers
  * Returns suppliers for dropdowns and filtering.
@@ -187,7 +192,11 @@ exports.getLowStockProducts = (callback) => {
  *   Suppliers(SupplierID, Name, Phone, Email)
  */
 exports.listSuppliers = (cb) => {
-  db.query('SELECT SupplierID, Name, Phone, Email FROM Suppliers ORDER BY Name', [], (err, rows) => cb(err, rows));
+  db.query(
+    'SELECT SupplierID, Name, Phone, Email FROM Suppliers ORDER BY Name',
+    [],
+    (err, rows) => cb(err, rows)
+  );
 };
 /**
  * GET /admin/inventory/suppliers/:id/products
@@ -196,12 +205,12 @@ exports.listSuppliers = (cb) => {
  * Schema fields used:
  *   Products(ProductID, Name, Brand, Stock, ReorderThreshold, Price, IsPricePerQty, QuantityValue, QuantityUnit, SupplierID)
  */
-
 exports.listSupplierProducts = (supplierId, cb) => {
   db.query(
     `SELECT ProductID, Name, Brand, Stock, ReorderThreshold, Price, IsPricePerQty, QuantityValue, QuantityUnit
      FROM Products
      WHERE SupplierID = ?
+       AND IsActive = 1
      ORDER BY Name`,
     [supplierId],
     (err, rows) => cb(err, rows)
@@ -213,61 +222,65 @@ exports.listSupplierProducts = (supplierId, cb) => {
  * Schema: Suppliers(SupplierID, Name, Phone, Email)
  */
 exports.getSupplierById = (id, cb) => {
-    const sql = `SELECT SupplierID, Name, Phone, Email FROM Suppliers WHERE SupplierID = ? LIMIT 1`;
-    db.query(sql, [id], (err, rows) => (err ? cb(err) : cb(null, rows[0] || null)));
+  const sql = `SELECT SupplierID, Name, Phone, Email FROM Suppliers WHERE SupplierID = ? LIMIT 1`;
+  db.query(sql, [id], (err, rows) => (err ? cb(err) : cb(null, rows[0] || null)));
 };
+
 /**
  * CREATE supplier
  * Inserts into Suppliers(Name, Phone, Email)
  */
 exports.createSupplier = ({ Name, Phone, Email }, cb) => {
-    const sql = `INSERT INTO Suppliers (Name, Phone, Email) VALUES (?, ?, ?)`;
-    db.query(sql, [Name, Phone || null, Email || null], (err, result) => (err ? cb(err) : cb(null, result)));
+  const sql = `INSERT INTO Suppliers (Name, Phone, Email) VALUES (?, ?, ?)`;
+  db.query(sql, [Name, Phone || null, Email || null], (err, result) => (err ? cb(err) : cb(null, result)));
 };
+
 /**
  * PATCH supplier (partial)
  * Updates Name/Phone/Email.
  */
 exports.updateSupplier = (id, patch, cb) => {
-    const fields = [];
-    const params = [];
-    if (patch.Name !== undefined)  { fields.push('Name = ?');  params.push(patch.Name || null); }
-    if (patch.Phone !== undefined) { fields.push('Phone = ?'); params.push(patch.Phone || null); }
-    if (patch.Email !== undefined) { fields.push('Email = ?'); params.push(patch.Email || null); }
-    if (!fields.length) return cb(null, { found: true, updated: 0 });
+  const fields = [];
+  const params = [];
+  if (patch.Name !== undefined)  { fields.push('Name = ?');  params.push(patch.Name || null); }
+  if (patch.Phone !== undefined) { fields.push('Phone = ?'); params.push(patch.Phone || null); }
+  if (patch.Email !== undefined) { fields.push('Email = ?'); params.push(patch.Email || null); }
+  if (!fields.length) return cb(null, { found: true, updated: 0 });
 
-    params.push(id);
-    const sql = `UPDATE Suppliers SET ${fields.join(', ')} WHERE SupplierID = ?`;
-    db.query(sql, params, (err, result) => {
-        if (err) return cb(err);
-        if (result.affectedRows === 0) return cb(null, { found: false, updated: 0 });
-        exports.getSupplierById(id, (e2, row) => (e2 ? cb(e2) : cb(null, { found: true, updated: result.affectedRows, supplier: row })));
-    });
+  params.push(id);
+  const sql = `UPDATE Suppliers SET ${fields.join(', ')} WHERE SupplierID = ?`;
+  db.query(sql, params, (err, result) => {
+    if (err) return cb(err);
+    if (result.affectedRows === 0) return cb(null, { found: false, updated: 0 });
+    exports.getSupplierById(id, (e2, row) =>
+      (e2 ? cb(e2) : cb(null, { found: true, updated: result.affectedRows, supplier: row }))
+    );
+  });
 };
 /**
  * DELETE supplier
  * Blocks delete if Products reference this SupplierID.
  */
 exports.deleteSupplier = (id, cb) => {
-    const qCheck = `SELECT COUNT(*) AS cnt FROM Products WHERE SupplierID = ?`;
-    db.query(qCheck, [id], (err, rows) => {
-        if (err) return cb(err);
-        const cnt = rows[0]?.cnt || 0;
-        if (cnt > 0) return cb(null, { inUse: true, found: true, deleted: 0 });
+  const qCheck = `SELECT COUNT(*) AS cnt FROM Products WHERE SupplierID = ?`;
+  db.query(qCheck, [id], (err, rows) => {
+    if (err) return cb(err);
+    const cnt = rows[0]?.cnt || 0;
+    if (cnt > 0) return cb(null, { inUse: true, found: true, deleted: 0 });
 
-        db.query(`DELETE FROM Suppliers WHERE SupplierID = ?`, [id], (e2, result) => {
-            if (e2) return cb(e2);
-            if (result.affectedRows === 0) return cb(null, { found: false, deleted: 0 });
-            cb(null, { found: true, deleted: result.affectedRows });
-        });
+    db.query(`DELETE FROM Suppliers WHERE SupplierID = ?`, [id], (e2, result) => {
+      if (e2) return cb(e2);
+      if (result.affectedRows === 0) return cb(null, { found: false, deleted: 0 });
+      cb(null, { found: true, deleted: result.affectedRows });
     });
+  });
 };
 
 exports.listCategories = (cb) => {
-    db.query(
-        `SELECT * FROM Categories`,
-        (err, rows) => cb(err, rows)
-    );
+  db.query(
+    `SELECT * FROM Categories`,
+    (err, rows) => cb(err, rows)
+  );
 };
 
 /**
@@ -279,7 +292,7 @@ exports.getProductById = (id, callback) => {
     SELECT 
       p.ProductID, p.Name, p.Brand, p.Price, p.Stock, p.ReorderThreshold,
       p.Description, p.IsPricePerQty, p.QuantityValue, p.QuantityUnit,
-      c.CategoryName, s.Name AS SupplierName
+      c.CategoryName, s.Name AS SupplierName, p.IsActive
     FROM Products p
     JOIN Categories c ON p.CategoryID = c.CategoryID
     JOIN Suppliers s ON p.SupplierID = s.SupplierID
@@ -335,7 +348,8 @@ exports.searchProducts = (search, callback) => {
     FROM Products p
     JOIN Categories c ON p.CategoryID = c.CategoryID
     JOIN Suppliers s ON p.SupplierID = s.SupplierID
-    WHERE (p.Name LIKE ? OR p.Brand LIKE ?)
+    WHERE p.IsActive = 1
+      AND (p.Name LIKE ? OR p.Brand LIKE ?)
   `;
   const like = `%${search}%`;
   db.query(sql, [like, like], callback);
@@ -378,16 +392,16 @@ exports.updateCategory = (id, newName, callback) => {
  * Blocks delete if Products reference this CategoryID.
  */
 exports.deleteCategory = (id, cb) => {
-    const qCheck = `SELECT COUNT(*) AS cnt FROM Products WHERE CategoryID = ?`;
-    db.query(qCheck, [id], (err, rows) => {
-        if (err) return cb(err);
-        const cnt = rows[0]?.cnt || 0;
-        if (cnt > 0) return cb(null, { inUse: true, found: true, deleted: 0 });
-        db.query(`DELETE FROM Categories WHERE CategoryID = ?`, [id], (e2, result) => {
-            if (e2) return cb(e2);
-            if (result.affectedRows === 0)
-                return cb(null, { found: false, deleted: 0 });
-            cb(null, { found: true, deleted: result.affectedRows });
-        });
+  const qCheck = `SELECT COUNT(*) AS cnt FROM Products WHERE CategoryID = ?`;
+  db.query(qCheck, [id], (err, rows) => {
+    if (err) return cb(err);
+    const cnt = rows[0]?.cnt || 0;
+    if (cnt > 0) return cb(null, { inUse: true, found: true, deleted: 0 });
+    db.query(`DELETE FROM Categories WHERE CategoryID = ?`, [id], (e2, result) => {
+      if (e2) return cb(e2);
+      if (result.affectedRows === 0)
+        return cb(null, { found: false, deleted: 0 });
+      cb(null, { found: true, deleted: result.affectedRows });
     });
+  });
 };

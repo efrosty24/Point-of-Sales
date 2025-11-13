@@ -2,7 +2,7 @@ const svc = require('../services/employees.service');
 
 const allowedRoles = ['Admin', 'Cashier'];
 
-// Add employee
+
 exports.addEmployee = (req, res) => {
   const employeeData = { ...(req.body || {}) };
 
@@ -38,7 +38,7 @@ exports.addEmployee = (req, res) => {
   });
 };
 
-// Get employees
+
 exports.getEmployees = (req, res) => {
   const options = {
     employeeId: req.query.id,
@@ -65,7 +65,7 @@ exports.getEmployees = (req, res) => {
   });
 };
 
-// Update employee
+
 exports.updateEmployee = (req, res) => {
   const employeeId = req.params.id;
   const updateData = req.body || {};
@@ -103,7 +103,7 @@ exports.updateEmployee = (req, res) => {
   });
 };
 
-// Delete employee
+
 exports.deleteEmployee = (req, res) => {
     const employeeId = req.params.id;
     if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
@@ -121,7 +121,7 @@ exports.deleteEmployee = (req, res) => {
 };
 
 
-// ===== Dashboard =====
+
 const hourLabel = (h) => {
   const ampm = h < 12 ? 'AM' : 'PM';
   const hr = (h % 12) || 12;
@@ -141,7 +141,7 @@ exports.getEmployeeDashboard = async (req, res) => {
   try {
     const [todayAgg, hourly, daily, monthly, recent] = await Promise.all([
       pCall(svc.getTodayAggregates, employeeId),
-      pCall(svc.getHourlySalesToday, employeeId),   // devuelve hourNum, sales
+      pCall(svc.getHourlySalesToday, employeeId),   
       pCall(svc.getDailySalesLast7, employeeId),
       pCall(svc.getMonthlySalesLast6, employeeId),
       pCall(svc.getRecentOrders, employeeId),
@@ -152,7 +152,7 @@ exports.getEmployeeDashboard = async (req, res) => {
     const avgPerOrder = totalOrders > 0 ? Number((todaySales / totalOrders).toFixed(2)) : 0;
 
     const hourlySales = (hourly || []).map(r => ({
-      hour: hourLabel(Number(r.hourNum)),  // usar hourNum del SQL
+      hour: hourLabel(Number(r.hourNum)),  
       sales: Number(r.sales || 0),
     }));
 
@@ -187,3 +187,26 @@ exports.getEmployeeDashboard = async (req, res) => {
     return res.status(500).json({ error: 'Failed to load dashboard data' });
   }
 };
+
+exports.getEmployeePerformance = (req, res) => {
+    const { from, to } = req.query;
+
+    if (from && isNaN(Date.parse(from))) {
+        return res.status(400).json({ error: 'Invalid from date format' });
+    }
+
+    if (to && isNaN(Date.parse(to))) {
+        return res.status(400).json({ error: 'Invalid to date format' });
+    }
+
+    svc.getEmployeePerformance({ fromDate: from, toDate: to }, (err, result) => {
+        if (err) {
+            console.error('Database error fetching employee performance:', err);
+            return res.status(500).json({ error: 'Failed to fetch employee performance data.' });
+        }
+
+        
+        return res.status(200).json(result || []);
+    });
+};
+

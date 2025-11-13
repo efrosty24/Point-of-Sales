@@ -1,6 +1,6 @@
 const db = require('../config/db.config');
 
-// INSERT
+
 exports.addEmployee = (employeeData, callback) => {
   const sql = `
     INSERT INTO Employees (
@@ -60,7 +60,7 @@ exports.getFilteredEmployees = (options, callback) => {
   db.query(sql, values, callback);
 };
 
-// UPDATE
+
 exports.updateEmployee = (employeeId, employeeData, callback) => {
   const setClauses = [];
   const values = [];
@@ -79,7 +79,7 @@ exports.updateEmployee = (employeeId, employeeData, callback) => {
   db.query(sql, values, callback);
 };
 
-// DELETE
+
 exports.deleteEmployee = (employeeId, callback) => {
   const sql = `DELETE FROM Employees WHERE EmployeeID = ?;`;
   db.query(sql, [employeeId], callback);
@@ -159,3 +159,93 @@ exports.getRecentOrders = (employeeId, cb) => {
   `;
   db.query(sql, [employeeId], cb);
 };
+
+
+exports.getEmployeePerformance = (filters, cb) => {
+    const { fromDate, toDate } = filters || {};
+    const params = [];
+
+    const buildDateFilter = (alias) => {
+        const conditions = [];
+        if (fromDate) {
+            conditions.push(`DATE(${alias}.DatePlaced) >= ?`);
+            params.push(fromDate);
+        }
+        if (toDate) {
+            conditions.push(`DATE(${alias}.DatePlaced) <= ?`);
+            params.push(toDate);
+        }
+        return conditions.length ? ' AND ' + conditions.join(' AND ') : '';
+    };
+
+    const sql = `
+        SELECT
+            e.EmployeeID,
+            e.FirstName,
+            e.LastName,
+            e.Role,
+            e.Email,
+            COUNT(DISTINCT o.OrderID) AS TotalOrders,
+            (
+                SELECT COALESCE(SUM(od2.Quantity), 0)
+                FROM Orders o2
+                INNER JOIN OrderDetails od2 ON o2.OrderID = od2.OrderID
+                WHERE o2.EmployeeID = e.EmployeeID${buildDateFilter('o2')}
+            ) AS TotalItemsSold,
+            (
+                SELECT COALESCE(SUM(o3.Total), 0)
+                FROM Orders o3
+                WHERE o3.EmployeeID = e.EmployeeID${buildDateFilter('o3')}
+            ) AS TotalRevenue,
+            (
+                SELECT COALESCE(AVG(o4.Total), 0)
+                FROM Orders o4
+                WHERE o4.EmployeeID = e.EmployeeID${buildDateFilter('o4')}
+            ) AS AvgOrderValue,
+            (
+                SELECT COUNT(DISTINCT od5.ProductID)
+                FROM Orders o5
+                INNER JOIN OrderDetails od5 ON o5.OrderID = od5.OrderID
+                WHERE o5.EmployeeID = e.EmployeeID${buildDateFilter('o5')}
+            ) AS UniqueProducts,
+            MIN(o.DatePlaced) AS FirstSale,
+            MAX(o.DatePlaced) AS LastSale
+        FROM Employees e
+        LEFT JOIN Orders o ON e.EmployeeID = o.EmployeeID${buildDateFilter('o')}
+        GROUP BY e.EmployeeID, e.FirstName, e.LastName, e.Role, e.Email
+        HAVING TotalOrders > 0
+        ORDER BY TotalRevenue DESC
+    `;
+
+    console.log('Employee Performance SQL:', sql);
+    console.log('Params:', params);
+
+    db.query(sql, params, (err, results) => {
+        if (err) {
+            console.error('Database error fetching employee performance:', err);
+            return cb(err, null);
+        }
+
+        if (!results?.length) return cb(null, []);
+
+        const formatted = results.map(emp => ({
+            EmployeeID: emp.EmployeeID,
+            FirstName: emp.FirstName,
+            LastName: emp.LastName,
+            Role: emp.Role,
+            Email: emp.Email,
+            TotalOrders: Number(emp.TotalOrders) || 0,
+            TotalItemsSold: Number(emp.TotalItemsSold) || 0,
+            TotalRevenue: Number(emp.TotalRevenue) || 0,
+            AvgOrderValue: Number(emp.AvgOrderValue) || 0,
+            UniqueProducts: Number(emp.UniqueProducts) || 0,
+            FirstSale: emp.FirstSale,
+            LastSale: emp.LastSale,
+            FullName: `${emp.FirstName} ${emp.LastName}`
+        }));
+
+        cb(null, formatted);
+    });
+};
+
+

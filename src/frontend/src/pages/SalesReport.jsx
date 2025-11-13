@@ -79,7 +79,6 @@ function Tabs({ value, onChange, children, idPrefix = "sr" }) {
 function Tab() { return null; }
 Tab.displayName = "Tab";
 
-
 function useDebounced(value, delay = 450) {
     const [v, setV] = useState(value);
     useEffect(() => {
@@ -91,25 +90,33 @@ function useDebounced(value, delay = 450) {
 
 function SalesReport() {
     const [summary, setSummary] = useState({});
-    const [topProducts, setTopProducts] = useState([]);
-    const [byCategory, setByCategory] = useState([]);
+    const [productPerformance, setProductPerformance] = useState([]);
+    const [customerAnalytics, setCustomerAnalytics] = useState([]);
+    const [categoryPerformance, setCategoryPerformance] = useState([]);
+    const [salesTrends, setSalesTrends] = useState([]);
     const [recentOrders, setRecentOrders] = useState([]);
+    const [employees, setEmployees] = useState([]);
 
-    
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [name, setName] = useState("");
     const debouncedName = useDebounced(name, 500);
 
-    
     const [activeDateRange, setActiveDateRange] = useState("all");
+    const [activeTab, setActiveTab] = useState("products");
 
-    
-    const [activeTab, setActiveTab] = useState("top");
-
-    
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [showModal, setShowModal] = useState(false);
+
+    
+    const [productPage, setProductPage] = useState(1);
+    const [customerPage, setCustomerPage] = useState(1);
+    const [categoryPage, setCategoryPage] = useState(1);
+    const [trendsPage, setTrendsPage] = useState(1);
+    const [ordersPage, setOrdersPage] = useState(1);
+    const [employeesPage, setEmployeesPage] = useState(1);
+
+    const ITEMS_PER_PAGE = 10;
 
     const formatCurrency = (val) =>
         val !== undefined && !isNaN(val) ? parseFloat(val).toFixed(2) : "0.00";
@@ -126,52 +133,128 @@ function SalesReport() {
         });
     };
 
-    const categoryRevenueArray = useMemo(() => {
-        return Object.entries(
-            byCategory.reduce((acc, c) => {
-                const revenue = parseFloat(c.revenue) || 0;
-                if (acc[c.CategoryName]) acc[c.CategoryName] += revenue;
-                else acc[c.CategoryName] = revenue;
-                return acc;
-            }, {})
-        ).map(([name, revenue]) => ({ CategoryName: name, Revenue: revenue }));
-    }, [byCategory]);
-
     
-    const filteredTopProducts = useMemo(() => {
-        if (!name) return topProducts;
-        return topProducts.filter((product) =>
-            product.Name.toLowerCase().includes(name.toLowerCase())
+    const Pagination = ({ currentPage, setCurrentPage, totalItems }) => {
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="pagination">
+                <button
+                    className={`page-arrow ${currentPage === 1 ? "is-disabled" : ""}`}
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
+                >
+                    &lt;
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                        key={p}
+                        className={`page-num ${p === currentPage ? "is-active" : ""}`}
+                        onClick={() => setCurrentPage(p)}
+                    >
+                        {p}
+                    </button>
+                ))}
+                <button
+                    className={`page-arrow ${currentPage === totalPages ? "is-disabled" : ""}`}
+                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                >
+                    &gt;
+                </button>
+            </div>
         );
-    }, [topProducts, name]);
+    };
 
     
-    const filteredCategories = useMemo(() => {
-        if (!name) return categoryRevenueArray;
-        return categoryRevenueArray.filter((category) =>
-            category.CategoryName.toLowerCase().includes(name.toLowerCase())
+    const filteredProductPerformance = useMemo(() => {
+        if (!name) return productPerformance;
+        const searchLower = name.toLowerCase();
+        return productPerformance.filter((p) =>
+            p.ProductName.toLowerCase().includes(searchLower) ||
+            p.CategoryName.toLowerCase().includes(searchLower) ||
+            p.Brand.toLowerCase().includes(searchLower)
         );
-    }, [categoryRevenueArray, name]);
+    }, [productPerformance, name]);
 
-    
+    const filteredCustomerAnalytics = useMemo(() => {
+        if (!name) return customerAnalytics;
+        const searchLower = name.toLowerCase();
+        return customerAnalytics.filter((c) =>
+            c.CustomerName.toLowerCase().includes(searchLower) ||
+            (c.Email && c.Email.toLowerCase().includes(searchLower))
+        );
+    }, [customerAnalytics, name]);
+
+    const filteredCategoryPerformance = useMemo(() => {
+        if (!name) return categoryPerformance;
+        return categoryPerformance.filter((c) =>
+            c.CategoryName.toLowerCase().includes(name.toLowerCase())
+        );
+    }, [categoryPerformance, name]);
+
+    const filteredSalesTrends = useMemo(() => {
+        if (!name) return salesTrends;
+        return salesTrends.filter((t) =>
+            t.DayOfWeek.toLowerCase().includes(name.toLowerCase())
+        );
+    }, [salesTrends, name]);
+
     const filteredOrders = useMemo(() => {
         if (!name) return recentOrders;
-
         const searchLower = name.toLowerCase();
-
         return recentOrders.filter((order) => {
-            
             const orderIdMatch = order.OrderID.toString().includes(searchLower);
-
-            
             const customerName = order.FirstName
                 ? `${order.FirstName} ${order.LastName || ''}`.trim().toLowerCase()
                 : '';
             const customerMatch = customerName && customerName.includes(searchLower);
-
             return orderIdMatch || customerMatch;
         });
     }, [recentOrders, name]);
+
+    const filteredEmployees = useMemo(() => {
+        if (!name) return employees;
+        const searchLower = name.toLowerCase();
+        return employees.filter((emp) => {
+            const fullName = `${emp.FirstName} ${emp.LastName}`.toLowerCase();
+            const roleMatch = emp.Role.toLowerCase().includes(searchLower);
+            return fullName.includes(searchLower) || roleMatch;
+        });
+    }, [employees, name]);
+
+    
+    const paginatedProducts = useMemo(() => {
+        const start = (productPage - 1) * ITEMS_PER_PAGE;
+        return filteredProductPerformance.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredProductPerformance, productPage]);
+
+    const paginatedCustomers = useMemo(() => {
+        const start = (customerPage - 1) * ITEMS_PER_PAGE;
+        return filteredCustomerAnalytics.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredCustomerAnalytics, customerPage]);
+
+    const paginatedCategories = useMemo(() => {
+        const start = (categoryPage - 1) * ITEMS_PER_PAGE;
+        return filteredCategoryPerformance.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredCategoryPerformance, categoryPage]);
+
+    const paginatedTrends = useMemo(() => {
+        const start = (trendsPage - 1) * ITEMS_PER_PAGE;
+        return filteredSalesTrends.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredSalesTrends, trendsPage]);
+
+    const paginatedOrders = useMemo(() => {
+        const start = (ordersPage - 1) * ITEMS_PER_PAGE;
+        return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredOrders, ordersPage]);
+
+    const paginatedEmployees = useMemo(() => {
+        const start = (employeesPage - 1) * ITEMS_PER_PAGE;
+        return filteredEmployees.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredEmployees, employeesPage]);
 
     const quickRange = useCallback((preset) => {
         const now = new Date();
@@ -196,46 +279,106 @@ function SalesReport() {
         setToDate("");
         setName("");
         setActiveDateRange("all");
+        
+        setProductPage(1);
+        setCustomerPage(1);
+        setCategoryPage(1);
+        setTrendsPage(1);
+        setOrdersPage(1);
+        setEmployeesPage(1);
     }, []);
 
+    
     const applyFilters = useCallback(() => {
         const params = {
             from: fromDate || undefined,
             to: toDate || undefined,
-            name: debouncedName || undefined,
+            limit: 1000 
         };
 
-        api
-            .get("/admin/sales/summary", { params })
+        
+        api.get("/admin/sales/summary", { params })
             .then((res) => {
                 const data = Array.isArray(res.data) ? res.data[0] : res.data;
                 setSummary(data || {});
             })
             .catch((err) => console.error("Error fetching summary:", err));
 
-        api
-            .get("/admin/sales/top-products", { params: { ...params, limit: 10 } })
-            .then((res) => setTopProducts(Array.isArray(res.data) ? res.data : []))
-            .catch((err) => console.error("Error fetching top products:", err));
+        
+        api.get("/admin/sales/product-performance", { params })
+            .then((res) => {
+                setProductPerformance(Array.isArray(res.data) ? res.data : []);
+                setProductPage(1); 
+            })
+            .catch((err) => console.error("Error fetching product performance:", err));
 
-        api
-            .get("/admin/sales/by-category", { params })
-            .then((res) => setByCategory(Array.isArray(res.data) ? res.data : []))
-            .catch((err) => console.error("Category revenue error:", err));
-    }, [fromDate, toDate, debouncedName]);
+        
+        api.get("/admin/sales/customer-analytics", { params })
+            .then((res) => {
+                setCustomerAnalytics(Array.isArray(res.data) ? res.data : []);
+                setCustomerPage(1);
+            })
+            .catch((err) => console.error("Error fetching customer analytics:", err));
+
+        
+        api.get("/admin/sales/category-performance", { params })
+            .then((res) => {
+                setCategoryPerformance(Array.isArray(res.data) ? res.data : []);
+                setCategoryPage(1);
+            })
+            .catch((err) => console.error("Error fetching category performance:", err));
+
+        
+        api.get("/admin/sales/trends", { params })
+            .then((res) => {
+                setSalesTrends(Array.isArray(res.data) ? res.data : []);
+                setTrendsPage(1);
+            })
+            .catch((err) => console.error("Error fetching sales trends:", err));
+
+
+        api.get("/admin/employees/performance", { params })
+            .then((res) => {
+                setEmployees(Array.isArray(res.data) ? res.data : []);
+                setEmployeesPage(1);
+                console.log(res);
+            })
+            .catch((err) => console.error("Error fetching employee performance:", err));
+
+    }, [fromDate, toDate]);
 
     const fetchRecentOrders = useCallback(() => {
-        api
-            .get("/admin/sales/recent")
+        const params = {
+            from: fromDate || undefined,
+            to: toDate || undefined,
+            limit: 1000
+        };
+
+        api.get("/admin/sales/recent", { params })
             .then((res) => {
                 setRecentOrders(Array.isArray(res.data) ? res.data : []);
+                setOrdersPage(1);
             })
             .catch((err) => console.error("Error fetching recent orders:", err));
-    }, []);
+    }, [fromDate, toDate]);
+
+    const fetchEmployeePerformance = useCallback(() => {
+        const params = {
+            from: fromDate || undefined,
+            to: toDate || undefined,
+        };
+
+        api.get("/admin/employees/performance", { params })
+            .then((res) => {
+                setEmployees(Array.isArray(res.data) ? res.data : []);
+                setEmployeesPage(1);
+                console.log(res);
+            })
+            .catch((err) => console.error("Error fetching employee performance:", err));
+    }, [fromDate, toDate]);
 
     const openOrderDetails = (orderId) => {
-        api
-            .get(`/admin/orders/${orderId}`)
+        api.get(`/admin/orders/${orderId}`)
             .then((res) => {
                 setSelectedOrder(res.data);
                 setShowModal(true);
@@ -251,6 +394,7 @@ function SalesReport() {
     useEffect(() => {
         applyFilters();
         fetchRecentOrders();
+        fetchEmployeePerformance();
         
     }, []);
 
@@ -258,7 +402,24 @@ function SalesReport() {
         applyFilters();
     }, [debouncedName, applyFilters]);
 
+    useEffect(() => {
+        if (fromDate || toDate) {
+            applyFilters();
+            fetchRecentOrders();
+            fetchEmployeePerformance();
+        }
+    }, [fromDate, toDate, applyFilters, fetchRecentOrders, fetchEmployeePerformance]);
+
     
+    useEffect(() => {
+        setProductPage(1);
+        setCustomerPage(1);
+        setCategoryPage(1);
+        setTrendsPage(1);
+        setOrdersPage(1);
+        setEmployeesPage(1);
+    }, [name]);
+
     const handleDateChange = (type, value) => {
         if (type === "from") {
             setFromDate(value);
@@ -276,7 +437,7 @@ function SalesReport() {
                 <h1>Reports</h1>
             </div>
 
-
+            {}
             <div className="cards-container">
                 <div className="card">
                     <div className="card-icon">
@@ -323,11 +484,10 @@ function SalesReport() {
                 </div>
             </div>
 
-
+            {}
             <div className="filter-bar">
                 <div className="filter-bar-content">
                     <div className="filter-bar-row">
-
                         <div className="quick-date-selector">
                             <button
                                 className={`date-chip ${activeDateRange === 'all' ? 'date-chip--active' : ''}`}
@@ -365,7 +525,6 @@ function SalesReport() {
                             </button>
                         </div>
 
-
                         <div className="date-range-group">
                             <div className="input-wrapper">
                                 <svg className="input-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -398,7 +557,6 @@ function SalesReport() {
                             </div>
                         </div>
 
-
                         <div className="search-wrapper">
                             <svg className="search-icon" width="18" height="18" viewBox="0 0 18 18" fill="none">
                                 <path d="M8.25 14.25C11.5637 14.25 14.25 11.5637 14.25 8.25C14.25 4.93629 11.5637 2.25 8.25 2.25C4.93629 2.25 2.25 4.93629 2.25 8.25C2.25 11.5637 4.93629 14.25 8.25 14.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -406,7 +564,7 @@ function SalesReport() {
                             </svg>
                             <input
                                 type="text"
-                                placeholder="Search Products, Categories, Order ID's"
+                                placeholder="Search reports by the 1st Column"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 aria-label="Search"
@@ -424,7 +582,6 @@ function SalesReport() {
                             )}
                         </div>
 
-
                         {hasActiveFilters && (
                             <button className="btn-clear" onClick={clearFilters}>
                                 Clear
@@ -434,67 +591,197 @@ function SalesReport() {
                 </div>
             </div>
 
-
+            {}
             <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tab id="top" label="Top Products">
+                <Tab id="products" label="Product Performance">
                     <div className="tab-content">
-                        <h2>Top Products</h2>
+                        <h2>Product Performance by Category & Supplier</h2>
                         <div className="table-wrapper">
                             <table className="sales-table">
                                 <thead>
                                 <tr>
-                                    <th>Product Name</th>
+                                    <th>Product</th>
+                                    <th>Brand</th>
+                                    <th>Category</th>
+                                    <th>Supplier</th>
                                     <th>Units Sold</th>
                                     <th>Revenue ($)</th>
+                                    <th>Avg Price ($)</th>
+                                    <th>Stock Status</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {filteredTopProducts.length ? (
-                                    filteredTopProducts.map((p) => (
+                                {paginatedProducts.length ? (
+                                    paginatedProducts.map((p) => (
                                         <tr key={p.ProductID}>
-                                            <td>{p.Name}</td>
-                                            <td>{p.units}</td>
-                                            <td>${formatCurrency(p.revenue)}</td>
+                                            <td>{p.ProductName}</td>
+                                            <td>{p.Brand || 'N/A'}</td>
+                                            <td>{p.CategoryName}</td>
+                                            <td>{p.SupplierName || 'N/A'}</td>
+                                            <td>{p.UnitsSold}</td>
+                                            <td className="revenue-cell">${formatCurrency(p.TotalRevenue)}</td>
+                                            <td>${formatCurrency(p.AvgPrice)}</td>
+                                            <td>
+                                                <span className={`stock-badge ${p.StockStatus === 'Low Stock' ? 'low-stock' : 'in-stock'}`}>
+                                                    {p.StockStatus}
+                                                </span>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="3">No products found</td>
+                                        <td colSpan="8">No products found</td>
                                     </tr>
                                 )}
                                 </tbody>
                             </table>
                         </div>
+                        <Pagination
+                            currentPage={productPage}
+                            setCurrentPage={setProductPage}
+                            totalItems={filteredProductPerformance.length}
+                        />
                     </div>
                 </Tab>
 
-                <Tab id="category" label="By Category">
+                <Tab id="customers" label="Customer Analytics">
                     <div className="tab-content">
-                        <h2>Revenue by Category</h2>
+                        <h2>Customer Purchase Analytics</h2>
+                        <div className="table-wrapper">
+                            <table className="sales-table">
+                                <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Email</th>
+                                    <th>Orders</th>
+                                    <th>Total Spent ($)</th>
+                                    <th>Avg Order ($)</th>
+                                    <th>Items Bought</th>
+                                    <th>Loyalty Points</th>
+                                    <th>Last Purchase</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {paginatedCustomers.length ? (
+                                    paginatedCustomers.map((c) => (
+                                        <tr key={c.CustomerID}>
+                                            <td>{c.CustomerName}</td>
+                                            <td>{c.Email || 'N/A'}</td>
+                                            <td>{c.TotalOrders}</td>
+                                            <td className="revenue-cell">${formatCurrency(c.TotalSpent)}</td>
+                                            <td>${formatCurrency(c.AvgOrderValue)}</td>
+                                            <td>{c.TotalItemsBought}</td>
+                                            <td>{c.LoyaltyPoints}</td>
+                                            <td className="date-cell">{formatDate(c.LastPurchaseDate)}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="8">No customers found</td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination
+                            currentPage={customerPage}
+                            setCurrentPage={setCustomerPage}
+                            totalItems={filteredCustomerAnalytics.length}
+                        />
+                    </div>
+                </Tab>
+
+                <Tab id="categories" label="Category Performance">
+                    <div className="tab-content">
+                        <h2>Category Performance with Employee Distribution</h2>
                         <div className="table-wrapper">
                             <table className="sales-table">
                                 <thead>
                                 <tr>
                                     <th>Category</th>
+                                    <th>Orders</th>
+                                    <th>Products</th>
+                                    <th>Units Sold</th>
                                     <th>Revenue ($)</th>
+                                    <th>Avg per Sale ($)</th>
+                                    <th>Employees</th>
+                                    <th>Customers</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {filteredCategories.length ? (
-                                    filteredCategories.map((c, idx) => (
-                                        <tr key={idx}>
+                                {paginatedCategories.length ? (
+                                    paginatedCategories.map((c) => (
+                                        <tr key={c.CategoryID}>
                                             <td>{c.CategoryName}</td>
-                                            <td>${formatCurrency(c.Revenue)}</td>
+                                            <td>{c.OrderCount}</td>
+                                            <td>{c.UniqueProducts}</td>
+                                            <td>{c.TotalUnitsSold}</td>
+                                            <td className="revenue-cell">${formatCurrency(c.TotalRevenue)}</td>
+                                            <td>${formatCurrency(c.AvgRevenuePerSale)}</td>
+                                            <td>{c.EmployeesInvolved}</td>
+                                            <td>{c.UniqueCustomers}</td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="2">No categories found</td>
+                                        <td colSpan="8">No categories found</td>
                                     </tr>
                                 )}
                                 </tbody>
                             </table>
                         </div>
+                        <Pagination
+                            currentPage={categoryPage}
+                            setCurrentPage={setCategoryPage}
+                            totalItems={filteredCategoryPerformance.length}
+                        />
+                    </div>
+                </Tab>
+
+                <Tab id="trends" label="Sales Trends">
+                    <div className="tab-content">
+                        <h2>Sales Trends & Order Patterns</h2>
+                        <div className="table-wrapper">
+                            <table className="sales-table">
+                                <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Date</th>
+                                    <th>Hour</th>
+                                    <th>Orders</th>
+                                    <th>Customers</th>
+                                    <th>Revenue ($)</th>
+                                    <th>Avg Order ($)</th>
+                                    <th>Items/Order</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {paginatedTrends.length ? (
+                                    paginatedTrends.map((t, idx) => (
+                                        <tr key={idx}>
+                                            <td>{t.DayOfWeek}</td>
+                                            <td className="date-cell">{formatDate(t.SaleDate)}</td>
+                                            <td>{t.HourOfDay}:00</td>
+                                            <td>{t.OrderCount}</td>
+                                            <td>{t.UniqueCustomers}</td>
+                                            <td className="revenue-cell">${formatCurrency(t.TotalRevenue)}</td>
+                                            <td>${formatCurrency(t.AvgOrderValue)}</td>
+                                            <td>{parseFloat(t.AvgItemsPerOrder).toFixed(1)}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="8">No trends data found</td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination
+                            currentPage={trendsPage}
+                            setCurrentPage={setTrendsPage}
+                            totalItems={filteredSalesTrends.length}
+                        />
                     </div>
                 </Tab>
 
@@ -513,8 +800,8 @@ function SalesReport() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {filteredOrders.length ? (
-                                    filteredOrders.map((order) => {
+                                {paginatedOrders.length ? (
+                                    paginatedOrders.map((order) => {
                                         const isPending = !order.Status || order.Status.toLowerCase() === 'pending';
                                         const customerName = order.FirstName
                                             ? `${order.FirstName} ${order.LastName || ''}`.trim()
@@ -546,11 +833,72 @@ function SalesReport() {
                                 </tbody>
                             </table>
                         </div>
+                        <Pagination
+                            currentPage={ordersPage}
+                            setCurrentPage={setOrdersPage}
+                            totalItems={filteredOrders.length}
+                        />
+                    </div>
+                </Tab>
+
+                <Tab id="employees" label="Employee Performance">
+                    <div className="tab-content">
+                        <h2>Employee Performance</h2>
+                        <div className="table-wrapper">
+                            <table className="sales-table">
+                                <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Role</th>
+                                    <th>Orders</th>
+                                    <th>Items Sold</th>
+                                    <th>Revenue ($)</th>
+                                    <th>Avg Order ($)</th>
+                                    <th>Products</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {paginatedEmployees.length ? (
+                                    paginatedEmployees.map((emp) => (
+                                        <tr key={emp.EmployeeID}>
+                                            <td>
+                                                <div className="employee-cell">
+                                                    <div className="employee-avatar">
+                                                        {emp.FirstName.charAt(0)}{emp.LastName.charAt(0)}
+                                                    </div>
+                                                    <span>{emp.FirstName} {emp.LastName}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={`role-badge role-badge--${emp.Role.toLowerCase()}`}>
+                                                    {emp.Role}
+                                                </span>
+                                            </td>
+                                            <td>{emp.TotalOrders || 0}</td>
+                                            <td>{emp.TotalItemsSold || 0}</td>
+                                            <td className="revenue-cell">${formatCurrency(emp.TotalRevenue)}</td>
+                                            <td>${formatCurrency(emp.AvgOrderValue)}</td>
+                                            <td>{emp.UniqueProducts || 0}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="7">No employees found</td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination
+                            currentPage={employeesPage}
+                            setCurrentPage={setEmployeesPage}
+                            totalItems={filteredEmployees.length}
+                        />
                     </div>
                 </Tab>
             </Tabs>
 
-
+            {}
             {showModal && selectedOrder && selectedOrder.header && (
                 <div className="modal-overlay" onClick={closeModal}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
