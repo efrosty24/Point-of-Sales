@@ -40,6 +40,16 @@ export default function EmpDashboard() {
         recentOrders = []
     } = dashboardData;
 
+    const sortedRecentOrders = [...recentOrders].sort((a, b) => {
+        const ta = new Date(a.date).getTime();
+        const tb = new Date(b.date).getTime();
+
+        if (!Number.isNaN(ta) && !Number.isNaN(tb) && ta !== tb) {
+            return tb - ta; 
+        }
+        return (b.id ?? 0) - (a.id ?? 0);
+    });
+
     return (
         <div className="emp-dashboard">
             <div className="dashboard-header">
@@ -137,8 +147,8 @@ export default function EmpDashboard() {
                         </tr>
                         </thead>
                         <tbody>
-                        {recentOrders.length > 0 ? (
-                            recentOrders.map((order) => (
+                        {sortedRecentOrders.length > 0 ? (
+                            sortedRecentOrders.map((order) => (
                                 <tr key={order.id}>
                                     <td>{order.id}</td>
                                     <td>{order.date}</td>
