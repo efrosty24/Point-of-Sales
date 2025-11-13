@@ -198,6 +198,20 @@ export default function InventoryManagement() {
     }
   }
 
+  async function handleDeleteProduct(id) {
+    if (!window.confirm("Delete this product?")) return;
+    try {
+      setLoading(true);
+      const res = await api.delete(`/admin/inventory/products/${id}`);
+      setMessage(res.data?.message || "Product deleted");
+      await fetchProducts();
+    } catch (err) {
+      setMessage(err?.response?.data?.error || err?.response?.data?.message || "Failed to delete product");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="page-wrap">
       <div className="page-card">
@@ -305,8 +319,15 @@ export default function InventoryManagement() {
                           setEditingProduct(p);
                           setShowProductEdit(true);
                         }}
+                        style={{ marginRight: '4px' }}
                       >
                         Edit
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() => handleDeleteProduct(p.ProductID)}
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>
