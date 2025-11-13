@@ -640,6 +640,87 @@
     font-weight: 700;
 }
 
+/* Pagination Styles */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 0;
+    background: #fafafa;
+    border-top: 1px solid var(--border-light);
+}
+
+.pagination .page-arrow {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-weight: 800;
+    background: var(--brand-green);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.pagination .page-arrow:hover {
+    background: var(--brand-green-dark);
+}
+
+.pagination .page-arrow.is-disabled,
+.pagination .page-arrow:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.pagination .page-num {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    font-weight: 700;
+    background: #e5e7eb;
+    color: #111827;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.pagination .page-num.is-active,
+.pagination .active-page {
+    background: var(--brand-green);
+    color: #fff;
+    border-color: var(--brand-green);
+}
+
+.pagination .page-num.is-active:hover {
+    background: var(--brand-green-dark);
+}
+
+/* Stock Status Badge */
+.stock-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.stock-badge.in-stock {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.stock-badge.low-stock {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Date Cell */
+.date-cell {
+    color: var(--gray-600, #6b7280);
+    font-size: 13px;
+}
+
+
 
 @media (max-width: 768px) {
     .modal-overlay {
