@@ -10,7 +10,7 @@ export default function Employees() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [showCreate, setShowCreate] = useState(false);
-    const [showEdit, setShowEdit] = useState(null); // EmployeeID or null
+    const [showEdit, setShowEdit] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [form, setForm] = useState({
@@ -71,7 +71,11 @@ export default function Employees() {
             };
             const res = await api.post("/admin/employees", body);
             if (res.data && (res.statusText === "OK" || res.status === 201)) {
-                setMessage("Employee created");
+                const employeeId = res.data.employee?.EmployeeID;
+                setMessage(employeeId 
+                    ? `Employee created with ID: ${employeeId}` 
+                    : "Employee created"
+                );
                 setShowCreate(false);
                 setForm({ FirstName: "", LastName: "", Email: "", Phone: "", Role: "Cashier", UserPassword: "" });
                 setShowPassword(false);
@@ -113,16 +117,12 @@ export default function Employees() {
                 Role: form.Role,
             };
             if (form.UserPassword?.trim()) body.UserPassword = form.UserPassword.trim();
-            const res = await api.patch(`/admin/employees/${id}`, body);
-            if (res.data && res.statusText === "OK") {
-                setMessage("Employee updated");
-                setShowEdit(null);
-                setForm({ FirstName: "", LastName: "", Email: "", Phone: "", Role: "Cashier", UserPassword: "" });
-                setShowNewPassword(false);
-                await attemptFetch();
-            } else {
-                setMessage("Failed to update employee");
-            }
+            await api.patch(`/admin/employees/${id}`, body);
+            setMessage("Employee updated");
+            setForm({ FirstName: "", LastName: "", Email: "", Phone: "", Role: "Cashier", UserPassword: "" });
+            setShowNewPassword(false);
+            attemptFetch();
+            closeModals();
         } catch (err) {
             setMessage(err?.response?.data?.error || "Failed to update employee");
         } finally {
@@ -199,7 +199,7 @@ export default function Employees() {
                 <table className="employee-table">
                     <thead>
                     <tr>
-                        <th>#</th>
+                        <th>ID</th>
                         <th>First Name</th>
                         <th>Last Name</th>
                         <th>Phone</th>
@@ -211,7 +211,7 @@ export default function Employees() {
                     <tbody>
                     {(currentRows || []).map((e, idx) => (
                         <tr key={e.EmployeeID}>
-                            <td>{indexOfFirst + idx + 1}</td>
+                            <td>{e.EmployeeID}</td>
                             <td>{e.FirstName}</td>
                             <td>{e.LastName}</td>
                             <td>{e.Phone}</td>
