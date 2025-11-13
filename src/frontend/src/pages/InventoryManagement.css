@@ -107,7 +107,7 @@
   border: 1px solid #e6e9ef;
 }
 
-.low-stock { color: #dc2626; font-weight: 600; }
+.data-table td.low-stock { color: #dc2626; font-weight: 600; }
 
 .no-data { text-align: center; padding: 26px; color: #6b7280; }
 

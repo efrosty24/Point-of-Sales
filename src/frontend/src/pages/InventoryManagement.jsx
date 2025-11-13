@@ -305,7 +305,7 @@ export default function InventoryManagement() {
                       <input
                         className="input-number"
                         type="number"
-                        min="0"
+                        min={Math.ceil(p.ReorderThreshold * 1.1)}
                         value={restock[p.ProductID] || ''}
                         onChange={(e) => updateQty(p.ProductID, e.target.value)}
                         aria-label={`Restock quantity for ${p.Name}`}
