@@ -271,11 +271,12 @@ exports.salesTrendsAndPatterns = ({ from, to, limit = 20 }, cb) => {
     const whereClauses = [];
 
     if (from) {
-        whereClauses.push('DATE(o.DatePlaced) >= ?');
+        // filtrar por fecha LOCAL (America/Chicago)
+        whereClauses.push("DATE(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) >= ?");
         params.push(from);
     }
     if (to) {
-        whereClauses.push('DATE(o.DatePlaced) <= ?');
+        whereClauses.push("DATE(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) <= ?");
         params.push(to);
     }
 
@@ -283,9 +284,10 @@ exports.salesTrendsAndPatterns = ({ from, to, limit = 20 }, cb) => {
 
     const sql = `
         SELECT
-            o.DatePlaced AS SaleDate,
-            DAYNAME(o.DatePlaced) AS DayOfWeek,
-            HOUR(o.DatePlaced) AS HourOfDay,
+            CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago') AS SaleDate,
+            DAYNAME(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) AS DayOfWeek,
+            HOUR(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) AS HourOfDay,
+
             COUNT(DISTINCT o.OrderID) AS OrderCount,
             COUNT(DISTINCT c.CustomerID) AS UniqueCustomers,
             COUNT(DISTINCT CASE WHEN c.FirstName = 'Guest' THEN NULL ELSE c.CustomerID END) AS RegisteredCustomers,
@@ -304,11 +306,11 @@ exports.salesTrendsAndPatterns = ({ from, to, limit = 20 }, cb) => {
             INNER JOIN Products p ON od.ProductID = p.ProductID
             INNER JOIN Categories cat ON p.CategoryID = cat.CategoryID
             LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
-            ${whereClause}
-        GROUP BY o.DatePlaced, DAYNAME(o.DatePlaced), HOUR(o.DatePlaced)
+        ${whereClause}
+        GROUP BY SaleDate, DayOfWeek, HourOfDay
         HAVING OrderCount > 0
         ORDER BY SaleDate DESC, HourOfDay DESC
-            LIMIT ?
+        LIMIT ?
     `;
 
     params.push(Number(limit));
