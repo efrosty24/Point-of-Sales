@@ -20,22 +20,9 @@ export default function InventoryManagement() {
     const [editingCategory, setEditingCategory] = useState(null);
     const [showProductEdit, setShowProductEdit] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
-    const [newProduct, setNewProduct] = useState({
-        Name: "",
-        Brand: "",
-        Price: "",
-        Stock: "",
-        SupplierID: "",
-        CategoryID: "",
-        ReorderThreshold: ""
-    });
+    const [newProduct, setNewProduct] = useState({Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: "", ImgPath: ""});
     const [newSupplier, setNewSupplier] = useState({ Name: '', Phone: '', Email: '', Address: '' });
     const [newCategoryName, setNewCategoryName] = useState('');
-
-    // Image upload states
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
-    const [uploadingImage, setUploadingImage] = useState(false);
 
     useEffect(() => {
         fetchSuppliers();
@@ -84,59 +71,6 @@ export default function InventoryManagement() {
     function updateQty(id, val) {
         setRestock((s) => ({ ...s, [id]: val }));
     }
-
-    // Handle image selection
-    const handleImageSelect = (e, isEdit = false) => {
-        const file = e.target.files[0];
-        if (file) {
-            // Validate file type
-            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            if (!allowedTypes.includes(file.type)) {
-                setMessage('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
-                e.target.value = '';
-                return;
-            }
-
-            // Validate file size (5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                setMessage('File size must be less than 5MB');
-                e.target.value = '';
-                return;
-            }
-
-            if (isEdit) {
-                setEditingProduct({
-                    ...editingProduct,
-                    imageFile: file,
-                    imagePreview: URL.createObjectURL(file)
-                });
-            } else {
-                setImageFile(file);
-                setImagePreview(URL.createObjectURL(file));
-            }
-        }
-    };
-
-    // Upload image to server
-    const uploadImage = async (file) => {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        try {
-            setUploadingImage(true);
-            const res = await api.post('/admin/inventory/upload-image', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-            return res.data;
-        } catch (err) {
-            console.error('Image upload error:', err);
-            throw new Error(err?.response?.data?.error || 'Failed to upload image');
-        } finally {
-            setUploadingImage(false);
-        }
-    };
 
     async function handleRestock() {
         if (!supplierFilter) {
@@ -241,26 +175,8 @@ export default function InventoryManagement() {
     async function handleUpdateProduct(e) {
         e.preventDefault();
         if (!editingProduct) return;
-
         try {
             setLoading(true);
-
-            let imgData = {
-                ImgPath: editingProduct.ImgPath,
-                ImgName: editingProduct.ImgName
-            };
-
-            // Upload new image if selected
-            if (editingProduct.imageFile) {
-                try {
-                    imgData = await uploadImage(editingProduct.imageFile);
-                } catch (err) {
-                    setMessage(err.message);
-                    setLoading(false);
-                    return;
-                }
-            }
-
             const body = {
                 Name: editingProduct.Name,
                 Brand: editingProduct.Brand,
@@ -269,10 +185,9 @@ export default function InventoryManagement() {
                 SupplierID: editingProduct.SupplierID ? Number(editingProduct.SupplierID) : null,
                 CategoryID: editingProduct.CategoryID ? Number(editingProduct.CategoryID) : null,
                 ReorderThreshold: Number(editingProduct.ReorderThreshold || 0),
-                ImgPath: imgData.ImgPath,
-                ImgName: imgData.ImgName
+                ImgPath: editingProduct.ImgPath,
+                ImgName: editingProduct.ImgPath ? editingProduct.ImgPath.substring(editingProduct.ImgPath.lastIndexOf('/') + 1) : null
             };
-
             await api.patch(`/admin/inventory/products/${editingProduct.ProductID}`, body);
             setMessage("Product updated");
             setShowProductEdit(false);
@@ -441,19 +356,6 @@ export default function InventoryManagement() {
                             className="modal"
                             onSubmit={async (e) => {
                                 e.preventDefault();
-
-                                let imgData = { ImgPath: null, ImgName: null };
-
-                                // Upload image if selected
-                                if (imageFile) {
-                                    try {
-                                        imgData = await uploadImage(imageFile);
-                                    } catch (err) {
-                                        setMessage(err.message);
-                                        return;
-                                    }
-                                }
-
                                 const body = {
                                     Name: newProduct.Name,
                                     Brand: newProduct.Brand,
@@ -465,8 +367,8 @@ export default function InventoryManagement() {
                                     IsPricePerQty: false,
                                     QuantityValue: 1,
                                     QuantityUnit: "unit",
-                                    ImgPath: imgData.ImgPath,
-                                    ImgName: imgData.ImgName,
+                                    ImgPath: newProduct.ImgPath,
+                                    ImgName: newProduct.ImgPath ? newProduct.ImgPath.substring(newProduct.ImgPath.lastIndexOf('/') + 1) : null,
                                 };
 
                                 if (body.SupplierID === null || body.CategoryID === null) {
@@ -481,8 +383,6 @@ export default function InventoryManagement() {
                                     setMessage(res.data?.message || "Product created");
                                     setShowCreate(false);
                                     setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: ""});
-                                    setImageFile(null);
-                                    setImagePreview(null);
                                     fetchProducts();
                                 } catch (err) {
                                     console.error("Create product error:", err?.response?.data || err);
@@ -498,41 +398,7 @@ export default function InventoryManagement() {
                                 <input className="input" placeholder="Brand" value={newProduct.Brand} onChange={(e) => setNewProduct({ ...newProduct, Brand: e.target.value })} />
                                 <input className="input" placeholder="Price" type="number" step="0.01" value={newProduct.Price} onChange={(e) => setNewProduct({ ...newProduct, Price: e.target.value })} />
                                 <input className="input" placeholder="Stock" type="number" value={newProduct.Stock} onChange={(e) => setNewProduct({ ...newProduct, Stock: e.target.value })} />
-
-                                {/* Image upload section */}
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                                        Product Image
-                                    </label>
-                                    <input
-                                        type="file"
-                                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                                        onChange={(e) => handleImageSelect(e, false)}
-                                        style={{ marginBottom: '8px' }}
-                                    />
-                                    {imagePreview && (
-                                        <div style={{ marginTop: '8px' }}>
-                                            <img
-                                                src={imagePreview}
-                                                alt="Preview"
-                                                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="btn"
-                                                onClick={() => {
-                                                    setImageFile(null);
-                                                    setImagePreview(null);
-                                                }}
-                                                style={{ marginLeft: '8px', fontSize: '12px', padding: '4px 8px' }}
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    )}
-                                    {uploadingImage && <p style={{ fontSize: '12px', color: '#666' }}>Uploading image...</p>}
-                                </div>
-
+                                <input className="input" placeholder="Image URL (ImgPath)"  value={newProduct.ImgPath} onChange={(e) => setNewProduct({ ...newProduct, ImgPath: e.target.value })}/>
                                 <select
                                     className="select"
                                     value={newProduct.SupplierID}
@@ -559,17 +425,18 @@ export default function InventoryManagement() {
                                 <input className="input" placeholder="Reorder threshold" type="number" value={newProduct.ReorderThreshold} onChange={(e) => setNewProduct({ ...newProduct, ReorderThreshold: e.target.value })} />
                             </div>
                             <div className="modal-actions">
-                                <button className="btn" type="button" onClick={() => {
-                                    setShowCreate(false);
-                                    setImageFile(null);
-                                    setImagePreview(null);
-                                }}>Cancel</button>
+                                <button className="btn" type="button" onClick={() => setShowCreate(false)}>Cancel</button>
                                 <button
                                     className="btn primary"
                                     type="submit"
-                                    disabled={uploadingImage}
+                                    onClick={(e) => {
+                                        if (newProduct.SupplierID === "" || newProduct.SupplierID == null) {
+                                            e.preventDefault();
+                                            setMessage("Please select a supplier before creating the product.");
+                                        }
+                                    }}
                                 >
-                                    {uploadingImage ? 'Uploading...' : 'Create'}
+                                    Create
                                 </button>
                             </div>
                         </form>
@@ -739,45 +606,19 @@ export default function InventoryManagement() {
                                     value={editingProduct.Stock}
                                     onChange={(e) => setEditingProduct({ ...editingProduct, Stock: e.target.value })}
                                 />
-
-                                {/* Image upload section for edit */}
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                                        Product Image
-                                    </label>
+                                <div className="grid-span-2">
                                     <input
-                                        type="file"
-                                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                                        onChange={(e) => handleImageSelect(e, true)}
-                                        style={{ marginBottom: '8px' }}
+                                        className="input"
+                                        placeholder="Image URL (ImgPath)"
+                                        value={editingProduct.ImgPath || ''}
+                                        onChange={(e) => setEditingProduct({
+                                            ...editingProduct,
+                                            ImgPath: e.target.value,
+                                            // Also update ImgName based on URL for consistency
+                                            ImgName: e.target.value ? e.target.value.substring(e.target.value.lastIndexOf('/') + 1) : null
+                                        })}
                                     />
-                                    {(editingProduct.imagePreview || editingProduct.ImgPath) && (
-                                        <div style={{ marginTop: '8px' }}>
-                                            <img
-                                                src={editingProduct.imagePreview || editingProduct.ImgPath}
-                                                alt="Preview"
-                                                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
-                                            />
-                                            {editingProduct.imagePreview && (
-                                                <button
-                                                    type="button"
-                                                    className="btn"
-                                                    onClick={() => {
-                                                        setEditingProduct({
-                                                            ...editingProduct,
-                                                            imageFile: null,
-                                                            imagePreview: null
-                                                        });
-                                                    }}
-                                                    style={{ marginLeft: '8px', fontSize: '12px', padding: '4px 8px' }}
-                                                >
-                                                    Remove New Image
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                    {uploadingImage && <p style={{ fontSize: '12px', color: '#666' }}>Uploading image...</p>}
-                                </div>
+                                    <p className="url-helper-text">Current URL: {editingProduct.ImgPath || 'None'}</p>
 
                                 <select
                                     className="select"
@@ -818,9 +659,10 @@ export default function InventoryManagement() {
                                 >
                                     Cancel
                                 </button>
-                                <button className="btn primary" type="submit" disabled={uploadingImage}>
-                                    {uploadingImage ? 'Uploading...' : 'Update'}
+                                <button className="btn primary" type="submit">
+                                    Update
                                 </button>
+                                </div>
                             </div>
                         </form>
                     </div>
