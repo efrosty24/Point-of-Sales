@@ -99,12 +99,11 @@ exports.getTodayAggregates = (employeeId, cb) => {
 exports.getHourlySalesToday = (employeeId, cb) => {
   const sql = `
     SELECT
-      HOUR(DatePlaced) AS hourNum,
-      COALESCE(SUM(CASE WHEN Status <> 'Cancelled' THEN Total ELSE 0 END), 0) AS sales
+      DatePlaced,
+      Total,
+      Status
     FROM Orders
-    WHERE EmployeeID = ? AND DATE(DatePlaced) = CURDATE()
-    GROUP BY HOUR(DatePlaced)
-    ORDER BY hourNum;
+    WHERE EmployeeID = ? AND DATE(DatePlaced) = CURDATE();
   `;
   db.query(sql, [employeeId], cb);
 };

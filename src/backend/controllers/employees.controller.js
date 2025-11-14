@@ -105,19 +105,19 @@ exports.updateEmployee = (req, res) => {
 
 
 exports.deleteEmployee = (req, res) => {
-    const employeeId = req.params.id;
-    if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
+  const employeeId = req.params.id;
+  if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
 
-    svc.deleteEmployee(employeeId, (err, result) => {
-        if (err) {
-            console.error('Database error occurred deleting employee:', err);
-            return res.status(500).json({ error: 'Failed to delete employee data.' });
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: `Employee with ID ${employeeId} not found` });
-        }
-        return res.status(200).json({ message: 'Employee deleted successfully.' });
-    });
+  svc.deleteEmployee(employeeId, (err, result) => {
+    if (err) {
+      console.error('Database error occurred deleting employee:', err);
+      return res.status(500).json({ error: 'Failed to delete employee data.' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: `Employee with ID ${employeeId} not found` });
+    }
+    return res.status(200).json({ message: 'Employee deleted successfully.' });
+  });
 };
 
 
@@ -126,6 +126,19 @@ const hourLabel = (h) => {
   const ampm = h < 12 ? 'AM' : 'PM';
   const hr = (h % 12) || 12;
   return `${hr} ${ampm}`;
+};
+
+const getHoustonHour = (dateStr) => {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const hourStr = d.toLocaleString('en-US', {
+    timeZone: 'America/Chicago',
+    hour: '2-digit',
+    hour12: false,
+  });
+
+  return Number(hourStr);
 };
 
 function pCall(fn, ...args) {
@@ -141,7 +154,7 @@ exports.getEmployeeDashboard = async (req, res) => {
   try {
     const [todayAgg, hourly, daily, monthly, recent] = await Promise.all([
       pCall(svc.getTodayAggregates, employeeId),
-      pCall(svc.getHourlySalesToday, employeeId),   
+      pCall(svc.getHourlySalesToday, employeeId),
       pCall(svc.getDailySalesLast7, employeeId),
       pCall(svc.getMonthlySalesLast6, employeeId),
       pCall(svc.getRecentOrders, employeeId),
@@ -151,9 +164,23 @@ exports.getEmployeeDashboard = async (req, res) => {
     const totalOrders = Number(todayAgg?.totalOrders || 0);
     const avgPerOrder = totalOrders > 0 ? Number((todaySales / totalOrders).toFixed(2)) : 0;
 
-    const hourlySales = (hourly || []).map(r => ({
-      hour: hourLabel(Number(r.hourNum)),  
-      sales: Number(r.sales || 0),
+    const hourlyTotals = {};
+
+    (hourly || []).forEach((r) => {
+      const h = getHoustonHour(r.DatePlaced);
+      if (h == null) return;
+      
+      if (r.Status === 'Cancelled') return;
+
+      const amount = Number(r.Total || 0);
+      if (!Number.isFinite(amount)) return;
+
+      hourlyTotals[h] = (hourlyTotals[h] || 0) + amount;
+    });
+
+    const hourlySales = Array.from({ length: 24 }, (_, h) => ({
+      hour: hourLabel(h),
+      sales: Number(hourlyTotals[h] || 0),
     }));
 
     const dailySales = (daily || []).map(r => ({
@@ -189,24 +216,24 @@ exports.getEmployeeDashboard = async (req, res) => {
 };
 
 exports.getEmployeePerformance = (req, res) => {
-    const { from, to } = req.query;
+  const { from, to } = req.query;
 
-    if (from && isNaN(Date.parse(from))) {
-        return res.status(400).json({ error: 'Invalid from date format' });
+  if (from && isNaN(Date.parse(from))) {
+    return res.status(400).json({ error: 'Invalid from date format' });
+  }
+
+  if (to && isNaN(Date.parse(to))) {
+    return res.status(400).json({ error: 'Invalid to date format' });
+  }
+
+  svc.getEmployeePerformance({ fromDate: from, toDate: to }, (err, result) => {
+    if (err) {
+      console.error('Database error fetching employee performance:', err);
+      return res.status(500).json({ error: 'Failed to fetch employee performance data.' });
     }
 
-    if (to && isNaN(Date.parse(to))) {
-        return res.status(400).json({ error: 'Invalid to date format' });
-    }
 
-    svc.getEmployeePerformance({ fromDate: from, toDate: to }, (err, result) => {
-        if (err) {
-            console.error('Database error fetching employee performance:', err);
-            return res.status(500).json({ error: 'Failed to fetch employee performance data.' });
-        }
-
-        
-        return res.status(200).json(result || []);
-    });
+    return res.status(200).json(result || []);
+  });
 };
 
