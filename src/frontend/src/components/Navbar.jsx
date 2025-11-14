@@ -56,7 +56,7 @@ function Navbar({ user }) {
     useEffect(() => {
         if (user?.isAdmin) {
             fetchRestockNotifications();
-            const interval = setInterval(fetchRestockNotifications, 1000); // 1 sec
+            const interval = setInterval(fetchRestockNotifications, 43200000); // 12 hr
             return () => clearInterval(interval);
         }
     }, [user]);
