@@ -72,7 +72,7 @@ function Start() {
                 category: "LIMITED TIME",
                 title: `Save Up To ${Math.round(maxDiscount)}% Off`,
                 subtitle: `${discountedProducts.length} incredible deals on premium products. Don't miss out!`,
-                cta: "Shop All Deals",
+                cta: "See All Deals",
                 bgGradient: "linear-gradient(135deg, #dc2626 0%, #f59e0b 50%, #fbbf24 100%)",
                 overlay: "rgba(0, 0, 0, 0.25)",
                 features: [
@@ -137,7 +137,7 @@ function Start() {
                 category: "BUY ONE GET ONE",
                 title: "BOGO Bonanza",
                 subtitle: `${bogoProducts.length} amazing buy-one-get-one-free deals on your favorites`,
-                cta: "Shop BOGO",
+                cta: "Look at BOGO's",
                 bgGradient: "linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%)",
                 overlay: "rgba(0, 0, 0, 0.3)",
                 features: [
