@@ -74,7 +74,7 @@ function Navbar({ user }) {
     return (
         <header className="navbar-container">
             <div className="navbar-left">
-                <h1 className="navbar-title">Grocery POS</h1>
+                <h1 className="navbar-title">Grocery7 POS</h1>
             </div>
 
             <div className="navbar-right">

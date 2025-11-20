@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import App from "./App";
+import CustApp from "./CustApp";
 import Start from "./pages/Start";
 import NavMenus from "./components/NavMenus";
 import Dashboard from "./pages/Dashboard";
@@ -25,7 +26,7 @@ function MainRouter() {
             <Routes>
                 <Route path="/" element={<Start />} />
                 <Route path="/empLogin" element={<App />} />
-                {/*<Route path="/custLogin" element={<App />} />*/}
+                <Route path="/custLogin" element={<CustApp />} />
                 <Route element={<NavMenus />}>
                     <Route path="/dashboard" element={isAdmin ? <Dashboard /> : <EmpDashboard />} />
                     <Route path="/salesreport" element={<SalesReport />} />

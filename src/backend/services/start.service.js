@@ -61,7 +61,7 @@ exports.getActiveDiscountedProducts = (cb) => {
       p.QuantityValue,
       p.QuantityUnit,
       p.ImgName,
-      p.,
+      p.ImgPath,
       d.DiscountID,
       d.DiscountType,
       d.DiscountValue,
