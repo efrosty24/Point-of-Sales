@@ -539,6 +539,40 @@
     }
 }
 
+.guest-btn {
+    width: 100%;
+    padding: 14px 24px;
+    margin-top: 12px;
+    background: transparent;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.guest-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+}
+
+.guest-btn:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #374151;
+    transform: translateY(-2px);
+}
+
+.guest-btn:active {
+    transform: translateY(0);
+}
 
 .auth-form-section::-webkit-scrollbar,
 .modal-content::-webkit-scrollbar {
