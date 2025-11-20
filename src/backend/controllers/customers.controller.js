@@ -127,3 +127,59 @@ exports.recent = (req, res) => {
     res.json(rows);
   });
 };
+
+exports.login = (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({
+            error: 'MISSING_CREDENTIALS',
+            message: 'Please provide email and password'
+        });
+    }
+
+    svc.authenticateCustomer(email, password, (err, result) => {
+        if (err) {
+            if (err.message === 'Invalid credentials') {
+                return res.status(401).json({
+                    error: 'INVALID_CREDENTIALS',
+                    message: 'Invalid email or password'
+                });
+            }
+            return res.status(500).json({ error: 'DB_ERROR' });
+        }
+
+        if (result.passwordChangeRequired) {
+            return res.status(200).json(result);
+        }
+
+        res.json(result);
+    });
+};
+
+
+exports.updatePassword = (req, res) => {
+    const { customerId, newPassword } = req.body;
+
+    if (!customerId || !newPassword) {
+        return res.status(400).json({
+            error: 'MISSING_FIELDS',
+            message: 'Customer ID and new password are required'
+        });
+    }
+
+    if (newPassword.length < 8) {
+        return res.status(400).json({
+            error: 'INVALID_PASSWORD',
+            message: 'Password must be at least 8 characters'
+        });
+    }
+
+    svc.updatePassword(customerId, newPassword, (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'DB_ERROR' });
+        }
+
+        res.json(result);
+    });
+};

@@ -8,15 +8,18 @@ import "./NavMenus.css";
 function NavMenus() {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
+    const isCustomer = user?.role?.toLowerCase() === 'customer';
 
     useEffect(() => {
         if (!user) navigate("/");
     }, [navigate, user]);
+
     if (!user) return null;
+
     return (
         <div className="layout">
-            <Sidebar />
-            <div className="main-section">
+            {!isCustomer && <Sidebar />}
+            <div className={`main-section ${isCustomer ? 'full-width' : ''}`}>
                 <Navbar user={user} />
                 <div className="content">
                     <Outlet />

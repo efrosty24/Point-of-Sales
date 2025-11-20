@@ -3,8 +3,8 @@ const db = require('../config/db.config');
 exports.addCustomer = (customerData, callback) => {
     const sql = `
     INSERT INTO Customers (
-      FirstName, LastName, Phone, Address, City, State, Zip, Country, Email
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+      FirstName, LastName, Phone, Address, City, State, Zip, Country, Email, UserPassword
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
   `;
     const values = [
         customerData.FirstName,
@@ -15,10 +15,73 @@ exports.addCustomer = (customerData, callback) => {
         customerData.State || null,
         customerData.Zip || null,
         customerData.Country || null,
-        customerData.Email
+        customerData.Email|| null,
+        customerData.Password
     ];
     db.query(sql, values, callback);
 };
+
+
+exports.authenticateCustomer = (email, password, callback) => {
+    const sql = `
+        SELECT CustomerID, Email, FirstName, LastName, 
+        Phone, Address, City, State, Zip, Country, UserPassword
+        FROM Customers WHERE Email = ?
+    `;
+
+    db.query(sql, [email], (err, results) => {
+        if (err) {
+            return callback(err);
+        }
+
+        if (results.length === 0) {
+            return callback(new Error('Invalid credentials'));
+        }
+
+        const customer = results[0];
+
+        
+        if (customer.UserPassword === 'temporaryPass') {
+            const result = {
+                success: false,
+                passwordChangeRequired: true,
+                message: 'NEW PASSWORD NEEDED',
+                customer: {
+                    CustomerID: customer.CustomerID,
+                    Email: customer.Email,
+                    FirstName: customer.FirstName,
+                    LastName: customer.LastName
+                }
+            };
+            return callback(null, result);
+        }else{
+            if (customer.UserPassword !== password) {
+                return callback(new Error('Invalid credentials'));
+            }
+        }
+
+        
+        const result = {
+            success: true,
+            message: 'Login successful',
+            customer: {
+                CustomerID: customer.CustomerID,
+                Email: customer.Email,
+                name: customer.FirstName + " " + customer.LastName,
+                role: "customer",
+                Phone: customer.Phone,
+                Address: customer.Address,
+                City: customer.City,
+                State: customer.State,
+                Zip: customer.Zip,
+                Country: customer.Country
+            }
+        };
+
+        callback(null, result);
+    });
+};
+
 
 exports.getFilteredCustomers = (options, callback) => {
     let sql = `
@@ -146,4 +209,28 @@ exports.getRecent = (limit, callback) => {
     LIMIT ?
   `;
   db.query(sql, [limit], callback);
+};
+
+
+exports.updatePassword = (customerId, newPassword, callback) => {
+    const sql = `
+        UPDATE Customers 
+        SET UserPassword = ? 
+        WHERE CustomerID = ?
+    `;
+
+    db.query(sql, [newPassword, customerId], (err, result) => {
+        if (err) {
+            return callback(err);
+        }
+
+        if (result.affectedRows === 0) {
+            return callback(new Error('Customer not found'));
+        }
+
+        callback(null, {
+            success: true,
+            message: 'Password updated successfully'
+        });
+    });
 };

@@ -18,4 +18,12 @@ router.delete('/:id', ctrl.deleteCustomer);
 // PUT/PATCH path for REACTIVATE a customer by ID
 router.put('/:id/reactivate', ctrl.reactivateCustomer);
 
+// POST path for logging in
+router.post('/login', ctrl.login);
+
+// POST path for update customer password
+router.post('/updatePass', ctrl.updatePassword);
+
+
+
 module.exports = router;
