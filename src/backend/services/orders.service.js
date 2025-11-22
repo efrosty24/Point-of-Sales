@@ -1,6 +1,5 @@
 const db = require('../config/db.config');
 
-
 exports.listRecent = (limit = 10, cb) => {
   const sql = `
     SELECT 
@@ -68,4 +67,46 @@ exports.getById = (orderId, cb) => {
       cb(null, { header: hRows[0], items: iRows, total });
     });
   });
+};
+
+exports.listByProduct = (productId, cb) => {
+  const sql = `
+    SELECT 
+      o.OrderID,
+      o.DatePlaced,
+      o.Status,
+      c.FirstName AS CustomerFirst,
+      c.LastName AS CustomerLast,
+      od.Quantity,
+      od.Price,
+      (od.Quantity * od.Price) AS ProductTotal
+    FROM Orders o
+    JOIN OrderDetails od ON od.OrderID = o.OrderID
+    LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE od.ProductID = ?
+    ORDER BY o.DatePlaced DESC;
+  `;
+
+  db.query(sql, [productId], (err, rows) => cb(err, rows));
+};
+
+exports.listByCustomer = (customerId, cb) => {
+  const sql = `
+    SELECT 
+      o.OrderID,
+      o.DatePlaced,
+      o.Status,
+      SUM(od.Quantity) AS ItemCount,
+      SUM(od.Quantity * od.Price) AS Total,
+      c.FirstName AS CustomerFirst,
+      c.LastName AS CustomerLast
+    FROM Orders o
+    JOIN OrderDetails od ON od.OrderID = o.OrderID
+    JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE o.CustomerID = ?
+    GROUP BY o.OrderID
+    ORDER BY o.DatePlaced DESC;
+  `;
+
+  db.query(sql, [customerId], (err, rows) => cb(err, rows));
 };
