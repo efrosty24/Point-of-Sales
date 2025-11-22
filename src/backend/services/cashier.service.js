@@ -8,19 +8,20 @@ const normId = (v) => {
     return Number.isFinite(n) ? n : null;
 };
 
-exports.lookupCustomersByPhone = (phone, cb) => {
-    const p = normPhone(phone);
-    if (!p) return cb(null, []);
+exports.lookupCustomersByEmail = (email, cb) => {
+    const e = email.trim().toLowerCase();
+    if (!e) return cb(null, []);
 
     const sql = `
-    SELECT CustomerID, FirstName, LastName, Phone, Email, Points
-    FROM Customers
-    WHERE REPLACE(REPLACE(REPLACE(Phone,'-',''),'(',''),')','') = ?
-    ORDER BY CustomerID DESC
-    LIMIT 10
-  `;
-    db.query(sql, [p], (err, rows) => cb(err, rows));
+        SELECT CustomerID, FirstName, LastName, Phone, Email, Points
+        FROM Customers
+        WHERE LOWER(Email) = ?
+        ORDER BY CustomerID DESC
+            LIMIT 10
+    `;
+    db.query(sql, [e], (err, rows) => cb(err, rows));
 };
+
 
 exports.quoteOrder = ({ items, taxRate = 0 }, cb) => {
     if (!Array.isArray(items) || items.length === 0) {

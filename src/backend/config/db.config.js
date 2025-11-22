@@ -1,9 +1,7 @@
 require('dotenv').config();
 const mysql = require('mysql2');
 
-// ====================================================================
-// Configuration Variables from App Engine / .env
-// ====================================================================
+
 
 const DB_USER = process.env.DB_USER;
 const DB_PASSWORD = process.env.DB_PASSWORD;
@@ -16,23 +14,16 @@ let connectionOptions = {
     user: DB_USER,
     password: DB_PASSWORD,
     database: DB_NAME,
-    
-    // Recommended: Use a Connection Pool for scalability, not a single connection
     waitForConnections: true,
     connectionLimit: 10, 
 };
 
 if (isAppEngine) {
-    // 1. App Engine Deployment (Secure Unix Socket Path)
-    // The format MUST be: /cloudsql/PROJECT:REGION:INSTANCE_NAME
     const DB_SOCKET_PATH = `/cloudsql/${CLOUD_SQL_CONNECTION_NAME}`;
-    
-    // Add the socket path to the options object
+
     connectionOptions.socketPath = DB_SOCKET_PATH;
     
 } else {
-    // 2. Local Development/Testing (Standard TCP/IP)
-    // Assumes your local host/DB host is defined in .env
     connectionOptions.host = process.env.DB_HOST;
     connectionOptions.port = process.env.DB_PORT || 3306;
     connectionOptions.user = process.env.DB_USER;
@@ -55,8 +46,6 @@ pool.getConnection((err, connection) => {
         console.error('================================================================');
         return;
     }
-    
-    // If connected successfully
     console.log(`Database Connected! Thread ID: ${connection.threadId}`);
     connection.release(); 
 });

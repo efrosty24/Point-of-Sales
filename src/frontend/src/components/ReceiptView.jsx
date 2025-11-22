@@ -1,4 +1,4 @@
-// ReceiptView.jsx
+
 import { useMemo } from "react";
 
 export default function ReceiptView({ data, currency = "USD" }) {
@@ -32,7 +32,7 @@ export default function ReceiptView({ data, currency = "USD" }) {
         <section className="rx-root" aria-label="Receipt">
             <article className="rx-paper" id="print-receipt">
                 <header className="rx-header">
-                    <div className="rx-brand">#7 GROCERY POS</div>
+                    <div className="rx-brand">GROCERY7 POS</div>
                     <div className="rx-small rx-addr">1234 POS St</div>
                     <div className="rx-small rx-addr">Houston, TX 77000</div>
                     <div className="rx-small rx-addr">Tel.: (555)‑555‑5555</div>

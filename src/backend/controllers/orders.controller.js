@@ -25,6 +25,7 @@ exports.getOne = (req, res) => {
     res.json(data);
   });
 };
+
 /**
  * PATCH /admin/orders/:id/reassign-customer
  * Body: { CustomerID }
@@ -42,29 +43,15 @@ exports.reassignCustomer = (req, res) => {
 };
 
 exports.byProduct = (req, res) => {
-    const { productId } = req.params;
-    if (!productId) return res.status(400).json({ error: "Product ID is required" });
+  const { productId } = req.params;
+  if (!productId) {
+    return res.status(400).json({ error: "Product ID is required" });
+  }
 
-    const sql = `
-        SELECT 
-            o.OrderID,
-            o.DatePlaced,
-            o.Status,
-            c.FirstName AS CustomerFirst,
-            c.LastName AS CustomerLast,
-            od.Quantity,
-            od.Price,
-            (od.Quantity * od.Price) AS ProductTotal
-        FROM Orders o
-        JOIN OrderDetails od ON od.OrderID = o.OrderID
-        LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
-        WHERE od.ProductID = ?
-        ORDER BY o.DatePlaced DESC;
-    `;
-    db.query(sql, [productId], (err, rows) => {
-        if (err) return res.status(500).json({ error: "DB_ERROR" });
-        res.json(rows);
-    });
+  svc.listByProduct(productId, (err, rows) => {
+    if (err) return res.status(500).json({ error: "DB_ERROR" });
+    res.json(rows);
+  });
 };
 
 exports.byCustomer = (req, res) => {
