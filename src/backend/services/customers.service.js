@@ -25,7 +25,7 @@ exports.addCustomer = (customerData, callback) => {
 exports.authenticateCustomer = (email, password, callback) => {
     const sql = `
         SELECT CustomerID, Email, FirstName, LastName, 
-        Phone, Address, City, State, Zip, Country, UserPassword
+        Phone, Address, City, State, Zip, Country, UserPassword, Points
         FROM Customers WHERE Email = ?
     `;
 
@@ -47,10 +47,12 @@ exports.authenticateCustomer = (email, password, callback) => {
                 passwordChangeRequired: true,
                 message: 'NEW PASSWORD NEEDED',
                 customer: {
-                    CustomerID: customer.CustomerID,
+                    id: customer.CustomerID,
                     Email: customer.Email,
                     FirstName: customer.FirstName,
-                    LastName: customer.LastName
+                    LastName: customer.LastName,
+                    role: "customer",
+                    points: customer.Points,
                 }
             };
             return callback(null, result);
@@ -65,10 +67,11 @@ exports.authenticateCustomer = (email, password, callback) => {
             success: true,
             message: 'Login successful',
             customer: {
-                CustomerID: customer.CustomerID,
+                id: customer.CustomerID,
                 Email: customer.Email,
                 name: customer.FirstName + " " + customer.LastName,
                 role: "customer",
+                points: customer.Points,
                 Phone: customer.Phone,
                 Address: customer.Address,
                 City: customer.City,

@@ -8,7 +8,6 @@ function Start() {
     const [discountedProducts, setDiscountedProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeCategory, setActiveCategory] = useState("all");
-    const [currentSlide, setCurrentSlide] = useState(0);
     const [isSlideAnimating, setIsSlideAnimating] = useState(false);
     const [maxDiscount, setMaxDiscount] = useState(0);
     const productsRef = useRef(null);
@@ -152,7 +151,11 @@ function Start() {
 
         return slides;
     };
-
+    const [currentSlide, setCurrentSlide] = useState(() => {
+        const slides = generateHeroSlides();
+        const groceryIndex = slides.findIndex(slide => slide.id === 'grocery-general');
+        return groceryIndex !== -1 ? groceryIndex : 0;
+    });
     const heroSlides = generateHeroSlides();
 
     

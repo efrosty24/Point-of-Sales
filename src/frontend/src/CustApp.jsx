@@ -131,7 +131,7 @@ function CustApp() {
 
         try {
             const response = await api.post("/admin/customers/updatePass", {
-                customerId: tempCustomerData.CustomerID,
+                customerId: tempCustomerData.id,
                 newPassword: newPassword
             });
 
@@ -463,7 +463,7 @@ function CustApp() {
 
                             {}
                             <div className="form-group">
-                                <label htmlFor="email">Email Address</label>
+                                <label htmlFor="email">Email ID</label>
                                 <div className={`input-wrapper ${errors.email ? 'error' : ''}`}>
                                     <svg className="input-icon" viewBox="0 0 24 24" fill="none">
                                         <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
