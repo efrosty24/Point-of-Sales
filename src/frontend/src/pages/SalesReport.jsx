@@ -2,6 +2,69 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import "./SalesReport.css";
 import api from "../utils/api.js";
 
+
+const exportToCSV = () => {
+    let rows = [];
+    let headers = [];
+    let dataToExport = [];
+
+    switch (activeTab) {
+        case "products":
+            headers = ["Product", "Brand", "Category", "Supplier", "Units Sold", "Revenue", "Avg Price", "Stock Status"];
+            dataToExport = filteredProductPerformance;
+            dataToExport.forEach(p => {
+                rows.push([p.ProductName, p.Brand, p.CategoryName, p.SupplierName, p.UnitsSold, p.TotalRevenue, p.AvgPrice, p.StockStatus]);
+            });
+            break;
+        case "customers":
+            headers = ["Customer", "Email", "Orders", "Total Spent", "Avg Order", "Items Bought", "Loyalty Points", "Last Purchase"];
+            dataToExport = filteredCustomerAnalytics;
+            dataToExport.forEach(c => {
+                rows.push([c.CustomerName, c.Email, c.TotalOrders, c.TotalSpent, c.AvgOrderValue, c.TotalItemsBought, c.LoyaltyPoints, c.LastPurchaseDate]);
+            });
+            break;
+        case "categories":
+            headers = ["Category", "Orders", "Products", "Units Sold", "Revenue", "Avg per Sale", "Employees", "Customers"];
+            dataToExport = filteredCategoryPerformance;
+            dataToExport.forEach(c => {
+                rows.push([c.CategoryName, c.OrderCount, c.UniqueProducts, c.TotalUnitsSold, c.TotalRevenue, c.AvgRevenuePerSale, c.EmployeesInvolved, c.UniqueCustomers]);
+            });
+            break;
+        case "trends":
+            headers = ["Day", "Date", "Hour", "Orders", "Customers", "Revenue", "Avg Order", "Items/Order"];
+            dataToExport = filteredSalesTrends;
+            dataToExport.forEach(t => {
+                rows.push([t.DayOfWeek, t.SaleDate, t.HourOfDay, t.OrderCount, t.UniqueCustomers, t.TotalRevenue, t.AvgOrderValue, t.AvgItemsPerOrder]);
+            });
+            break;
+        case "orders":
+            headers = ["Order ID", "Customer", "Total", "Date", "Status"];
+            dataToExport = filteredOrders;
+            dataToExport.forEach(o => {
+                const customerName = o.FirstName ? `${o.FirstName} ${o.LastName || ''}` : 'Guest';
+                rows.push([o.OrderID, customerName, o.Total, o.DatePlaced, o.Status]);
+            });
+            break;
+        case "employees":
+            headers = ["Employee", "Role", "Orders", "Items Sold", "Revenue", "Avg Order", "Products"];
+            dataToExport = filteredEmployees;
+            dataToExport.forEach(emp => {
+                rows.push([`${emp.FirstName} ${emp.LastName}`, emp.Role, emp.TotalOrders, emp.TotalItemsSold, emp.TotalRevenue, emp.AvgOrderValue, emp.UniqueProducts]);
+            });
+            break;
+        default:
+            return;
+    }
+
+    let csvContent = [headers.join(",")].concat(rows.map(r => r.join(","))).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `report_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`);
+    link.click();
+};
+
 function Tabs({ value, onChange, children, idPrefix = "sr" }) {
     const btns = useRef([]);
     const tabs = useMemo(
@@ -26,6 +89,7 @@ function Tabs({ value, onChange, children, idPrefix = "sr" }) {
     };
 
     return (
+        
         <div className="tabs">
             <div
                 className="tablist"
@@ -431,6 +495,62 @@ function SalesReport() {
 
     const hasActiveFilters = fromDate || toDate || name;
 
+    const exportToCSV = (data, filename = "export.csv") => {
+        if (!data || !data.length) return;
+
+        const headers = Object.keys(data[0]);
+        const csvRows = [
+            headers.join(","), // header row
+            ...data.map(row =>
+                headers.map(field => {
+                    const val = row[field] ?? "";
+                    return `"${String(val).replace(/"/g, '""')}"`; // escape quotes
+                }).join(",")
+            )
+        ];
+
+        const csvString = csvRows.join("\n");
+        const blob = new Blob([csvString], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [productOrders, setProductOrders] = useState([]);
+    const handleProductClick = (product) => {
+        console.log("Clicked product:", product);  // check object
+        setSelectedProduct(product);
+
+        api.get(`/admin/orders/by-product/${product.ProductID}`)
+            .then(res => {
+                console.log("Orders response:", res.data); // should show array
+                setProductOrders(res.data);
+            })
+            .catch(err => {
+                console.error("Failed to fetch orders by product:", err);
+                setProductOrders([]);
+            });
+    };
+
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [customerOrders, setCustomerOrders] = useState([]);
+    async function handleCustomerClick(customer) {
+        setSelectedCustomer(customer);
+
+        try {
+            const res = await api.get(`/admin/orders/by-customer/${customer.CustomerID}`);
+            setCustomerOrders(res.data);
+        } catch (err) {
+            console.error("Failed loading customer orders", err);
+            setCustomerOrders([]);
+        }
+    }
+
+
     return (
         <div className="sales-report-container">
             <div className="page-header">
@@ -611,39 +731,82 @@ function SalesReport() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {paginatedProducts.length ? (
-                                    paginatedProducts.map((p) => (
-                                        <tr key={p.ProductID}>
-                                            <td>{p.ProductName}</td>
-                                            <td>{p.Brand || 'N/A'}</td>
-                                            <td>{p.CategoryName}</td>
-                                            <td>{p.SupplierName || 'N/A'}</td>
-                                            <td>{p.UnitsSold}</td>
-                                            <td className="revenue-cell">${formatCurrency(p.TotalRevenue)}</td>
-                                            <td>${formatCurrency(p.AvgPrice)}</td>
-                                            <td>
-                                                <span className={`stock-badge ${p.StockStatus === 'Low Stock' ? 'low-stock' : 'in-stock'}`}>
-                                                    {p.StockStatus}
-                                                </span>
-                                            </td>
+                                    {paginatedProducts.length ? (
+                                        paginatedProducts.map((p) => (
+                                            <tr
+                                                key={p.ProductID}
+                                                onClick={() => handleProductClick(p)}
+                                                className="clickable-row"
+                                            >
+                                                <td>{p.ProductName}</td>
+                                                <td>{p.Brand || 'N/A'}</td>
+                                                <td>{p.CategoryName}</td>
+                                                <td>{p.SupplierName || 'N/A'}</td>
+                                                <td>{p.UnitsSold}</td>
+                                                <td className="revenue-cell">${formatCurrency(p.TotalRevenue)}</td>
+                                                <td>${formatCurrency(p.AvgPrice)}</td>
+                                                <td>
+                                                    <span className={`stock-badge ${
+                                                        p.StockStatus === 'Low Stock' ? 'low-stock' : 'in-stock'
+                                                    }`}>
+                                                        {p.StockStatus}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="8">No products found</td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="8">No products found</td>
-                                    </tr>
-                                )}
-                                </tbody>
+                                    )}
+                            </tbody>
                             </table>
+                            
                         </div>
                         <Pagination
                             currentPage={productPage}
                             setCurrentPage={setProductPage}
                             totalItems={filteredProductPerformance.length}
                         />
+
+                        {selectedProduct && (
+                        <div className="related-orders">
+                            <h3>Orders Containing {selectedProduct.ProductName}</h3>
+
+                            {productOrders.length ? (
+                            <table className="orders-table">
+                                <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Quantity</th>
+                                    <th>Product Total ($)</th>
+                                    <th>Customer</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {productOrders.map(order => (
+                                    <tr key={order.OrderID}>
+                                    <td>{order.OrderID}</td>
+                                    <td>{new Date(order.DatePlaced).toLocaleString()}</td>
+                                    <td>{order.Status}</td>
+                                    <td>{order.Quantity}</td>
+                                    <td>${order.ProductTotal}</td>
+                                    <td>{order.CustomerFirst || order.CustomerLast ? `${order.CustomerFirst} ${order.CustomerLast}` : 'Guest'}</td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                            ) : (
+                            <p>No orders found for this product.</p>
+                            )}
+                        </div>
+                        )}
+
                     </div>
                 </Tab>
-
+                
                 <Tab id="customers" label="Customer Analytics">
                     <div className="tab-content">
                         <h2>Customer Purchase Analytics</h2>
@@ -664,7 +827,9 @@ function SalesReport() {
                                 <tbody>
                                 {paginatedCustomers.length ? (
                                     paginatedCustomers.map((c) => (
-                                        <tr key={c.CustomerID}>
+                                        <tr key={c.CustomerID} 
+                                            onClick={() => handleCustomerClick(c)}
+                                            className="clickable-row">
                                             <td>{c.CustomerName}</td>
                                             <td>{c.Email || 'N/A'}</td>
                                             <td>{c.TotalOrders}</td>
@@ -688,6 +853,40 @@ function SalesReport() {
                             setCurrentPage={setCustomerPage}
                             totalItems={filteredCustomerAnalytics.length}
                         />
+
+                        {selectedCustomer && (
+                            <div className="customer-orders">
+                                <h3>Orders for {selectedCustomer.CustomerName}</h3>
+
+                                {customerOrders.length ? (
+                                    <table className="orders-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Order ID</th>
+                                                <th>Date</th>
+                                                <th>Status</th>
+                                                <th>Items</th>
+                                                <th>Total ($)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {customerOrders.map(order => (
+                                                <tr key={order.OrderID}>
+                                                    <td>{order.OrderID}</td>
+                                                    <td>{formatDate(order.DatePlaced)}</td>
+                                                    <td>{order.Status}</td>
+                                                    <td>{order.ItemCount}</td>
+                                                    <td>${formatCurrency(order.Total)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p>No orders found for this customer.</p>
+                                )}
+                            </div>
+                        )}
+
                     </div>
                 </Tab>
 

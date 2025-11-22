@@ -2,7 +2,7 @@ import { useState } from "react";
 
 function SearchBar({ onSearch }) {
   const [query, setQuery] = useState("");
-  const [type, setType] = useState("customers");
+  const [type, setType] = useState("orders"); // <-- Default to "orders"
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -10,11 +10,9 @@ function SearchBar({ onSearch }) {
     onSearch(query.trim(), type);
   };
 
-  // Map type to specific placeholder text
   const placeholderMap = {
-    customers: "Enter CustomerID...",
-    orders: "Enter OrderID...",
-    products: "Enter ProductID..."
+    customers: "Enter Customer ID",
+    orders: "Enter Order ID",
   };
 
   return (
@@ -30,7 +28,7 @@ function SearchBar({ onSearch }) {
         backgroundColor: "#f5f6fa",
         boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
         maxWidth: "700px",
-        margin: "0 auto"
+        margin: "0 auto",
       }}
     >
       <select
@@ -42,25 +40,24 @@ function SearchBar({ onSearch }) {
           border: "1px solid #ccc",
           fontSize: "14px",
           backgroundColor: "#fff",
-          cursor: "pointer"
+          cursor: "pointer",
         }}
       >
         <option value="customers">Customers</option>
         <option value="orders">Orders</option>
-        <option value="products">Products</option>
       </select>
 
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={placeholderMap[type]} // updated placeholder
+        placeholder={placeholderMap[type]}
         style={{
           flexGrow: 1,
           padding: "10px 12px",
           borderRadius: "8px",
           border: "1px solid #ccc",
-          fontSize: "14px"
+          fontSize: "14px",
         }}
       />
 
@@ -74,10 +71,7 @@ function SearchBar({ onSearch }) {
           color: "#fff",
           fontWeight: "bold",
           cursor: "pointer",
-          transition: "background-color 0.3s"
         }}
-        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#45a049")}
-        onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#4CAF50")}
       >
         Search
       </button>

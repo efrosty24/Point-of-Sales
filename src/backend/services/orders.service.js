@@ -69,3 +69,44 @@ exports.getById = (orderId, cb) => {
     });
   });
 };
+
+exports.listByProduct = (productId, cb) => {
+  const sql = `
+    SELECT 
+      o.OrderID,
+      o.DatePlaced,
+      o.Status,
+      o.Total,
+      c.FirstName AS CustomerFirst,
+      c.LastName AS CustomerLast
+    FROM Orders o
+    JOIN OrderDetails od ON od.OrderID = o.OrderID
+    LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE od.ProductID = ?
+    GROUP BY o.OrderID
+    ORDER BY o.DatePlaced DESC;
+  `;
+
+  db.query(sql, [productId], (err, rows) => cb(err, rows));
+};
+
+exports.listByCustomer = (customerId, cb) => {
+  const sql = `
+    SELECT 
+      o.OrderID,
+      o.DatePlaced,
+      o.Status,
+      SUM(od.Quantity) AS ItemCount,
+      SUM(od.Quantity * od.Price) AS Total,
+      c.FirstName AS CustomerFirst,
+      c.LastName AS CustomerLast
+    FROM Orders o
+    JOIN OrderDetails od ON od.OrderID = o.OrderID
+    JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE o.CustomerID = ?
+    GROUP BY o.OrderID
+    ORDER BY o.DatePlaced DESC;
+  `;
+
+  db.query(sql, [customerId], (err, rows) => cb(err, rows));
+};
