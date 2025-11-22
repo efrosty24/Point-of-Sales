@@ -1,5 +1,6 @@
 const svc = require('../services/orders.service');
 const cashierSvc = require('../services/cashier.service');
+const db = require('../config/db.config');
 
 exports.recent = (req, res) => {
   const limit = Number(req.query.limit) || 5;

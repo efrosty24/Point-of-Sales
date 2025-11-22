@@ -328,33 +328,6 @@ function Dashboard() {
                 </table>
             )}
 
-            {/* --- LOW STOCK --- */}
-            <h2 className="dashboard-title" style={{ marginTop: 40 }}>Low Stock Alerts</h2>
-            {lowStock.length === 0 ? <p>No low stock products</p> : (
-                <table className="sales-table">
-                    <thead>
-                    <tr>
-                        <th>Product ID</th>
-                        <th>Name</th>
-                        <th>Stock</th>
-                        <th>Reorder Threshold</th>
-                        <th>Supplier</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {lowStock.map(p => (
-                        <tr key={p.ProductID} className={p.Stock <= p.ReorderThreshold ? "low-stock-row" : ""}>
-                            <td>{p.ProductID}</td>
-                            <td>{p.Name} {p.Stock <= p.ReorderThreshold && <span className="low-stock-badge">LOW</span>}</td>
-                            <td>{p.Stock}</td>
-                            <td>{p.ReorderThreshold}</td>
-                            <td>{p.SupplierName}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            )}
-
             {/* --- ORDER MODAL --- */}
             {selectedOrder && selectedOrder.header && (
                 <div className="order-modal" onClick={closeOrderDetails}>
