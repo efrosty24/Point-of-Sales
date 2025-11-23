@@ -1,6 +1,6 @@
 const db = require('../config/db.config');
 
-const normPhone = (raw) => (raw ? String(raw).replace(/[^\d]/g, '') : '');
+
 const round2 = (x) => Math.round(Number(x) * 100) / 100;
 const normId = (v) => {
     if (v == null) return null;
