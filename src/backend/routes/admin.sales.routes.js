@@ -17,4 +17,8 @@ router.get('/category-performance', ctrl.categoryPerformance);
 
 router.get('/trends', ctrl.salesTrends);
 
+router.get('/category/:id/transactions', ctrl.categoryTransactions);
+
+router.get('/sales-trends/details', ctrl.salesTrendsDetails);
+
 module.exports = router;

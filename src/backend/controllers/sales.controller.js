@@ -249,4 +249,27 @@ exports.charts = (req, res) => {
     });
 };
 
+exports.categoryTransactions = (req, res) => {
+    const { id } = req.params;
+    const { from, to } = req.query;
+
+    svc.categoryTransactions({ categoryId: id, from, to }, (err, rows) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+        res.json(rows || []);
+    });
+};
+
+exports.salesTrendsDetails = (req, res) => {
+    const { date, hour, from, to } = req.query;
+
+    if (!date || hour === undefined) {
+        return res.status(400).json({ error: 'Both "date" and "hour" are required.' });
+    }
+
+    svc.salesTrendsDetails({ date, hour, from, to }, (err, rows) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+        res.json(rows || []);
+    });
+};
+
 module.exports = exports;
