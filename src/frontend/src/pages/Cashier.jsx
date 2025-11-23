@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState, useCallback, useRef, useContext } from "react";
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import "./Cashier.css";
 import ReceiptView from "../components/ReceiptView.jsx";
 import Modal from "../components/Modal.jsx";
 import api from "../utils/api.js";
 import { Info } from "lucide-react";
+import { AuthContext } from "../AuthContext";
 
 const GUEST_KEY = "cashierGuest";
 
@@ -22,6 +23,7 @@ const randomInt53 = () => {
     }
     return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) + 1;
 };
+
 const ensureSessionId = (g) => {
     if (g.customerId) return { ...g, sessionId: null };
     if (typeof g.sessionId === "number" && Number.isFinite(g.sessionId)) return g;
@@ -99,8 +101,10 @@ function QtyStepper({ value, onSet, labelId, disablePlusVisual = false }) {
     );
 }
 
-
 export default function Cashier() {
+    const { user, setUser } = useContext(AuthContext);
+    const navigate = useNavigate();
+
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [search, setSearch] = useState("");
@@ -111,7 +115,7 @@ export default function Cashier() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [customerName, setCustomerName] = useState("Guest");
-    const [phone, setPhone] = useState("");
+    const [email, setEmail] = useState("");  
     const [cart, setCart] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [notFound, setNotFound] = useState(false);
@@ -127,18 +131,24 @@ export default function Cashier() {
     const [outOfStock, setOutOfStock] = useState(() => new Map());
     const lastChangeRef = useRef({ productId: null, delta: 0 });
 
+    
+    const isCustomerRole = user?.role?.toLowerCase() === "customer";
+    const isGuestCustomer = isCustomerRole && Number(user?.id) === 1000;
+
+    
+    const employeeId = isCustomerRole ? 1000 : user?.id || 3;
+
     const isInsufficient = (id) => insufficient.has(id);
     const isOOS = (id) => outOfStock.has(id);
-    console.log("insufficient", insufficient);
 
     const markInsufficient = useCallback((productID, disabled) => {
-        console.log("insufficient USE", productID, disabled);
         setInsufficient(prev => {
             const next = new Map(prev);
             if (disabled) next.set(productID, true); else next.delete(productID);
             return next;
         });
     }, []);
+
     const setOutOfStockFlag = useCallback((productID, flag) => {
         setOutOfStock(prev => {
             const next = new Map(prev);
@@ -147,9 +157,36 @@ export default function Cashier() {
         });
     }, []);
 
+    
+    useEffect(() => {
+        if (isCustomerRole && !isGuestCustomer) {
+            
+            setGuest(prev => ({
+                ...prev,
+                customerId: Number(user.id),
+                sessionId: null
+            }));
+            setCustomerName(user.name || "Customer");
+            
+            setPoints(Number(user.points) || 0);
+        } else if (isGuestCustomer) {
+            
+            const ensured = ensureSessionId({ customerId: null, sessionId: null, lastRegisterListId: null });
+            setGuest(ensured);
+            setCustomerName("Guest");
+            setPoints(0);
+        }
+    }, [isCustomerRole, isGuestCustomer, user]);
+
     useEffect(() => { saveGuest(guest); }, [guest]);
 
     const handlePrintReceipt = () => window.print();
+
+    const handleLogout = () => {
+        setUser(null);
+        localStorage.removeItem("user");
+        navigate("/");
+    };
 
     useEffect(() => {
         const s = searchParams.get('search') || '';
@@ -168,6 +205,7 @@ export default function Cashier() {
         if (category) next.set('category', category);
         setSearchParams(next);
     };
+
     const onCategoryChange = (e) => {
         const c = e.target.value;
         setCategory(c);
@@ -219,7 +257,6 @@ export default function Cashier() {
         fetchCategories();
     }, []);
 
-
     const fetchProducts = async () => {
         try {
             setLoading(true);
@@ -264,10 +301,6 @@ export default function Cashier() {
         fetchProducts();
     }, [search, category]);
 
-    useEffect(() => {
-        fetchProducts();
-    }, [search, category]);
-
     const totalPages = Math.ceil(products.length / itemsPerPage);
     const visible = useMemo(() => products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [products, currentPage]);
 
@@ -276,13 +309,27 @@ export default function Cashier() {
 
     const ensureRegister = useCallback(async () => {
         if (guest.lastRegisterListId) return Number(guest.lastRegisterListId);
+
+        let customerId = null;
+        let guestId = null;
+
+        if (isCustomerRole && !isGuestCustomer) {
+            customerId = Number(user.id);
+        } else if (isGuestCustomer) {
+            guestId = Number(guest.sessionId);
+        } else {
+            customerId = hasRealCustomer ? Number(guest.customerId) : null;
+            guestId = hasRealCustomer ? null : Number(guest.sessionId);
+        }
+
         const payload = {
-            customerId: hasRealCustomer ? Number(guest.customerId) : null,
-            guestId: hasRealCustomer ? null : Number(guest.sessionId),
-            employeeId: 3,
+            customerId,
+            guestId,
+            employeeId,
             items: [],
             taxRate: 0.0825,
         };
+
         const res = await api.post(`/cashier/registerList`, payload);
         const data = res.data || {};
         if (!data.RegisterListID) {
@@ -291,14 +338,26 @@ export default function Cashier() {
         const newId = Number(data.RegisterListID);
         setGuest(prev => ({ ...prev, lastRegisterListId: newId }));
         return newId;
-    }, [guest.lastRegisterListId, hasRealCustomer, guest.customerId, guest.sessionId]);
+    }, [guest.lastRegisterListId, hasRealCustomer, guest.customerId, guest.sessionId, isCustomerRole, isGuestCustomer, user, employeeId]);
 
     const updateRegisterSnapshot = async (nextCart) => {
         try {
+            let customerId = null;
+            let guestId = null;
+
+            if (isCustomerRole && !isGuestCustomer) {
+                customerId = Number(user.id);
+            } else if (isGuestCustomer) {
+                guestId = Number(guest.sessionId);
+            } else {
+                customerId = hasRealCustomer ? Number(guest.customerId) : null;
+                guestId = hasRealCustomer ? null : Number(guest.sessionId);
+            }
+
             const payload = {
-                customerId: hasRealCustomer ? Number(guest.customerId) : null,
-                guestId: hasRealCustomer ? null : Number(guest.sessionId),
-                employeeId: 3,
+                customerId,
+                guestId,
+                employeeId,
                 items: nextCart.map((c) => ({
                     ProductID: Number(c.ProductID),
                     Qty: normalizeQty(c.Qty),
@@ -377,13 +436,6 @@ export default function Cashier() {
             }
 
             console.error('updateRegisterSnapshot error:', err);
-            if (err.response?.data?.error) {
-                console.error('Backend error message:', err.response.data.error);
-            } else if (err.message) {
-                console.error('Error message:', err.message);
-            } else {
-                console.error('Unknown error:', err);
-            }
         }
     };
 
@@ -494,7 +546,6 @@ export default function Cashier() {
         }
     };
 
-
     const subtotal = cart.reduce((sum, item) => {
         const lt = Number(item.LineTotal);
         return sum + (Number.isFinite(lt) ? lt : normalizeQty(item.Qty) * Number(item.Price ?? item.FinalPrice ?? 0));
@@ -506,7 +557,9 @@ export default function Cashier() {
     const taxRate = 0.0825;
     const tax = round2(subtotal * taxRate);
     const total = round2(subtotal + tax);
-    const redeemPointsApplicable = hasRealCustomer && points >= 500 && subtotal >= 5;
+
+    const effectiveHasRealCustomer = isCustomerRole && !isGuestCustomer ? true : hasRealCustomer;
+    const redeemPointsApplicable = effectiveHasRealCustomer && points >= 500 && subtotal >= 5;
     const redeemDiscount = redeemPointsApplicable ? 5 : 0;
     const effectiveDiscount = discount + redeemDiscount;
     const effectiveTotal = round2(subtotal + tax - redeemDiscount);
@@ -519,9 +572,10 @@ export default function Cashier() {
             const res = await api.get(`/cashier/orders/${orderId}/receipt`);
             const data = res.data;
 
+            
             const updatedReceipt = {
                 ...data,
-                RedeemingPoints: effectiveDiscount
+                RedeemingPoints: redeemPointsApplicable  
             };
 
             setReceipt(updatedReceipt);
@@ -535,18 +589,19 @@ export default function Cashier() {
         } finally {
             setReceiptLoading(false);
         }
-    }, [effectiveDiscount]);
+    }, [redeemPointsApplicable]);
 
-    const handlePhoneSearch = async () => {
+    
+    const handleEmailSearch = async () => {
         if (cart.length > 0) {
             try {
                 const res = await api.get(`/cashier/customers/lookup`, {
-                    params: {phone: phone.trim()}
+                    params: { email: email.trim() }  
                 });
                 const data = res.data;
                 if (Array.isArray(data) && data.length > 0) {
                     const found = data[0];
-                    await updateRegisterIdentity({customerId: Number(found.CustomerID), guestId: null});
+                    await updateRegisterIdentity({ customerId: Number(found.CustomerID), guestId: null });
                     setPoints(found.Points || 0);
                     setCustomerName(`${found.FirstName} ${found.LastName}`);
                     setNotFound(false);
@@ -566,7 +621,7 @@ export default function Cashier() {
     };
 
     const handleChangeCustomer = async () => {
-        const trimmed = phone.trim();
+        const trimmed = email.trim();
         if (!trimmed) {
             const ensured = ensureSessionId({ customerId: null, sessionId: guest.sessionId, lastRegisterListId: guest.lastRegisterListId });
             setGuest(ensured);
@@ -575,7 +630,7 @@ export default function Cashier() {
             setPoints(0);
             setNotFound(false);
         } else {
-            await handlePhoneSearch();
+            await handleEmailSearch();
         }
     };
 
@@ -583,12 +638,25 @@ export default function Cashier() {
         if (!cart.length) return alert("Cart is empty!");
         try {
             const id = await ensureRegister();
+
+            let customerId = null;
+            let guestId = null;
+
+            if (isCustomerRole && !isGuestCustomer) {
+                customerId = Number(user.id);
+            } else if (isGuestCustomer) {
+                guestId = Number(guest.sessionId);
+            } else {
+                customerId = hasRealCustomer ? Number(guest.customerId) : null;
+                guestId = hasRealCustomer ? null : Number(guest.sessionId);
+            }
+
             const payload = {
                 registerListId: Number(id),
-                phone: phone.trim() || null,
-                customerId: hasRealCustomer ? Number(guest.customerId) : null,
-                guestId: hasRealCustomer ? null : Number(guest.sessionId),
-                employeeId: null,
+                email: email.trim() || null,  
+                customerId,
+                guestId,
+                employeeId,
                 items: cart.map((c) => ({ ProductID: Number(c.ProductID), Qty: normalizeQty(c.Qty) })),
                 taxRate,
             };
@@ -599,14 +667,19 @@ export default function Cashier() {
                 const orderId = body && body.orderId ? Number(body.orderId) : null;
 
                 setCart([]);
-                setCustomerName("Guest");
-                setPoints(0);
-                setPhone("");
-                setGuest(() => {
-                    const fresh = ensureSessionId({ customerId: null, sessionId: null, lastRegisterListId: null });
-                    saveGuest(fresh);
-                    return fresh;
-                });
+
+                if (!isCustomerRole || isGuestCustomer) {
+                    setCustomerName("Guest");
+                    setPoints(0);
+                    setEmail("");  
+                    setGuest(() => {
+                        const fresh = ensureSessionId({ customerId: null, sessionId: null, lastRegisterListId: null });
+                        saveGuest(fresh);
+                        return fresh;
+                    });
+                } else {
+                    setGuest(prev => ({ ...prev, lastRegisterListId: null }));
+                }
 
                 setInsufficient(new Map());
                 setOutOfStock(new Map());
@@ -661,11 +734,10 @@ export default function Cashier() {
                                 const id = p.ProductID;
                                 const disablePlus = isInsufficient(id.toString()) || isOOS(id.toString());
                                 const hideQtyControls = isOOS(id);
-                                console.log(disablePlus, hideQtyControls);
 
                                 return (
                                     <div key={id} className={`product-card ${qty > 0 ? "in-cart" : ""} ${hideQtyControls ? "is-out" : ""}`}>
-                                    {hasDiscount && (<span className="discount-badge" aria-label={`Discount ${badgeText}`}>{badgeText}</span>)}
+                                        {hasDiscount && (<span className="discount-badge" aria-label={`Discount ${badgeText}`}>{badgeText}</span>)}
                                         <img src={p.ImgPath} alt={p.Name}
                                              onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = "/products/placeholder.jpg"; }}/>
                                         <div className="product-info">
@@ -720,10 +792,10 @@ export default function Cashier() {
                 <div className="cart-header">
                     <div className="cart-title">
                         <h2>
-                            Cart {hasRealCustomer ? customerName : "Guest"}
+                            Cart {effectiveHasRealCustomer ? customerName : "Guest"}
                         </h2>
 
-                        {hasRealCustomer && (
+                        {effectiveHasRealCustomer && (
                             <div className="cart-points">
                                 <span className="points-value">{points} pts</span>
                                 <div className="points-tooltip-wrapper">
@@ -736,20 +808,23 @@ export default function Cashier() {
                         )}
                     </div>
 
-                    <div className="cart-phone">
-                        <input
-                            type="tel"
-                            placeholder="Phone No."
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className={notFound ? "error" : ""}
-                        />
-                        {hasRealCustomer ? (
-                            <button onClick={handleChangeCustomer}>Change</button>
-                        ) : (
-                            <button onClick={handlePhoneSearch}>Find</button>
-                        )}
-                    </div>
+                    {}
+                    {!isCustomerRole && (
+                        <div className="cart-phone">
+                            <input
+                                type="email"  
+                                placeholder="Email"  
+                                value={email}  
+                                onChange={(e) => setEmail(e.target.value)}  
+                                className={notFound ? "error" : ""}
+                            />
+                            {hasRealCustomer ? (
+                                <button onClick={handleChangeCustomer}>Change</button>
+                            ) : (
+                                <button onClick={handleEmailSearch}>Find</button>  
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {notFound && <div className="inline-error">Customer not found</div>}
@@ -841,7 +916,14 @@ export default function Cashier() {
 
             <Modal
                 open={showReceipt}
-                onClose={() => { setShowReceipt(false); setReceipt(null); setReceiptError(""); }}
+                onClose={() => {
+                    setShowReceipt(false);
+                    setReceipt(null);
+                    setReceiptError("");
+                    if (isCustomerRole) {
+                        handleLogout();
+                    }
+                }}
                 title="Receipt"
                 describedById="receipt-desc"
             >
@@ -868,7 +950,14 @@ export default function Cashier() {
                         className="rx-icon rx-right"
                         aria-label="Close dialog"
                         title="Close"
-                        onClick={() => { setShowReceipt(false); setReceipt(null); setReceiptError(""); }}
+                        onClick={() => {
+                            setShowReceipt(false);
+                            setReceipt(null);
+                            setReceiptError("");
+                            if (isCustomerRole) {
+                                handleLogout();
+                            }
+                        }}
                     >
                         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24">
                             <path d="M18.3 5.71 12 12.01l-6.3-6.3L4.29 7.1l6.3 6.3-6.3 6.3 1.41 1.41 6.3-6.3 6.3 6.3 1.41-1.41-6.3-6.3 6.3-6.3z" fill="currentColor"/>
@@ -881,6 +970,18 @@ export default function Cashier() {
                 {!receiptLoading && !receiptError && receipt && (
                     <div className="receipt-body">
                         <ReceiptView data={receipt} />
+
+                        {isCustomerRole && (
+                            <div style={{ marginTop: "20px", textAlign: "center" }}>
+                                <button
+                                    className="checkout-btn"
+                                    onClick={handleLogout}
+                                    style={{ width: "100%" }}
+                                >
+                                    Thank you for shopping with Grocery7
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </Modal>

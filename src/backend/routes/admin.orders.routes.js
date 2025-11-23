@@ -1,14 +1,10 @@
 
 const router = require('express').Router();
 const ctrl = require('../controllers/orders.controller');
-const cashierCtrl = require('../controllers/orders.controller');
 
 
 router.get('/recent', ctrl.recent);
-router.get('/by-product/:productId', ctrl.byProduct);
-router.get('/by-customer/:id', ctrl.byCustomer); 
 router.get('/', ctrl.list);
-router.get('/:id', ctrl.getOne); 
+router.get('/:id', ctrl.getOne);
 router.patch('/:id/reassign-customer', ctrl.reassignCustomer);
-
 module.exports = router;

@@ -2,12 +2,13 @@ const svc = require('../services/cashier.service');
 
 
 exports.lookupCustomers = (req, res) => {
-  const phone = (req.query.phone || '').trim();
-  svc.lookupCustomersByPhone(phone, (err, rows) => {
-    if (err) return res.status(500).json({ error: 'DB_ERROR' });
-    return res.json(rows);
-  });
+    const email = (req.query.email || '').trim();
+    svc.lookupCustomersByEmail(email, (err, rows) => {
+        if (err) return res.status(500).json({ error: 'DB_ERROR' });
+        return res.json(rows);
+    });
 };
+
 
 exports.quote = (req, res) => {
   const { items, taxRate } = req.body || {};

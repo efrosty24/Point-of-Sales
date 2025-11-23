@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/cashier.controller');
 
-// Customer lookup by phone
 router.get('/customers/lookup', ctrl.lookupCustomers);
 
 // Quote and Checkout (transactional)
