@@ -201,15 +201,36 @@ function CustApp() {
                 if (res.status < 200 || res.status >= 300) {
                     console.error("Create failed");
                     setServerError("Registration failed. Please try again.");
+                    alert(res.data.error || "SignUp Failed");
                     return;
                 }
+                console.log(res);
+                const customer = res.data.customer;
 
-                setUser(res.data.customer);
-                navigate("/dashboard");
+                const transformed = {
+                    id: customer.CustomerID,
+                    name: customer.FirstName + " " + customer.LastName,
+                    Phone: customer.Phone,
+                    Email: customer.Email,
+                    Address: customer.Address,
+                    City: customer.City,
+                    State: customer.State,
+                    Zip: customer.Zip,
+                    Country: customer.Country,
+                    Password: customer.Password,
+                    role: "customer",
+                    points: 0
+                };
+                console.log(transformed);
+
+                setUser(transformed);
+
+                navigate("/cashier");
             }
         } catch (error) {
             console.error('Auth error:', error);
-            setServerError(error.response?.data?.message || "Unable to connect to server");
+            setServerError(error.response?.data?.error || "Unable to connect to server");
+            alert(error.response?.data?.error || "SignUp Failed");
         } finally {
             setIsLoading(false);
         }
