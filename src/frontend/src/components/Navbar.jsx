@@ -1,15 +1,15 @@
 import { useContext, useState, useRef, useEffect } from "react";
 import "./Navbar.css";
-import api from "../utils/api.js";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { AuthContext } from "../AuthContext";
+import { useNotifications } from "../NotificationContext";
 import { Bell, Check } from "lucide-react";
 
 function Navbar({ user }) {
     const navigate = useNavigate();
     const { setUser } = useContext(AuthContext);
-    const [notifications, setNotifications] = useState([]);
+    const { notifications, fetchRestockNotifications, markAsRead } = useNotifications();
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef();
 
@@ -22,44 +22,13 @@ function Navbar({ user }) {
     const toggleDropdown = () => setShowDropdown(!showDropdown);
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const fetchRestockNotifications = async () => {
-        if (!user?.isAdmin) return;
-        try {
-            const res = await api.get("/admin/inventory/restock-orders", {
-                params: { status: "pending" },
-            });
-            const data = Array.isArray(res.data) ? res.data : [];
-
-            const formatted = data.map(order => ({
-                id: order.RestockOrderID,
-                message: `${order.ProductName} (Restock: ${order.Quantity} units)`,
-                read: order.Status === "read",
-            }));
-
-            setNotifications(formatted);
-        } catch (err) {
-            console.error("Error fetching restock notifications:", err);
-        }
-    };
-
-    const markAsRead = async (id) => {
-        setNotifications(prev =>
-            prev.map(n => (n.id === id ? { ...n, read: true } : n))
-        );
-        try {
-            await api.patch(`/admin/inventory/restock-orders/${id}`, { status: "read" });
-        } catch (err) {
-            console.error("Failed to mark notification as read:", err);
-        }
-    };
-
     useEffect(() => {
         if (user?.isAdmin) {
             fetchRestockNotifications();
-            const interval = setInterval(fetchRestockNotifications, 43200000); // 12 hr
+            const interval = setInterval(fetchRestockNotifications, 43200000);
             return () => clearInterval(interval);
         }
-    }, [user]);
+    }, [user, fetchRestockNotifications]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
