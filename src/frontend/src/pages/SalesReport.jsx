@@ -524,7 +524,7 @@ function SalesReport() {
     const handleProductClick = (product) => {
         console.log("Clicked product:", product);  // check object
         setSelectedProduct(product);
-
+        setShowModal(true);
         api.get(`/admin/orders/by-product/${product.ProductID}`)
             .then(res => {
                 console.log("Orders response:", res.data); // should show array
@@ -538,17 +538,18 @@ function SalesReport() {
 
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [customerOrders, setCustomerOrders] = useState([]);
-    async function handleCustomerClick(customer) {
+    const [showCustomerModal, setShowCustomerModal] = useState(false);
+    const handleCustomerClick = (customer) => {
         setSelectedCustomer(customer);
+        setShowCustomerModal(true);
 
-        try {
-            const res = await api.get(`/admin/orders/by-customer/${customer.CustomerID}`);
-            setCustomerOrders(res.data);
-        } catch (err) {
-            console.error("Failed loading customer orders", err);
-            setCustomerOrders([]);
-        }
-    }
+        api.get(`/admin/orders/by-customer/${customer.CustomerID}`)
+            .then((res) => setCustomerOrders(res.data))
+            .catch((err) => {
+                console.error("Failed to fetch customer orders:", err);
+                setCustomerOrders([]);
+            });
+    };
 
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryTransactions, setCategoryTransactions] = useState([]);
@@ -752,9 +753,12 @@ function SalesReport() {
 
             {}
             <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tab id="products" label="Product Performance">
+                <Tab id="products" label="Product Performance" >
                     <div className="tab-content">
                         <h2>Product Performance by Category & Supplier</h2>
+                        <p className="click-hint">
+                            Click on a product row to view details and related orders.
+                        </p>
                         <div className="table-wrapper">
                             <table className="sales-table">
                                 <thead>
@@ -807,125 +811,171 @@ function SalesReport() {
                             setCurrentPage={setProductPage}
                             totalItems={filteredProductPerformance.length}
                         />
+                        {showModal && (
+                            <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                                <div className="modal-container" onClick={(e) => e.stopPropagation()}>
 
-                        {selectedProduct && (
-                        <div className="related-orders">
-                            <h3>Orders Containing {selectedProduct.ProductName}</h3>
+                                    <button 
+                                        className="modal-close"
+                                        onClick={() => setShowModal(false)}
+                                    >
+                                        ×
+                                    </button>
 
-                            {productOrders.length ? (
-                            <table className="orders-table">
-                                <thead>
-                                <tr>
-                                    <th>Order ID</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Quantity</th>
-                                    <th>Product Total ($)</th>
-                                    <th>Customer</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {productOrders.map(order => (
-                                    <tr key={order.OrderID}>
-                                    <td>{order.OrderID}</td>
-                                    <td>{new Date(order.DatePlaced).toLocaleString()}</td>
-                                    <td>{order.Status}</td>
-                                    <td>{order.Quantity}</td>
-                                    <td>${order.ProductTotal}</td>
-                                    <td>{order.CustomerFirst || order.CustomerLast ? `${order.CustomerFirst} ${order.CustomerLast}` : 'Guest'}</td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                            ) : (
-                            <p>No orders found for this product.</p>
-                            )}
-                        </div>
+                                    {selectedProduct && (
+                                        <div className="related-orders">
+                                            <h2>{selectedProduct.ProductName}</h2>
+                                            <hr />
+
+                                            <h3>Orders Containing This Product</h3>
+
+                                            {productOrders.length > 0 ? (
+                                                <table className="orders-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Order ID</th>
+                                                            <th>Date</th>
+                                                            <th>Status</th>
+                                                            <th>Quantity</th>
+                                                            <th>Product Total ($)</th>
+                                                            <th>Customer</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {productOrders.map((order) => (
+                                                            <tr key={order.OrderID}>
+                                                                <td>{order.OrderID}</td>
+                                                                <td>{new Date(order.DatePlaced).toLocaleString()}</td>
+                                                                <td>{order.Status}</td>
+                                                                <td>{order.Quantity}</td>
+                                                                <td>${order.ProductTotal}</td>
+                                                                <td>
+                                                                    {order.CustomerFirst || order.CustomerLast
+                                                                        ? `${order.CustomerFirst} ${order.CustomerLast}`
+                                                                        : "Guest"}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            ) : (
+                                                <p>No orders found for this product.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         )}
-
                     </div>
                 </Tab>
                 
                 <Tab id="customers" label="Customer Analytics">
                     <div className="tab-content">
+
                         <h2>Customer Purchase Analytics</h2>
+
+                        {/* Hint */}
+                        <p className="click-hint">
+                            Click on a customer row to view details and orders.
+                        </p>
+
+                        {/* Customer Table */}
                         <div className="table-wrapper">
                             <table className="sales-table">
                                 <thead>
-                                <tr>
-                                    <th>Customer</th>
-                                    <th>Email</th>
-                                    <th>Orders</th>
-                                    <th>Total Spent ($)</th>
-                                    <th>Avg Order ($)</th>
-                                    <th>Items Bought</th>
-                                    <th>Loyalty Points</th>
-                                    <th>Last Purchase</th>
-                                </tr>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Email</th>
+                                        <th>Orders</th>
+                                        <th>Total Spent ($)</th>
+                                        <th>Avg Order ($)</th>
+                                        <th>Items Bought</th>
+                                        <th>Loyalty Points</th>
+                                        <th>Last Purchase</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                {paginatedCustomers.length ? (
-                                    paginatedCustomers.map((c) => (
-                                        <tr key={c.CustomerID} 
-                                            onClick={() => handleCustomerClick(c)}
-                                            className="clickable-row">
-                                            <td>{c.CustomerName}</td>
-                                            <td>{c.Email || 'N/A'}</td>
-                                            <td>{c.TotalOrders}</td>
-                                            <td className="revenue-cell">${formatCurrency(c.TotalSpent)}</td>
-                                            <td>${formatCurrency(c.AvgOrderValue)}</td>
-                                            <td>{c.TotalItemsBought}</td>
-                                            <td>{c.LoyaltyPoints}</td>
-                                            <td className="date-cell">{formatDate(c.LastPurchaseDate)}</td>
+                                    {paginatedCustomers.length ? (
+                                        paginatedCustomers.map((c) => (
+                                            <tr
+                                                key={c.CustomerID}
+                                                className="clickable-row"
+                                                onClick={() => handleCustomerClick(c)}
+                                            >
+                                                <td>{c.CustomerName}</td>
+                                                <td>{c.Email || "N/A"}</td>
+                                                <td>{c.TotalOrders}</td>
+                                                <td className="revenue-cell">${formatCurrency(c.TotalSpent)}</td>
+                                                <td>${formatCurrency(c.AvgOrderValue)}</td>
+                                                <td>{c.TotalItemsBought}</td>
+                                                <td>{c.LoyaltyPoints}</td>
+                                                <td className="date-cell">{formatDate(c.LastPurchaseDate)}</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="8">No customers found</td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="8">No customers found</td>
-                                    </tr>
-                                )}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Pagination */}
                         <Pagination
                             currentPage={customerPage}
                             setCurrentPage={setCustomerPage}
                             totalItems={filteredCustomerAnalytics.length}
                         />
 
-                        {selectedCustomer && (
-                            <div className="customer-orders">
-                                <h3>Orders for {selectedCustomer.CustomerName}</h3>
+                        {/* Modal */}
+                        {showCustomerModal && (
+                            <div className="modal-overlay" onClick={() => setShowCustomerModal(false)}>
+                                <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        className="modal-close"
+                                        onClick={() => setShowCustomerModal(false)}
+                                    >
+                                        ×
+                                    </button>
 
-                                {customerOrders.length ? (
-                                    <table className="orders-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Order ID</th>
-                                                <th>Date</th>
-                                                <th>Status</th>
-                                                <th>Items</th>
-                                                <th>Total ($)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {customerOrders.map(order => (
-                                                <tr key={order.OrderID}>
-                                                    <td>{order.OrderID}</td>
-                                                    <td>{formatDate(order.DatePlaced)}</td>
-                                                    <td>{order.Status}</td>
-                                                    <td>{order.ItemCount}</td>
-                                                    <td>${formatCurrency(order.Total)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                ) : (
-                                    <p>No orders found for this customer.</p>
-                                )}
+                                    {selectedCustomer && (
+                                        <div className="customer-orders">
+                                            <h2>{selectedCustomer.CustomerName}</h2>
+                                            <hr />
+                                            <h3>Orders for {selectedCustomer.CustomerName}</h3>
+
+                                            {customerOrders.length ? (
+                                                <table className="orders-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Order ID</th>
+                                                            <th>Date</th>
+                                                            <th>Status</th>
+                                                            <th>Items</th>
+                                                            <th>Total ($)</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {customerOrders.map((order) => (
+                                                            <tr key={order.OrderID}>
+                                                                <td>{order.OrderID}</td>
+                                                                <td>{formatDate(order.DatePlaced)}</td>
+                                                                <td>{order.Status}</td>
+                                                                <td>{order.ItemCount}</td>
+                                                                <td>${formatCurrency(order.Total)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            ) : (
+                                                <p>No orders found for this customer.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
-
                     </div>
                 </Tab>
 
