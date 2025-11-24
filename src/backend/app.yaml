@@ -10,8 +10,8 @@ entrypoint: npm start
 # =========================================================================
 env_variables:
   DB_USER: "web-auth"
-  DB_PASSWORD: "root"
-  DB_NAME: "Admin@7!"
+  DB_PASSWORD: "Webauth@7"
+  DB_NAME: "POSDB"
   CLOUD_SQL_CONNECTION_NAME: "point-of-sales-476509:us-central1:possystem"
 
   # Optional: Set Node environment
