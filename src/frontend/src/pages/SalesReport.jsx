@@ -577,7 +577,7 @@ function SalesReport() {
         try {
             const res = await api.get('/admin/reports/sales-trends/details', {
                 params: {
-                    date: row.SaleDate.split(" ")[0], // YYYY-MM-DD
+                    date: String(row.SaleDate).slice(0, 10),
                     hour: row.HourOfDay,
                     from: filters.from,
                     to: filters.to
@@ -949,7 +949,10 @@ function SalesReport() {
                                 <tbody>
                                 {paginatedCategories.length ? (
                                     paginatedCategories.map((c) => (
-                                        <tr key={c.CategoryID}>
+                                        <tr key={c.CategoryID}
+                                            onClick={() => handleCategoryClick(c)}
+                                            className="clickable-row"
+                                        >
                                             <td>{c.CategoryName}</td>
                                             <td>{c.OrderCount}</td>
                                             <td>{c.UniqueProducts}</td>
@@ -996,22 +999,25 @@ function SalesReport() {
                                 <tbody>
                                 {paginatedTrends.length ? (
                                     paginatedTrends.map((t, idx) => (
-                                        <tr key={idx}>
-                                            <td>{t.DayOfWeek}</td>
-                                            <td className="date-cell">{formatDate(t.SaleDate)}</td>
-                                            <td>{t.HourOfDay}:00</td>
-                                            <td>{t.OrderCount}</td>
-                                            <td>{t.UniqueCustomers}</td>
-                                            <td className="revenue-cell">${formatCurrency(t.TotalRevenue)}</td>
-                                            <td>${formatCurrency(t.AvgOrderValue)}</td>
-                                            <td>{parseFloat(t.AvgItemsPerOrder).toFixed(1)}</td>
+                                            <tr key={idx}
+                                                onClick={() => handleTrendRowClick(t)}
+                                                className="clickable-row"
+                                            >
+                                                <td>{t.DayOfWeek}</td>
+                                                <td className="date-cell">{formatDate(t.SaleDate)}</td>
+                                                <td>{t.HourOfDay}:00</td>
+                                                <td>{t.OrderCount}</td>
+                                                <td>{t.UniqueCustomers}</td>
+                                                <td className="revenue-cell">${formatCurrency(t.TotalRevenue)}</td>
+                                                <td>${formatCurrency(t.AvgOrderValue)}</td>
+                                                <td>{parseFloat(t.AvgItemsPerOrder).toFixed(1)}</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="8">No trends data found</td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="8">No trends data found</td>
-                                    </tr>
-                                )}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
