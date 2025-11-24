@@ -49,8 +49,7 @@ exports.authenticateCustomer = (email, password, callback) => {
                 customer: {
                     id: customer.CustomerID,
                     Email: customer.Email,
-                    FirstName: customer.FirstName,
-                    LastName: customer.LastName,
+                    name: customer.FirstName + " " + customer.LastName,
                     role: "customer",
                     points: customer.Points,
                 }
