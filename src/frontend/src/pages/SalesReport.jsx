@@ -550,6 +550,45 @@ function SalesReport() {
         }
     }
 
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [categoryTransactions, setCategoryTransactions] = useState([]);
+
+    const handleCategoryClick = async (category) => {
+        setSelectedCategory(category);
+
+        try {
+            const res = await api.get(
+                `/admin/reports/category/${category.CategoryID}/transactions`,
+                { params: { from: filters.from, to: filters.to } }
+            );
+            setCategoryTransactions(res.data);
+        } catch (err) {
+            console.error("Failed loading category transactions", err);
+            setCategoryTransactions([]);
+        }
+    };
+
+    const [selectedTrendRow, setSelectedTrendRow] = useState(null);
+    const [trendDetails, setTrendDetails] = useState([]);
+
+    const handleTrendRowClick = async (row) => {
+        setSelectedTrendRow(row);
+        
+        try {
+            const res = await api.get('/admin/reports/sales-trends/details', {
+                params: {
+                    date: row.SaleDate.split(" ")[0], // YYYY-MM-DD
+                    hour: row.HourOfDay,
+                    from: filters.from,
+                    to: filters.to
+                }
+            });
+            setTrendDetails(res.data);
+        } catch (err) {
+            console.error("Failed loading trend details", err);
+            setTrendDetails([]);
+        }
+    };
 
     return (
         <div className="sales-report-container">

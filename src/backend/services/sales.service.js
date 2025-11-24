@@ -438,4 +438,121 @@ exports.getEmployeePerformance = (filters, cb) => {
     });
 };
 
+exports.categoryTransactions = ({ categoryId, from, to }, cb) => {
+    const params = [categoryId];
+    const whereClauses = [];
+
+    if (from) {
+        whereClauses.push("DATE(o.DatePlaced) >= ?");
+        params.push(from);
+    }
+
+    if (to) {
+        whereClauses.push("DATE(o.DatePlaced) <= ?");
+        params.push(to);
+    }
+
+    const whereClause = whereClauses.length
+        ? `AND ${whereClauses.join(" AND ")}`
+        : "";
+
+    const sql = `
+        SELECT
+            o.OrderID,
+            o.DatePlaced,
+            o.Subtotal,
+            o.Tax,
+            o.Total,
+            o.Status,
+
+            cu.CustomerID,
+            CONCAT(cu.FirstName, ' ', cu.LastName) AS CustomerName,
+
+            e.EmployeeID,
+            CONCAT(e.FirstName, ' ', e.LastName) AS EmployeeName,
+
+            od.OrderDetailID,
+            od.ProductID,
+            p.Name AS ProductName,
+            od.Quantity,
+            od.Price,
+            (od.Quantity * od.Price) AS LineTotal
+
+        FROM Orders o
+        JOIN OrderDetails od ON o.OrderID = od.OrderID
+        JOIN Products p ON od.ProductID = p.ProductID
+        LEFT JOIN Customers cu ON cu.CustomerID = o.CustomerID
+        LEFT JOIN Employees e ON e.EmployeeID = o.EmployeeID
+
+        WHERE p.CategoryID = ?
+        ${whereClause}
+
+        ORDER BY o.DatePlaced DESC, o.OrderID, od.OrderDetailID;
+    `;
+
+    db.query(sql, params, cb);
+};
+
+exports.salesTrendsDetails = ({ date, hour, from, to }, cb) => {
+    const params = [date, Number(hour)];
+    const whereClauses = [];
+
+    if (from) {
+        whereClauses.push(
+            "DATE(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) >= ?"
+        );
+        params.push(from);
+    }
+    if (to) {
+        whereClauses.push(
+            "DATE(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) <= ?"
+        );
+        params.push(to);
+    }
+
+    const whereAddon = whereClauses.length ? `AND ${whereClauses.join(" AND ")}` : "";
+
+    const sql = `
+        SELECT
+            o.OrderID,
+            CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago') AS LocalDatePlaced,
+            o.Subtotal,
+            o.Tax,
+            o.Total,
+            o.Status,
+
+            cu.CustomerID,
+            CONCAT(cu.FirstName, ' ', cu.LastName) AS CustomerName,
+
+            e.EmployeeID,
+            CONCAT(e.FirstName, ' ', e.LastName) AS EmployeeName,
+
+            od.OrderDetailID,
+            od.ProductID,
+            p.Name AS ProductName,
+            od.Quantity,
+            od.Price,
+            (od.Quantity * od.Price) AS LineTotal,
+
+            cat.CategoryID,
+            cat.CategoryName
+
+        FROM Orders o
+        JOIN OrderDetails od ON o.OrderID = od.OrderID
+        JOIN Products p ON od.ProductID = p.ProductID
+        JOIN Categories cat ON p.CategoryID = cat.CategoryID
+        LEFT JOIN Customers cu ON o.CustomerID = cu.CustomerID
+        LEFT JOIN Employees e ON e.EmployeeID = o.EmployeeID
+
+        WHERE
+            DATE(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) = ?
+            AND HOUR(CONVERT_TZ(o.DatePlaced, '+00:00', 'America/Chicago')) = ?
+            ${whereAddon}
+
+        ORDER BY o.DatePlaced DESC, o.OrderID, od.OrderDetailID;
+    `;
+
+    db.query(sql, params, cb);
+};
+
 module.exports = exports;
