@@ -74,7 +74,7 @@ export default function Suppliers() {
 
         
         if (!formData.Phone.trim()) {
-            showError("Phone number is required");
+            showError("Phone number is reqired");
             return false;
         }
         if (!validatePhone(formData.Phone)) {
