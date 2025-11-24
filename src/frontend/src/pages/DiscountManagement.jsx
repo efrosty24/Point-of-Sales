@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import "./DiscountManagement.css";
-import api from "../utils/api.js"; 
+import api from "../utils/api.js";
+import { useConfirm } from '../ConfirmContext';
 
 export default function DiscountManagement() {
   const [events, setEvents] = useState([]);
@@ -13,6 +14,7 @@ export default function DiscountManagement() {
   const [showEditDiscount, setShowEditDiscount] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(null);
   const eventNameRef = useRef(null);
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     fetchEvents();
@@ -150,7 +152,14 @@ export default function DiscountManagement() {
   }
 
   async function deleteDiscount(id) {
-    if (!window.confirm("Delete discount?")) return;
+      const isConfirmed = await confirm({
+          title: 'Delete discount',
+          message: 'Are you sure you want to delete this discount?',
+          confirmText: 'Delete',
+          cancelText: 'Cancel'
+      });
+
+      if (!isConfirmed) return;
     try {
       const res = await api.delete(`/admin/discounts/${id}`);
       if (res.status === 200 || (res.data && res.data.ok)) {
@@ -218,18 +227,25 @@ export default function DiscountManagement() {
   }
 
   async function deleteEvent(id) {
-    if (!window.confirm("Delete this event? All its discounts will also be deleted.")) return;
-    try {
-      await api.delete(`/admin/sale-events/${id}`);
-      setMsg("Event deleted");
-      if (selectedEventId === id) {
-        setSelectedEventId(null);
+      const isConfirmed = await confirm({
+          title: 'Delete Event',
+          message: 'Are you sure you want to delete this Event? All its discounts will also be deleted.',
+          confirmText: 'Delete',
+          cancelText: 'Cancel'
+      });
+
+      if (!isConfirmed) return;
+      try {
+          await api.delete(`/admin/sale-events/${id}`);
+          setMsg("Event deleted");
+          if (selectedEventId === id) {
+            setSelectedEventId(null);
+          }
+          await fetchEvents();
+          fetchAllDiscounts();
+      } catch (err) {
+          setMsg(err?.response?.data?.error || "Failed to delete event");
       }
-      await fetchEvents();
-      fetchAllDiscounts();
-    } catch (err) {
-      setMsg(err?.response?.data?.error || "Failed to delete event");
-    }
   }
 
   return (
@@ -345,7 +361,6 @@ export default function DiscountManagement() {
           </div>
         )}
 
-        {/* Edit Discount Modal */}
         {showEditDiscount && editingDiscount && (
           <div className="overlay">
             <form className="modal" onSubmit={updateDiscount}>

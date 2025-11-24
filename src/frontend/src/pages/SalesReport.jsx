@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import "./SalesReport.css";
 import api from "../utils/api.js";
+import { useAlert } from '../AlertContext';
 
 
 const exportToCSV = () => {
@@ -153,6 +154,8 @@ function useDebounced(value, delay = 450) {
 }
 
 function SalesReport() {
+
+    const { showSuccess, showError } = useAlert();
     const [summary, setSummary] = useState({});
     const [productPerformance, setProductPerformance] = useState([]);
     const [customerAnalytics, setCustomerAnalytics] = useState([]);
@@ -447,7 +450,7 @@ function SalesReport() {
                 setSelectedOrder(res.data);
                 setShowModal(true);
             })
-            .catch(() => alert("Failed to fetch order details"));
+            .catch(() => showError("Failed to fetch order details"));
     };
 
     const closeModal = () => {
@@ -500,11 +503,11 @@ function SalesReport() {
 
         const headers = Object.keys(data[0]);
         const csvRows = [
-            headers.join(","), // header row
+            headers.join(","), 
             ...data.map(row =>
                 headers.map(field => {
                     const val = row[field] ?? "";
-                    return `"${String(val).replace(/"/g, '""')}"`; // escape quotes
+                    return `"${String(val).replace(/"/g, '""')}"`; 
                 }).join(",")
             )
         ];
@@ -522,12 +525,12 @@ function SalesReport() {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [productOrders, setProductOrders] = useState([]);
     const handleProductClick = (product) => {
-        console.log("Clicked product:", product);  // check object
+        console.log("Clicked product:", product);  
         setSelectedProduct(product);
 
         api.get(`/admin/orders/by-product/${product.ProductID}`)
             .then(res => {
-                console.log("Orders response:", res.data); // should show array
+                console.log("Orders response:", res.data); 
                 setProductOrders(res.data);
             })
             .catch(err => {

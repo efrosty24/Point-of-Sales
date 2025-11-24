@@ -2,8 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X } from "lucide-react";
 import "./SupplierList.css";
 import api from "../utils/api";
+import { useConfirm } from '../ConfirmContext';
+import { useAlert } from '../AlertContext';
 
 export default function Suppliers() {
+    const { confirm } = useConfirm();
+    const { showSuccess, showError } = useAlert();
     const [suppliers, setSuppliers] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [filteredSuppliers, setFilteredSuppliers] = useState([]);
@@ -38,8 +42,58 @@ export default function Suppliers() {
             setSuppliers(res.data);
         } catch (err) {
             console.error("Error loading suppliers:", err);
+            showError("Failed to load suppliers. Please try again.");
         }
     }
+
+    
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validatePhone = (phone) => {
+        const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
+        return phoneRegex.test(phone);
+    };
+
+    const validateForm = () => {
+        
+        if (!formData.Name.trim()) {
+            showError("Supplier name is required");
+            return false;
+        }
+        if (formData.Name.trim().length < 2) {
+            showError("Supplier name must be at least 2 characters");
+            return false;
+        }
+        if (formData.Name.trim().length > 100) {
+            showError("Supplier name must not exceed 100 characters");
+            return false;
+        }
+
+        
+        if (!formData.Phone.trim()) {
+            showError("Phone number is required");
+            return false;
+        }
+        if (!validatePhone(formData.Phone)) {
+            showError("Please enter a valid phone number");
+            return false;
+        }
+
+        
+        if (!formData.Email.trim()) {
+            showError("Email is required");
+            return false;
+        }
+        if (!validateEmail(formData.Email)) {
+            showError("Please enter a valid email address");
+            return false;
+        }
+
+        return true;
+    };
 
     function openModal(supplier = null) {
         if (supplier) {
@@ -62,26 +116,50 @@ export default function Suppliers() {
 
     async function saveSupplier(e) {
         e.preventDefault();
+
+        if (!validateForm()) {
+            return;
+        }
+
         try {
             if (currentSupplier) {
                 await api.patch(`/admin/inventory/suppliers/${currentSupplier.SupplierID}`, formData);
+                showSuccess("Supplier updated successfully!");
             } else {
                 await api.post("/admin/inventory/suppliers", formData);
+                showSuccess("Supplier added successfully!");
             }
             loadSuppliers();
             closeModal();
         } catch (err) {
             console.error("Save error:", err);
+            showError(currentSupplier
+                ? "Failed to update supplier. Please try again."
+                : "Failed to add supplier. Please try again.");
         }
     }
 
     async function deleteSupplier(id) {
-        if (!window.confirm("Are you sure you want to delete this supplier?")) return;
+        const isConfirmed = await confirm({
+            title: 'Delete Supplier',
+            message: 'Are you sure you want to delete this supplier? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+
+        if (!isConfirmed) return;
+
         try {
             await api.delete(`/admin/inventory/suppliers/${id}`);
+            showSuccess("Supplier deleted successfully!");
             loadSuppliers();
         } catch (err) {
-            console.error("Delete error:", err);
+            if(err.response.data.error === "SUPPLIER_IN_USE") {
+                showError("You cannot delete this supplier yet. To proceed, please remove all products currently associated with them.");
+            } else {
+                console.error("Delete error:", err);
+                showError("Failed to delete supplier. Please try again.");
+            }
         }
     }
 
@@ -180,7 +258,7 @@ export default function Suppliers() {
                                         onChange={(e) => setFormData({ ...formData, Name: e.target.value })}
                                         placeholder=" "
                                     />
-                                    <label>Supplier Name</label>
+                                    <label>Supplier Name *</label>
                                 </div>
                                 <div className="input-group">
                                     <input
@@ -190,7 +268,7 @@ export default function Suppliers() {
                                         onChange={(e) => setFormData({ ...formData, Phone: e.target.value })}
                                         placeholder=" "
                                     />
-                                    <label>Phone</label>
+                                    <label>Phone *</label>
                                 </div>
                                 <div className="input-group">
                                     <input
@@ -200,7 +278,7 @@ export default function Suppliers() {
                                         onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
                                         placeholder=" "
                                     />
-                                    <label>Email</label>
+                                    <label>Email *</label>
                                 </div>
                                 <div className="modal-footer">
                                     <button type="button" className="cancel-btn" onClick={closeModal}>

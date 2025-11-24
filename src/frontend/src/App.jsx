@@ -3,20 +3,39 @@ import api from "./utils/api.js";
 import { useNavigate } from "react-router-dom";
 import "./App.css";
 import { AuthContext } from "./AuthContext";
+import { useAlert } from "./AlertContext";
 
 function App() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { setUser } = useContext(AuthContext);
+    const { showError, showSuccess } = useAlert();
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError("");
+
+        if (!email.trim()) {
+            showError("Please enter your email address.");
+            setLoading(false);
+            return;
+        }
+
+        if (!password.trim()) {
+            showError("Please enter your password.");
+            setLoading(false);
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showError("Please enter a valid email address.");
+            setLoading(false);
+            return;
+        }
 
         try {
             const response = await api.post("/api/login", {
@@ -26,18 +45,31 @@ function App() {
 
             if (response.data.success) {
                 setUser(response.data.employee);
+                showSuccess("Login successful! Redirecting...");
                 console.log(response.data);
-                navigate("/dashboard");
+                setTimeout(() => {
+                    navigate("/dashboard");
+                }, 500);
             } else {
-                setError(response.data.message || "Login failed");
+                if(response.data.message === "InvalidUP"){
+                    showError("Invalid email or password. Please try again.");
+                }else {
+                    showError("Login failed. Please try again.");
+                }
             }
         } catch (e) {
             if (e.response?.status === 401) {
-                setError("Invalid email or password");
+                showError("Invalid email or password. Please try again.");
+            } else if (e.response?.status === 403) {
+                showError("Your account has been deactivated. Please contact an administrator.");
+            } else if (e.response?.status === 500) {
+                showError("Server error. Please try again later.");
+            } else if (e.code === "ERR_NETWORK") {
+                showError("Unable to connect to server. Please check your internet connection.");
             } else {
-                setError("Unable to connect to server");
+                showError("An unexpected error occurred. Please try again.");
             }
-            console.log(e);
+            console.error("Login error:", e);
         } finally {
             setLoading(false);
         }
@@ -45,7 +77,7 @@ function App() {
 
     return (
         <div className="auth-container">
-            
+
             <div className="auth-bg">
                 <div className="bg-orb bg-orb-1"></div>
                 <div className="bg-orb bg-orb-2"></div>
@@ -53,9 +85,9 @@ function App() {
                 <div className="grid-overlay"></div>
             </div>
 
-            
+
             <div className="auth-card">
-                
+
                 <div className="auth-branding">
                     <div className="brand-content">
                         <h1 className="brand-name">Grocery7</h1>
@@ -92,7 +124,7 @@ function App() {
                     </div>
                 </div>
 
-                
+
                 <div className="auth-form-section">
                     <div className="form-container">
                         <div className="form-header">
@@ -101,15 +133,6 @@ function App() {
                                 Enter your credentials to access the system
                             </p>
                         </div>
-
-                        {error && (
-                            <div className="server-error">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                                </svg>
-                                <span>{error}</span>
-                            </div>
-                        )}
 
                         <form className="auth-form" onSubmit={handleLogin}>
                             <div className="form-group">
@@ -123,9 +146,9 @@ function App() {
                                         id="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        required
                                         placeholder="employee@grocery7.com"
                                         autoComplete="email"
+                                        disabled={loading}
                                     />
                                 </div>
                             </div>
@@ -141,15 +164,16 @@ function App() {
                                         id="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        required
                                         placeholder="Enter your password"
                                         autoComplete="current-password"
+                                        disabled={loading}
                                     />
                                     <button
                                         type="button"
                                         className="toggle-password"
                                         onClick={() => setShowPassword(!showPassword)}
                                         aria-label={showPassword ? "Hide password" : "Show password"}
+                                        disabled={loading}
                                     >
                                         {showPassword ? (
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2">

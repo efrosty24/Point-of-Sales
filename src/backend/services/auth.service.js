@@ -9,7 +9,7 @@ exports.findEmployeeById = (employeeId, cb) => {
 };
 
 exports.findEmployeeByEmail = (email, cb) => {
-    const sql = 'SELECT * FROM Employees WHERE LOWER(Email) = LOWER(?) LIMIT 1';
+    const sql = 'SELECT * FROM Employees WHERE LOWER(Email) = LOWER(?) AND isActive = 1 LIMIT 1';
     db.query(sql, [email], (err, rows) => {
         if (err) return cb(err);
         cb(null, rows[0] || null);

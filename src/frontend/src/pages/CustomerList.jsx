@@ -1,8 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Plus, Search, Edit, Ban, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import "./CustomerList.css";
-import api from "../utils/api.js"; 
+import api from "../utils/api.js";
+
+import { useAlert } from '../AlertContext';
+
 export default function CustomerList() {
+    const { showSuccess, showError, showWarning, showInfo } = useAlert();
     const [customers, setCustomers] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [showModal, setShowModal] = useState(false);
@@ -24,7 +28,7 @@ export default function CustomerList() {
 
     const fetchCustomers = async (search = "") => {
         const params = {};
-        if (search) params.name = search; 
+        if (search) params.name = search;
         const res = await api.get("/admin/customers", { params });
         const data = res.data;
         const mapped = (data.customers || []).map((c) => ({
@@ -59,6 +63,104 @@ export default function CustomerList() {
         const start = (currentPage - 1) * pageSize;
         return filteredCustomers.slice(start, start + pageSize);
     }, [filteredCustomers, currentPage]);
+
+    
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validatePhone = (phone) => {
+        const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
+        return phoneRegex.test(phone);
+    };
+
+    const validateZip = (zip) => {
+        const zipRegex = /^\d{5}(-\d{4})?$/;
+        return zipRegex.test(zip);
+    };
+
+    const validateForm = () => {
+        
+        if (!formData.FirstName.trim()) {
+            showError("First name is required");
+            return false;
+        }
+        if (formData.FirstName.trim().length < 2) {
+            showError("First name must be at least 2 characters");
+            return false;
+        }
+        if (formData.FirstName.trim().length > 50) {
+            showError("First name must not exceed 50 characters");
+            return false;
+        }
+
+        
+        if (!formData.LastName.trim()) {
+            showError("Last name is required");
+            return false;
+        }
+        if (formData.LastName.trim().length < 2) {
+            showError("Last name must be at least 2 characters");
+            return false;
+        }
+        if (formData.LastName.trim().length > 50) {
+            showError("Last name must not exceed 50 characters");
+            return false;
+        }
+
+        
+        if (!formData.Phone.trim()) {
+            showError("Phone number is required");
+            return false;
+        }
+        if (!validatePhone(formData.Phone)) {
+            showError("Please enter a valid phone number");
+            return false;
+        }
+
+        
+        if (!formData.Email.trim()) {
+            showError("Email is required");
+            return false;
+        }
+        if (!validateEmail(formData.Email)) {
+            showError("Please enter a valid email address");
+            return false;
+        }
+
+        
+        if (formData.Address.trim() && formData.Address.trim().length > 100) {
+            showError("Address must not exceed 100 characters");
+            return false;
+        }
+
+        
+        if (formData.City.trim() && formData.City.trim().length > 50) {
+            showError("City must not exceed 50 characters");
+            return false;
+        }
+
+        
+        if (formData.State.trim() && formData.State.trim().length > 50) {
+            showError("State must not exceed 50 characters");
+            return false;
+        }
+
+        
+        if (formData.Zip.trim() && !validateZip(formData.Zip)) {
+            showError("Please enter a valid ZIP code (e.g., 12345 or 12345-6789)");
+            return false;
+        }
+
+        
+        if (formData.Country.trim() && formData.Country.trim().length > 50) {
+            showError("Country must not exceed 50 characters");
+            return false;
+        }
+
+        return true;
+    };
 
     const openModal = (customer = null) => {
         setEditCustomer(customer);
@@ -108,45 +210,69 @@ export default function CustomerList() {
     };
 
     const handleSave = async () => {
-        const payload = { ...formData };
-
-        if (editCustomer) {
-            const id = editCustomer.id;
-            const res = await api.put(`/admin/customers/${id}`, payload);
-            if (res.status < 200 || res.status >= 300) {
-                console.error("Update failed");
-                return;
-            }
-            await fetchCustomers(searchTerm).catch(console.error);
-        } else {
-            const res = await api.post(`/admin/customers`, payload);
-            if (res.status < 200 || res.status >= 300) {
-                console.error("Create failed");
-                return;
-            }
-            await fetchCustomers(searchTerm).catch(console.error);
+        
+        if (!validateForm()) {
+            return;
         }
-        closeModal();
+
+        try {
+            const payload = { ...formData };
+
+            if (editCustomer) {
+                const id = editCustomer.id;
+                const res = await api.put(`/admin/customers/${id}`, payload);
+                if (res.status < 200 || res.status >= 300) {
+                    showError("Failed to update customer");
+                    return;
+                }
+                showSuccess("Customer updated successfully");
+                await fetchCustomers(searchTerm).catch(console.error);
+            } else {
+                const res = await api.post(`/admin/customers`, payload);
+                if (res.status < 200 || res.status >= 300) {
+                    showError("Failed to create customer");
+                    return;
+                }
+                showSuccess("Customer created successfully");
+                await fetchCustomers(searchTerm).catch(console.error);
+            }
+            closeModal();
+        } catch (error) {
+            showError(editCustomer ? "Failed to update customer" : "Failed to create customer");
+            console.error(error);
+        }
     };
 
     const handleDelete = async (id) => {
-        const res = await api.delete(`/admin/customers/${id}`);
-        if (res.status !== 200 && res.status !== 204) {
-            console.error(res);
-            console.error("Delete failed");
-            return;
+        try {
+            const res = await api.delete(`/admin/customers/${id}`);
+            if (res.status !== 200 && res.status !== 204) {
+                console.error(res);
+                showError("Failed to deactivate customer");
+                return;
+            }
+            showSuccess("Customer deactivated successfully");
+            await fetchCustomers(searchTerm).catch(console.error);
+        } catch (error) {
+            showError("Failed to deactivate customer");
+            console.error(error);
         }
-        await fetchCustomers(searchTerm).catch(console.error);
     };
 
     const handleReactivate = async (id) => {
-        const res = await api.put(`/admin/customers/${id}/reactivate`, { isActive: 1 });
-        if (res.status < 200 || res.status >= 300) {
-            console.error(res);
-            console.error("Reactivate failed");
-            return;
+        try {
+            const res = await api.put(`/admin/customers/${id}/reactivate`, { isActive: 1 });
+            if (res.status < 200 || res.status >= 300) {
+                console.error(res);
+                showError("Failed to reactivate customer");
+                return;
+            }
+            showSuccess("Customer reactivated successfully");
+            await fetchCustomers(searchTerm).catch(console.error);
+        } catch (error) {
+            showError("Failed to reactivate customer");
+            console.error(error);
         }
-        await fetchCustomers(searchTerm).catch(console.error);
     };
 
     const handleSearch = (e) => {
@@ -272,7 +398,7 @@ export default function CustomerList() {
 
                         <div className="modal-right">
                             <div className="form-body">
-                                {/* FirstName */}
+                                {}
                                 <div className="input-group">
                                     <input
                                         type="text"
@@ -282,10 +408,10 @@ export default function CustomerList() {
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
-                                    <label>First Name</label>
+                                    <label>First Name *</label>
                                 </div>
 
-                                {/* LastName */}
+                                {}
                                 <div className="input-group">
                                     <input
                                         type="text"
@@ -295,10 +421,10 @@ export default function CustomerList() {
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
-                                    <label>Last Name</label>
+                                    <label>Last Name *</label>
                                 </div>
 
-                                {/* Phone */}
+                                {}
                                 <div className="input-group">
                                     <input
                                         type="text"
@@ -308,10 +434,10 @@ export default function CustomerList() {
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
-                                    <label>Phone</label>
+                                    <label>Phone *</label>
                                 </div>
 
-                                {/* Email */}
+                                {}
                                 <div className="input-group">
                                     <input
                                         type="email"
@@ -321,10 +447,10 @@ export default function CustomerList() {
                                         onFocus={(e) => e.target.classList.add("focused")}
                                         onBlur={(e) => e.target.classList.remove("focused")}
                                     />
-                                    <label>Email</label>
+                                    <label>Email *</label>
                                 </div>
 
-                                {/* Address */}
+                                {}
                                 <div className="input-group full">
                                     <input
                                         type="text"
@@ -337,7 +463,7 @@ export default function CustomerList() {
                                     <label>Address</label>
                                 </div>
 
-                                {/* City + State */}
+                                {}
                                 <div className="grid-two">
                                     <div className="input-group">
                                         <input
@@ -363,7 +489,7 @@ export default function CustomerList() {
                                     </div>
                                 </div>
 
-                                {/* Zip + Country */}
+                                {}
                                 <div className="grid-two">
                                     <div className="input-group">
                                         <input

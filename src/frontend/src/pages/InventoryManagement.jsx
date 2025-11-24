@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import "./InventoryManagement.css";
 import api from "../utils/api.js";
+import { useConfirm } from '../ConfirmContext';
 
 export default function InventoryManagement() {
+    const { confirm } = useConfirm();
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -140,7 +142,14 @@ export default function InventoryManagement() {
     }
 
     async function handleDeleteCategory(id) {
-        if (!window.confirm("Delete this category? Products using it may be affected.")) return;
+        const isConfirmed = await confirm({
+            title: 'Delete Category',
+            message: 'Are you sure you want to delete this category? Products using it may be affected.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+
+        if (!isConfirmed) return;
         try {
             await api.delete(`/admin/inventory/categories/${id}`);
             setMessage("Category deleted");
@@ -201,7 +210,14 @@ export default function InventoryManagement() {
     }
 
     async function handleDeleteProduct(id) {
-        if (!window.confirm("Delete this product?")) return;
+        const isConfirmed = await confirm({
+            title: 'Delete Product',
+            message: 'Are you sure you want to delete this product?',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+
+        if (!isConfirmed) return;
         try {
             setLoading(true);
             const res = await api.delete(`/admin/inventory/products/${id}`);
@@ -349,7 +365,7 @@ export default function InventoryManagement() {
                     <button className="btn" onClick={() => setRestock({})}>Reset Quantities</button>
                 </div>
 
-                {/* CREATE PRODUCT MODAL */}
+                {}
                 {showCreate && (
                     <div className="overlay">
                         <form
@@ -443,7 +459,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* SUPPLIER CREATE MODAL */}
+                {}
                 {showSupplierCreate && (
                     <div className="overlay">
                         <form
@@ -492,7 +508,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* CATEGORY CREATE MODAL */}
+                {}
                 {showCategoryCreate && (
                     <div className="overlay">
                         <form
@@ -537,7 +553,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* CATEGORY EDIT MODAL */}
+                {}
                 {showCategoryEdit && editingCategory && (
                     <div className="overlay">
                         <form className="modal" onSubmit={handleUpdateCategory}>
@@ -572,7 +588,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* PRODUCT EDIT MODAL */}
+                {}
                 {showProductEdit && editingProduct && (
                     <div className="overlay">
                         <form className="modal" onSubmit={handleUpdateProduct}>
@@ -614,7 +630,7 @@ export default function InventoryManagement() {
                                         onChange={(e) => setEditingProduct({
                                             ...editingProduct,
                                             ImgPath: e.target.value,
-                                            // Also update ImgName based on URL for consistency
+                                            
                                             ImgName: e.target.value ? e.target.value.substring(e.target.value.lastIndexOf('/') + 1) : null
                                         })}
                                     />
@@ -668,7 +684,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* CATEGORY MANAGE MODAL */}
+                {}
                 {showCategoryManage && (
                     <div className="overlay">
                         <div className="modal" style={{ maxWidth: '700px', width: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
