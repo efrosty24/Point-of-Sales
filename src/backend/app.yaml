@@ -8,12 +8,12 @@ entrypoint: npm start
 # =========================================================================
 # Environment Variables for  Database Connection
 # =========================================================================
-env_variables:
+secret_env_variables:
   DB_USER: projects/793165453319/secrets/pos_db_user/versions/latest
   DB_PASSWORD: projects/793165453319/secrets/pos_db_password/versions/latest
-  DB_NAME: "POSDB"
-  
 
+env_variables:
+  DB_NAME: "POSDB"
   CLOUD_SQL_CONNECTION_NAME: "point-of-sales-476509:us-central1:possystem"
 
   NODE_ENV: "production"
