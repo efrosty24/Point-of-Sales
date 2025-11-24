@@ -1,5 +1,6 @@
 const db = require('../config/db.config');
 
+
 exports.listRecent = (limit = 10, cb) => {
   const sql = `
     SELECT 
@@ -75,15 +76,14 @@ exports.listByProduct = (productId, cb) => {
       o.OrderID,
       o.DatePlaced,
       o.Status,
+      o.Total,
       c.FirstName AS CustomerFirst,
-      c.LastName AS CustomerLast,
-      od.Quantity,
-      od.Price,
-      (od.Quantity * od.Price) AS ProductTotal
+      c.LastName AS CustomerLast
     FROM Orders o
     JOIN OrderDetails od ON od.OrderID = o.OrderID
     LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
     WHERE od.ProductID = ?
+    GROUP BY o.OrderID
     ORDER BY o.DatePlaced DESC;
   `;
 
