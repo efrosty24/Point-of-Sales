@@ -1,8 +1,14 @@
-# 🛍️ Full-Stack POS Application
+#  Full-Stack POS Application
 
-This is a Point-of-Sale (POS) application built using a modern full-stack architecture: React  for the frontend, Node.js for the backend API, and MySQL for the persistent database layer.
+## 📋 Table of Contents
+* [Technologies Used](#Technologies-Used)
+* [Prerequisites](#Prerequisites)
+* [Initial Setup & Database Import](#Initial-Setup-&-Database-Import)
+* [Running the Application](#Running-the-Application)
+* [Backend README](src/backend/README.md)
+* [Backend API Endpoints](#API-Endpoints-(Backend))
 
-## 🌟 Technologies Used
+## Technologies Used
 
 * **Frontend:** React (Scaffolded with Vite)
 * **Backend:** Node.js 
@@ -11,7 +17,7 @@ This is a Point-of-Sale (POS) application built using a modern full-stack archit
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 Before starting the application, ensure you have the following software installed:
 
@@ -21,7 +27,7 @@ Before starting the application, ensure you have the following software installe
 
 ---
 
-## ⚙️ Initial Setup & Database Import
+## Initial Setup & Database Import
 
 Follow these steps to prepare your environment and load the database schema.
 
@@ -61,7 +67,7 @@ The backend connects to the database using credentials.
 
 ---
 
-## ▶️ Running the Application
+## Running the Application
 
 The frontend and backend must be run simultaneously in two separate terminal windows.
 
@@ -93,7 +99,7 @@ The frontend and backend must be run simultaneously in two separate terminal win
 
 ---
 
-## 💻 API Endpoints (Backend)
+## API Endpoints (Backend)
 
 The primary API endpoints available on the backend server (`http://localhost:3001`) are:
 
@@ -105,7 +111,7 @@ The primary API endpoints available on the backend server (`http://localhost:300
 
 ---
 
-## 📝 Troubleshooting
+## Troubleshooting
 
 | Problem | Solution |
 | :--- | :--- |
