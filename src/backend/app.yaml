@@ -6,14 +6,13 @@ instance_class: F1
 entrypoint: npm start 
 
 # =========================================================================
-# Environment Variables for  Database Connection
+# Environment Variables for Secure Database Connection
 # =========================================================================
-secret_env_variables:
-  DB_USER: projects/793165453319/secrets/pos_db_user/versions/latest
-  DB_PASSWORD: projects/793165453319/secrets/pos_db_password/versions/latest
-
 env_variables:
-  DB_NAME: "POSDB"
+  DB_USER: "web-auth"
+  DB_PASSWORD: "root"
+  DB_NAME: "Admin@7!"
   CLOUD_SQL_CONNECTION_NAME: "point-of-sales-476509:us-central1:possystem"
 
+  # Optional: Set Node environment
   NODE_ENV: "production"
