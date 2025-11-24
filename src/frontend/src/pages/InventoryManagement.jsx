@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./InventoryManagement.css";
 import api from "../utils/api.js";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 export default function InventoryManagement() {
     const [products, setProducts] = useState([]);
@@ -20,6 +21,9 @@ export default function InventoryManagement() {
     const [editingCategory, setEditingCategory] = useState(null);
     const [showProductEdit, setShowProductEdit] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteId, setDeleteId] = useState(null);
+    const [deleteType, setDeleteType] = useState(null); // 'product' or 'category'
     const [newProduct, setNewProduct] = useState({Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: "", ImgPath: ""});
     const [newSupplier, setNewSupplier] = useState({ Name: '', Phone: '', Email: '', Address: '' });
     const [newCategoryName, setNewCategoryName] = useState('');
@@ -139,14 +143,24 @@ export default function InventoryManagement() {
         }
     }
 
-    async function handleDeleteCategory(id) {
-        if (!window.confirm("Delete this category? Products using it may be affected.")) return;
+    function confirmDeleteCategory(id) {
+        setDeleteId(id);
+        setDeleteType('category');
+        setShowDeleteConfirm(true);
+    }
+
+    async function handleDeleteCategory() {
+        if (!deleteId) return;
         try {
-            await api.delete(`/admin/inventory/categories/${id}`);
+            await api.delete(`/admin/inventory/categories/${deleteId}`);
             setMessage("Category deleted");
             fetchCategories();
         } catch (err) {
             setMessage(err?.response?.data?.error || "Failed to delete category");
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeleteId(null);
+            setDeleteType(null);
         }
     }
 
@@ -200,18 +214,33 @@ export default function InventoryManagement() {
         }
     }
 
-    async function handleDeleteProduct(id) {
-        if (!window.confirm("Delete this product?")) return;
+    function confirmDeleteProduct(id) {
+        setDeleteId(id);
+        setDeleteType('product');
+        setShowDeleteConfirm(true);
+    }
+
+    async function handleDeleteProduct() {
+        if (!deleteId) return;
         try {
             setLoading(true);
-            const res = await api.delete(`/admin/inventory/products/${id}`);
+            const res = await api.delete(`/admin/inventory/products/${deleteId}`);
             setMessage(res.data?.message || "Product deleted");
             await fetchProducts();
         } catch (err) {
             setMessage(err?.response?.data?.error || err?.response?.data?.message || "Failed to delete product");
         } finally {
             setLoading(false);
+            setShowDeleteConfirm(false);
+            setDeleteId(null);
+            setDeleteType(null);
         }
+    }
+
+    function cancelDelete() {
+        setShowDeleteConfirm(false);
+        setDeleteId(null);
+        setDeleteType(null);
     }
 
     return (
@@ -327,7 +356,7 @@ export default function InventoryManagement() {
                                         </button>
                                         <button
                                             className="btn"
-                                            onClick={() => handleDeleteProduct(p.ProductID)}
+                                            onClick={() => confirmDeleteProduct(p.ProductID)}
                                         >
                                             Delete
                                         </button>
@@ -347,6 +376,11 @@ export default function InventoryManagement() {
                 <div className="actions-footer">
                     <button className="btn primary" onClick={handleRestock} disabled={!supplierFilter}>Restock Selected</button>
                     <button className="btn" onClick={() => setRestock({})}>Reset Quantities</button>
+                    {!supplierFilter && (
+                        <span style={{ color: '#d85534ff', fontSize: '20px', marginLeft: '30px' }}>
+                            Select a supplier above to enable restocking
+                        </span>
+                    )}
                 </div>
 
                 {/* CREATE PRODUCT MODAL */}
@@ -704,7 +738,7 @@ export default function InventoryManagement() {
                                                     <button
                                                         className="btn"
                                                         onClick={() => {
-                                                            handleDeleteCategory(c.CategoryID);
+                                                            confirmDeleteCategory(c.CategoryID);
                                                             setShowCategoryManage(false);
                                                         }}
                                                         style={{ padding: '6px 12px', fontSize: '14px', background: '#fee', color: '#c00', whiteSpace: 'nowrap' }}
@@ -736,6 +770,18 @@ export default function InventoryManagement() {
                     </div>
                 )}
             </div>
+
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title={deleteType === 'category' ? 'Delete Category' : 'Delete Product'}
+                message={
+                    deleteType === 'category' 
+                        ? 'Delete this category? Products using it may be affected.' 
+                        : 'Are you sure you want to delete this product? This action cannot be undone.'
+                }
+                onConfirm={deleteType === 'category' ? handleDeleteCategory : handleDeleteProduct}
+                onCancel={cancelDelete}
+            />
         </div>
     );
 }

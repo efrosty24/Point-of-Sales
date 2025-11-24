@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, X } from "lucide-react";
 import "./SupplierList.css";
 import api from "../utils/api";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 export default function Suppliers() {
     const [suppliers, setSuppliers] = useState([]);
@@ -9,6 +10,9 @@ export default function Suppliers() {
     const [filteredSuppliers, setFilteredSuppliers] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [currentSupplier, setCurrentSupplier] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteId, setDeleteId] = useState(null);
+    const [message, setMessage] = useState("");
     const [formData, setFormData] = useState({
         Name: "",
         Phone: "",
@@ -75,14 +79,36 @@ export default function Suppliers() {
         }
     }
 
-    async function deleteSupplier(id) {
-        if (!window.confirm("Are you sure you want to delete this supplier?")) return;
+    function confirmDelete(id) {
+        setDeleteId(id);
+        setShowDeleteConfirm(true);
+    }
+
+    async function deleteSupplier() {
+        if (!deleteId) return;
         try {
-            await api.delete(`/admin/inventory/suppliers/${id}`);
-            loadSuppliers();
+            await api.delete(`/admin/inventory/suppliers/${deleteId}`);
+            setMessage("Supplier deleted successfully");
+            await loadSuppliers(); // Ensure it waits for refresh
         } catch (err) {
             console.error("Delete error:", err);
+            let errorMsg = err?.response?.data?.error || "Failed to delete supplier";
+            // Make error messages user-friendly
+            if (errorMsg.includes("SUPPLIER_IN_USE") || errorMsg.includes("supplier_in_use")) {
+                errorMsg = "Cannot delete supplier: Supplier is currently in use by products";
+            }
+            errorMsg = errorMsg.replace(/_/g, " "); // Remove underscores
+            setMessage(errorMsg);
+            await loadSuppliers(); // Refresh even on error
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeleteId(null);
         }
+    }
+
+    function cancelDelete() {
+        setShowDeleteConfirm(false);
+        setDeleteId(null);
     }
 
     const indexOfLast = currentPage * suppliersPerPage;
@@ -112,6 +138,19 @@ export default function Suppliers() {
                     </button>
                 </div>
 
+                {message && (
+                    <div style={{ 
+                        color: message.includes("successfully") ? "#059669" : "#dc2626", 
+                        background: message.includes("successfully") ? "#d1fae5" : "#fee2e2", 
+                        border: message.includes("successfully") ? "1px solid #10b981" : "1px solid #ef4444", 
+                        padding: "12px", 
+                        borderRadius: 8,
+                        marginBottom: "16px"
+                    }}>
+                        {message}
+                    </div>
+                )}
+
                 <table className="customer-table">
                     <thead>
                     <tr>
@@ -134,7 +173,7 @@ export default function Suppliers() {
                                     <button onClick={() => openModal(s)}>
                                         <Edit size={18} />
                                     </button>
-                                    <button onClick={() => deleteSupplier(s.SupplierID)}>
+                                    <button onClick={() => confirmDelete(s.SupplierID)}>
                                         <Trash2 size={18} />
                                     </button>
                                 </div>
@@ -215,6 +254,14 @@ export default function Suppliers() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Delete Supplier"
+                message="Are you sure you want to delete this supplier? This action cannot be undone."
+                onConfirm={deleteSupplier}
+                onCancel={cancelDelete}
+            />
         </div>
     );
 }

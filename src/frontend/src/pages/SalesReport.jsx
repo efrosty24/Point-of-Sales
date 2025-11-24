@@ -171,6 +171,7 @@ function SalesReport() {
 
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [message, setMessage] = useState("");
 
     
     const [productPage, setProductPage] = useState(1);
@@ -447,7 +448,7 @@ function SalesReport() {
                 setSelectedOrder(res.data);
                 setShowModal(true);
             })
-            .catch(() => alert("Failed to fetch order details"));
+            .catch(() => setMessage("Failed to fetch order details"));
     };
 
     const closeModal = () => {
@@ -595,6 +596,19 @@ function SalesReport() {
             <div className="page-header">
                 <h1>Reports</h1>
             </div>
+
+            {message && (
+                <div style={{ 
+                    color: "#dc2626", 
+                    background: "#fee2e2", 
+                    border: "1px solid #ef4444", 
+                    padding: "12px", 
+                    borderRadius: 8,
+                    marginBottom: "16px"
+                }}>
+                    {message}
+                </div>
+            )}
 
             {}
             <div className="cards-container">

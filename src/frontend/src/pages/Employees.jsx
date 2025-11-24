@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Plus, Search, Edit, Trash2, X } from "lucide-react";
 import "./Employees.css";
 import api from "../utils/api";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 export default function Employees() {
     const [employees, setEmployees] = useState([]);
@@ -13,6 +14,8 @@ export default function Employees() {
     const [showEdit, setShowEdit] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteId, setDeleteId] = useState(null);
     const [form, setForm] = useState({
         FirstName: "",
         LastName: "",
@@ -130,22 +133,31 @@ export default function Employees() {
         }
     }
 
-    async function deleteEmployee(id) {
-        if (!window.confirm("delete this employee?")) return;
+    function confirmDelete(id) {
+        setDeleteId(id);
+        setShowDeleteConfirm(true);
+    }
+
+    async function deleteEmployee() {
+        if (!deleteId) return;
         try {
             setLoading(true);
-            const res = await api.delete(`/admin/employees/${id}`);
-            if (res.data && res.statusText === "OK") {
-                setMessage("Employee deleted");
-                await attemptFetch();
-            } else {
-                setMessage("Failed to delete");
-            }
+            await api.delete(`/admin/employees/${deleteId}`);
+            setMessage("Employee deleted");
+            await attemptFetch();
         } catch (err) {
             setMessage(err?.response?.data?.error || "Failed to delete");
+            await attemptFetch(); // Refresh even on error to show current state
         } finally {
             setLoading(false);
+            setShowDeleteConfirm(false);
+            setDeleteId(null);
         }
+    }
+
+    function cancelDelete() {
+        setShowDeleteConfirm(false);
+        setDeleteId(null);
     }
 
     const indexOfLast = currentPage * perPage;
@@ -222,7 +234,7 @@ export default function Employees() {
                                     <button onClick={() => startEdit(e)}>
                                         <Edit size={18} />
                                     </button>
-                                    <button onClick={() => deleteEmployee(e.EmployeeID)}>
+                                    <button onClick={() => confirmDelete(e.EmployeeID)}>
                                         <Trash2 size={18} />
                                     </button>
                                 </div>
@@ -414,6 +426,14 @@ export default function Employees() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Delete Employee"
+                message="Are you sure you want to delete this employee? This action cannot be undone."
+                onConfirm={deleteEmployee}
+                onCancel={cancelDelete}
+            />
         </div>
     );
 }

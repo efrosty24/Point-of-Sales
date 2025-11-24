@@ -23,6 +23,7 @@ function Dashboard() {
     const [lowStock, setLowStock] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
     const [searchType, setSearchType] = useState("");
+    const [message, setMessage] = useState("");
 
     // Chart Data
     const [hourlySales, setHourlySales] = useState([]);
@@ -56,7 +57,7 @@ function Dashboard() {
     const openOrderDetails = (orderId) => {
         api.get(`/admin/orders/${orderId}`)
             .then(res => setSelectedOrder(res.data))
-            .catch(() => alert("Failed to fetch order details"));
+            .catch(() => setMessage("Failed to fetch order details"));
     };
 
     const closeOrderDetails = () => setSelectedOrder(null);
@@ -88,6 +89,19 @@ function Dashboard() {
             <div className="dashboard-header">
                 <h1>Admin Dashboard</h1>
             </div>
+
+            {message && (
+                <div style={{ 
+                    color: "#dc2626", 
+                    background: "#fee2e2", 
+                    border: "1px solid #ef4444", 
+                    padding: "12px", 
+                    borderRadius: 8,
+                    marginBottom: "16px"
+                }}>
+                    {message}
+                </div>
+            )}
 
             {/* --- SALES REPORT CARDS --- */}
             <div className="report-row separated-cards">

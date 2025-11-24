@@ -126,6 +126,7 @@ export default function Cashier() {
     const [receipt, setReceipt] = useState(null);
     const [receiptLoading, setReceiptLoading] = useState(false);
     const [receiptError, setReceiptError] = useState("");
+    const [message, setMessage] = useState("");
 
     const [insufficient, setInsufficient] = useState(() => new Map());
     const [outOfStock, setOutOfStock] = useState(() => new Map());
@@ -616,7 +617,7 @@ export default function Cashier() {
                 setPoints(0);
             }
         } else {
-            alert("Add items to cart to lookup customer");
+            setMessage("Add items to cart to lookup customer");
         }
     };
 
@@ -635,7 +636,10 @@ export default function Cashier() {
     };
 
     const handleCheckout = async () => {
-        if (!cart.length) return alert("Cart is empty!");
+        if (!cart.length) {
+            setMessage("Cart is empty!");
+            return;
+        }
         try {
             const id = await ensureRegister();
 
@@ -692,16 +696,28 @@ export default function Cashier() {
             }
 
             const errMsg = (res.data && (res.data.message || res.data.error)) || 'Checkout failed';
-            alert(errMsg);
+            setMessage(errMsg.replace(/_/g, " ")); // Remove underscores
         } catch (err) {
             const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || String(err);
-            alert("Checkout failed: " + msg);
+            setMessage("Checkout failed: " + msg.replace(/_/g, " ")); // Remove underscores
         }
     };
 
     return (
         <div className="cashier-container">
             <div className="cashier-left">
+                {message && (
+                    <div style={{ 
+                        color: "#dc2626", 
+                        background: "#fee2e2", 
+                        border: "1px solid #ef4444", 
+                        padding: "12px", 
+                        borderRadius: 8,
+                        marginBottom: "16px"
+                    }}>
+                        {message}
+                    </div>
+                )}
                 <div className="filters">
                     <input type="text" placeholder="Search by Name or ID..." value={search} onChange={onSearchChange}/>
                     <select value={category} onChange={onCategoryChange}>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import "./DiscountManagement.css";
-import api from "../utils/api.js"; 
+import api from "../utils/api.js";
+import ConfirmDialog from "../components/ConfirmDialog"; 
 
 export default function DiscountManagement() {
   const [events, setEvents] = useState([]);
@@ -12,6 +13,9 @@ export default function DiscountManagement() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [showEditDiscount, setShowEditDiscount] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteType, setDeleteType] = useState(null); // 'discount' or 'event'
   const eventNameRef = useRef(null);
 
   useEffect(() => {
@@ -149,10 +153,16 @@ export default function DiscountManagement() {
     }
   }
 
-  async function deleteDiscount(id) {
-    if (!window.confirm("Delete discount?")) return;
+  function confirmDeleteDiscount(id) {
+    setDeleteId(id);
+    setDeleteType('discount');
+    setShowDeleteConfirm(true);
+  }
+
+  async function deleteDiscount() {
+    if (!deleteId) return;
     try {
-      const res = await api.delete(`/admin/discounts/${id}`);
+      const res = await api.delete(`/admin/discounts/${deleteId}`);
       if (res.status === 200 || (res.data && res.data.ok)) {
         setMsg("Deleted");
         if (selectedEventId) {
@@ -164,7 +174,11 @@ export default function DiscountManagement() {
         setMsg("Failed to delete");
       }
     } catch (err) {
-      setMsg(err?.response?.data?.error || "Failed to delete");
+      setMsg(err?.response?.data?.error || "Error deleting discount");
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+      setDeleteType(null);
     }
   }
 
@@ -217,19 +231,35 @@ export default function DiscountManagement() {
     }
   }
 
-  async function deleteEvent(id) {
-    if (!window.confirm("Delete this event? All its discounts will also be deleted.")) return;
+  function confirmDeleteEvent(id) {
+    setDeleteId(id);
+    setDeleteType('event');
+    setShowDeleteConfirm(true);
+  }
+
+  async function deleteEvent() {
+    if (!deleteId) return;
     try {
-      await api.delete(`/admin/sale-events/${id}`);
+      await api.delete(`/admin/sale-events/${deleteId}`);
       setMsg("Event deleted");
-      if (selectedEventId === id) {
+      if (selectedEventId === deleteId) {
         setSelectedEventId(null);
       }
       await fetchEvents();
       fetchAllDiscounts();
     } catch (err) {
       setMsg(err?.response?.data?.error || "Failed to delete event");
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+      setDeleteType(null);
     }
+  }
+
+  function cancelDelete() {
+    setShowDeleteConfirm(false);
+    setDeleteId(null);
+    setDeleteType(null);
   }
 
   return (
@@ -264,7 +294,7 @@ export default function DiscountManagement() {
             {selectedEventId && (
               <>
                 <button className="btn" onClick={() => { const event = events.find(e => e.SaleEventID === selectedEventId); setEditingEvent(event); setShowEditEvent(true); }}>Edit Event</button>
-                <button className="btn" onClick={() => deleteEvent(selectedEventId)} style={{ background: '#fee', color: '#c00' }}>Delete Event</button>
+                <button className="btn" onClick={() => confirmDeleteEvent(selectedEventId)} style={{ background: '#fee', color: '#c00' }}>Delete Event</button>
               </>
             )}
           </div>
@@ -313,7 +343,7 @@ export default function DiscountManagement() {
                     <td>{d.Conditions}</td>
                     <td className="align-center">
                       <button className="btn" onClick={() => { setEditingDiscount(d); setShowEditDiscount(true); }} style={{ marginRight: '4px' }}>Edit</button>
-                      <button className="btn" onClick={() => deleteDiscount(d.DiscountID)}>Delete</button>
+                      <button className="btn" onClick={() => confirmDeleteDiscount(d.DiscountID)}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -370,6 +400,18 @@ export default function DiscountManagement() {
             </form>
           </div>
         )}
+
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          title={deleteType === 'event' ? 'Delete Sale Event' : 'Delete Discount'}
+          message={
+            deleteType === 'event'
+              ? 'Delete this event? All its discounts will also be deleted.'
+              : 'Are you sure you want to delete this discount? This action cannot be undone.'
+          }
+          onConfirm={deleteType === 'event' ? deleteEvent : deleteDiscount}
+          onCancel={cancelDelete}
+        />
       </div>
     </div>
   );
