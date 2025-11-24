@@ -15,6 +15,7 @@ import Employees from "./pages/Employees.jsx";
 import Suppliers from "./pages/SupplierList.jsx";
 import DiscountManagement from "./pages/DiscountManagement.jsx";
 import { AuthProvider, AuthContext } from "./AuthContext";
+import { NotificationProvider } from "./NotificationContext";
 import "./index.css";
 
 function MainRouter() {
@@ -22,23 +23,25 @@ function MainRouter() {
     const isAdmin = user?.isAdmin === true || user?.role?.toLowerCase() === "admin";
 
     return (
-        <BrowserRouter>
-            <Routes>
-                <Route path="/" element={<Start />} />
-                <Route path="/empLogin" element={<App />} />
-                <Route path="/custLogin" element={<CustApp />} />
-                <Route element={<NavMenus />}>
-                    <Route path="/dashboard" element={isAdmin ? <Dashboard /> : <EmpDashboard />} />
-                    <Route path="/salesreport" element={<SalesReport />} />
-                    <Route path="/cashier" element={<Cashier />} />
-                    <Route path="/customerlist" element={<CustomerList />} />
-                    <Route path="/inventory" element={<InventoryManagement />} />
-                    <Route path="/employees" element={<Employees />} />
-                    <Route path="/suppliers" element={<Suppliers />} />
-                    <Route path="/discounts" element={<DiscountManagement />} />
-                </Route>
-            </Routes>
-        </BrowserRouter>
+        <NotificationProvider user={user}>
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/" element={<Start />} />
+                    <Route path="/empLogin" element={<App />} />
+                    <Route path="/custLogin" element={<CustApp />} />
+                    <Route element={<NavMenus />}>
+                        <Route path="/dashboard" element={isAdmin ? <Dashboard /> : <EmpDashboard />} />
+                        <Route path="/salesreport" element={<SalesReport />} />
+                        <Route path="/cashier" element={<Cashier />} />
+                        <Route path="/customerlist" element={<CustomerList />} />
+                        <Route path="/inventory" element={<InventoryManagement />} />
+                        <Route path="/employees" element={<Employees />} />
+                        <Route path="/suppliers" element={<Suppliers />} />
+                        <Route path="/discounts" element={<DiscountManagement />} />
+                    </Route>
+                </Routes>
+            </BrowserRouter>
+        </NotificationProvider>
     );
 }
 

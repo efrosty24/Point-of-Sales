@@ -6,6 +6,8 @@ import Modal from "../components/Modal.jsx";
 import api from "../utils/api.js";
 import { Info } from "lucide-react";
 import { AuthContext } from "../AuthContext";
+import { useNotifications } from "../NotificationContext";
+
 
 const GUEST_KEY = "cashierGuest";
 
@@ -135,7 +137,8 @@ export default function Cashier() {
     const isCustomerRole = user?.role?.toLowerCase() === "customer";
     const isGuestCustomer = isCustomerRole && Number(user?.id) === 1000;
 
-    
+    const { fetchRestockNotifications } = useNotifications();
+
     const employeeId = isCustomerRole ? 1000 : user?.id || 3;
 
     const isInsufficient = (id) => insufficient.has(id);
@@ -685,6 +688,7 @@ export default function Cashier() {
                 setOutOfStock(new Map());
                 await fetchProducts();
                 setShowReceipt(true);
+                await fetchRestockNotifications();
                 if (orderId) {
                     fetchReceipt(orderId);
                 }
