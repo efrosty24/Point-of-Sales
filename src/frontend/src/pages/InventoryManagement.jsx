@@ -124,7 +124,6 @@ export default function InventoryManagement() {
                 items: itemsToRestock,
             };
             console.log("Restock payload:", payload);
-
             const res = await api.post("/admin/inventory/restock", payload);
 
             if (res.data && res.data.ok) {
@@ -141,14 +140,13 @@ export default function InventoryManagement() {
         }
     }
 
-    async function handleDeleteCategory(id) {
+    async function confirmDeleteCategory(id) {
         const isConfirmed = await confirm({
             title: 'Delete Category',
-            message: 'Are you sure you want to delete this category? Products using it may be affected.',
+            message: 'Delete this Category? Products using it may be affected.',
             confirmText: 'Delete',
             cancelText: 'Cancel'
         });
-
         if (!isConfirmed) return;
         try {
             await api.delete(`/admin/inventory/categories/${id}`);
@@ -209,14 +207,13 @@ export default function InventoryManagement() {
         }
     }
 
-    async function handleDeleteProduct(id) {
+    async function confirmDeleteProduct(id) {
         const isConfirmed = await confirm({
             title: 'Delete Product',
-            message: 'Are you sure you want to delete this product?',
+            message: 'Are you sure you want to delete this product? This action cannot be undone.',
             confirmText: 'Delete',
             cancelText: 'Cancel'
         });
-
         if (!isConfirmed) return;
         try {
             setLoading(true);
@@ -247,7 +244,6 @@ export default function InventoryManagement() {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
-
                     <select
                         className="select"
                         value={supplierFilter}
@@ -343,7 +339,7 @@ export default function InventoryManagement() {
                                         </button>
                                         <button
                                             className="btn"
-                                            onClick={() => handleDeleteProduct(p.ProductID)}
+                                            onClick={() => confirmDeleteProduct(p.ProductID)}
                                         >
                                             Delete
                                         </button>
@@ -363,6 +359,11 @@ export default function InventoryManagement() {
                 <div className="actions-footer">
                     <button className="btn primary" onClick={handleRestock} disabled={!supplierFilter}>Restock Selected</button>
                     <button className="btn" onClick={() => setRestock({})}>Reset Quantities</button>
+                    {!supplierFilter && (
+                        <span style={{ color: '#d85534ff', fontSize: '20px', marginLeft: '30px' }}>
+                            Select a supplier above to enable restocking
+                        </span>
+                    )}
                 </div>
 
                 {}
@@ -630,54 +631,53 @@ export default function InventoryManagement() {
                                         onChange={(e) => setEditingProduct({
                                             ...editingProduct,
                                             ImgPath: e.target.value,
-                                            
                                             ImgName: e.target.value ? e.target.value.substring(e.target.value.lastIndexOf('/') + 1) : null
                                         })}
                                     />
                                     <p className="url-helper-text">Current URL: {editingProduct.ImgPath || 'None'}</p>
 
-                                <select
-                                    className="select"
-                                    value={editingProduct.SupplierID || ''}
-                                    onChange={(e) => setEditingProduct({ ...editingProduct, SupplierID: e.target.value === "" ? "" : Number(e.target.value) })}
-                                    required
-                                >
-                                    <option value="">Select supplier</option>
-                                    {suppliers.map((s) => (
-                                        <option key={s.SupplierID} value={s.SupplierID}>{s.Name}</option>
-                                    ))}
-                                </select>
-                                <select
-                                    className="select"
-                                    value={editingProduct.CategoryID || ''}
-                                    onChange={(e) => setEditingProduct({ ...editingProduct, CategoryID: e.target.value === "" ? "" : Number(e.target.value) })}
-                                    required
-                                >
-                                    <option value="">Select category</option>
-                                    {categories.map(c => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
-                                </select>
-                                <input
-                                    className="input"
-                                    placeholder="Reorder threshold"
-                                    type="number"
-                                    value={editingProduct.ReorderThreshold}
-                                    onChange={(e) => setEditingProduct({ ...editingProduct, ReorderThreshold: e.target.value })}
-                                />
-                            </div>
-                            <div className="modal-actions">
-                                <button
-                                    className="btn"
-                                    type="button"
-                                    onClick={() => {
-                                        setShowProductEdit(false);
-                                        setEditingProduct(null);
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                                <button className="btn primary" type="submit">
-                                    Update
-                                </button>
+                                    <select
+                                        className="select"
+                                        value={editingProduct.SupplierID || ''}
+                                        onChange={(e) => setEditingProduct({ ...editingProduct, SupplierID: e.target.value === "" ? "" : Number(e.target.value) })}
+                                        required
+                                    >
+                                        <option value="">Select supplier</option>
+                                        {suppliers.map((s) => (
+                                            <option key={s.SupplierID} value={s.SupplierID}>{s.Name}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        className="select"
+                                        value={editingProduct.CategoryID || ''}
+                                        onChange={(e) => setEditingProduct({ ...editingProduct, CategoryID: e.target.value === "" ? "" : Number(e.target.value) })}
+                                        required
+                                    >
+                                        <option value="">Select category</option>
+                                        {categories.map(c => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
+                                    </select>
+                                    <input
+                                        className="input"
+                                        placeholder="Reorder threshold"
+                                        type="number"
+                                        value={editingProduct.ReorderThreshold}
+                                        onChange={(e) => setEditingProduct({ ...editingProduct, ReorderThreshold: e.target.value })}
+                                    />
+                                </div>
+                                <div className="modal-actions">
+                                    <button
+                                        className="btn"
+                                        type="button"
+                                        onClick={() => {
+                                            setShowProductEdit(false);
+                                            setEditingProduct(null);
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button className="btn primary" type="submit">
+                                        Update
+                                    </button>
                                 </div>
                             </div>
                         </form>
@@ -720,7 +720,7 @@ export default function InventoryManagement() {
                                                     <button
                                                         className="btn"
                                                         onClick={() => {
-                                                            handleDeleteCategory(c.CategoryID);
+                                                            confirmDeleteCategory(c.CategoryID);
                                                             setShowCategoryManage(false);
                                                         }}
                                                         style={{ padding: '6px 12px', fontSize: '14px', background: '#fee', color: '#c00', whiteSpace: 'nowrap' }}
