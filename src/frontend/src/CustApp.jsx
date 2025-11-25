@@ -139,7 +139,7 @@ function CustApp() {
             if (response.data.success) {
                 setShowPasswordModal(false);
                 setUser(tempCustomerData);
-                navigate("/dashboard");
+                navigate("/cashier");
             } else {
                 setPasswordErrors({
                     submit: response.data.message || "Failed to update password"
