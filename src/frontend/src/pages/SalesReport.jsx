@@ -699,19 +699,54 @@ function SalesReport() {
 
     const handleCategoryClick = async (category) => {
         console.log('handleCategoryClick called for', category);
+
+        // 1. Toggle behavior: Close if the same category is clicked again
+        if (selectedCategory?.CategoryID === category.CategoryID) {
+            setSelectedCategory(null);
+            setCategoryTransactions([]);
+            return;
+        }
+
+        // 2. Clear all other drill-down selections
+        setSelectedProduct(null);
+        setSelectedCustomer(null);
+        setSelectedTrendRow(null);
+        setSelectedEmployee(null);
+
+        // 3. Set the new selection
         setSelectedCategory(category);
 
         try {
-            const params = { from: fromDate || undefined, to: toDate || undefined };
+            // 4. Construct parameters robustly from state
+            // Use the latest state for filtering
+            const from = fromDate || null;
+            const to = toDate || null;
+
+            const params = {};
+            if (from) {
+                params.from = from;
+            }
+            if (to) {
+                params.to = to;
+            }
+
             console.log('Calling category transactions API with params', params);
+
+            // API Endpoint for Category Transactions
             const res = await api.get(
                 `/admin/sales/category/${category.CategoryID}/transactions`,
                 { params }
             );
+
             console.log('Category transactions response', res && res.data);
             setCategoryTransactions(Array.isArray(res.data) ? res.data : []);
+
+            // You should now also add a rendering block for categoryTransactions,
+            // similar to what you have for employeeOrders or productOrders,
+            // inside the <Tab id="categories"> section of your JSX.
         } catch (err) {
             console.error("Failed loading category transactions", err);
+            // showError("Failed to load category transactions."); // Assuming you have an alert context
             setCategoryTransactions([]);
         }
     };
@@ -787,6 +822,34 @@ function SalesReport() {
             console.error("Failed loading trend details", err);
             setTrendDetails([]);
         }
+    };
+
+    const getDateRangeDisplay = (start, end) => {
+
+        const format = (dateStr) => {
+            if (!dateStr) return null;
+
+            return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        const formattedStart = format(start);
+        const formattedEnd = format(end);
+
+        if (!start && !end) {
+            return "All Time";
+        }
+
+        if (formattedStart && formattedEnd) {
+
+            if (start === end) {
+                return `On ${formattedStart}`;
+            }
+            return `From ${formattedStart} to ${formattedEnd}`;
+        }
+        if (formattedStart) return `From ${formattedStart} onwards`;
+        if (formattedEnd) return `Up to ${formattedEnd}`;
+
+        return "All Time";
     };
 
     return (
@@ -1009,7 +1072,7 @@ function SalesReport() {
 
                         {selectedProduct && (
                         <div className="related-orders">
-                            <h3>Orders Containing {selectedProduct.ProductName}</h3>
+                            <h3>Orders Containing {selectedProduct.ProductName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
 
                             {productOrders.length ? (
                             <table className="orders-table">
@@ -1094,7 +1157,7 @@ function SalesReport() {
 
                         {selectedCustomer && (
                             <div className="customer-orders">
-                                <h3>Orders for {selectedCustomer.CustomerName}</h3>
+                                <h3>Orders for {selectedCustomer.CustomerName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
 
                                 {customerOrders.length ? (
                                     <table className="orders-table">
@@ -1177,7 +1240,7 @@ function SalesReport() {
                         />
                         {selectedCategory && (
                             <div className="category-transactions">
-                                <h3>Transactions for {selectedCategory.CategoryName}</h3>
+                                <h3>Transactions for {selectedCategory.CategoryName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
 
                                 {groupedCategoryOrders.length ? (
                                     <table className="orders-table">
@@ -1468,7 +1531,7 @@ function SalesReport() {
                     </div>
                     {selectedEmployee && (
                         <div className="related-orders">
-                            <h3>Orders Processed by {selectedEmployee.FirstName} {selectedEmployee.LastName}</h3>
+                            <h3>Orders Processed by {selectedEmployee.FirstName} {selectedEmployee.LastName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
 
                             {employeeOrders.length ? (
                                 <table className="orders-table">
