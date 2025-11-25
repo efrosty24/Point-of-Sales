@@ -1,12 +1,11 @@
 #  Full-Stack POS Application
 
-## 📋 Table of Contents
+## Table of Contents
 * [Technologies Used](#Technologies-Used)
 * [Prerequisites](#Prerequisites)
 * [Initial Setup & Database Import](#Initial-Setup-&-Database-Import)
 * [Running the Application](#Running-the-Application)
 * [Backend README](src/backend/README.md)
-* [Backend API Endpoints](#API-Endpoints-(Backend))
 
 ## Technologies Used
 
@@ -71,7 +70,7 @@ The backend connects to the database using credentials.
 
 The frontend and backend must be run simultaneously in two separate terminal windows.
 
-### 1. Start the Backend API (Server)
+### 1. Start the Backend (Server)
 
 1.  Open **Terminal 1**.
 2.  Navigate to the backend folder:
@@ -80,9 +79,9 @@ The frontend and backend must be run simultaneously in two separate terminal win
     ```
 3.  Run the server:
     ```bash
-    npm start  # Or use 'node server.js' or 'nodemon server.js'
+    npm start 
     ```
-    (The server should report that it is listening on port **3001**.)
+    (The server should report that it is listening on port **8080**.)
 
 ### 2. Start the Frontend (Client)
 
@@ -95,27 +94,5 @@ The frontend and backend must be run simultaneously in two separate terminal win
     ```bash
     npm run dev
     ```
-    (The app should automatically open in your browser, typically at **http://localhost:5173**.)
 
 ---
-
-## API Endpoints (Backend)
-
-The primary API endpoints available on the backend server (`http://localhost:3001`) are:
-
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/api/categories` | `GET` | Retrieves category data (currently returns metadata/column info). |
-| `/api/products` | `GET` | *(To be implemented)* Retrieve a list of all products. |
-| `/api/sales` | `POST` | *(To be implemented)* Submit a new transaction. |
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-| :--- | :--- |
-| **`fetch` failed / Network Error in Browser** | Ensure the backend is running (`Terminal 1`) and the frontend fetch URL uses **`http`** (not `https`). |
-| **Backend 'No database selected'** | Re-run the import in Workbench, ensuring you added `USE \`posdb\`;` to the SQL file. |
-| **Backend Error 1045 (Access Denied)** | Check your `DB_PASSWORD` in the `.env` file for typos. |
-| **Frontend displays 'Loading...' indefinitely** | Check the browser console for specific errors (`Failed to fetch`). |
