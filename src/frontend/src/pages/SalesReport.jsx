@@ -561,7 +561,7 @@ function SalesReport() {
 
         try {
             const res = await api.get(
-                `/admin/reports/category/${category.CategoryID}/transactions`,
+                `/admin/sales/category/${category.CategoryID}/transactions`,
                 { params: { from: filters.from, to: filters.to } }
             );
             setCategoryTransactions(res.data);
@@ -578,7 +578,7 @@ function SalesReport() {
         setSelectedTrendRow(row);
         
         try {
-            const res = await api.get('/admin/reports/sales-trends/details', {
+            const res = await api.get('/admin/sales/sales-trends/details', {
                 params: {
                     date: String(row.SaleDate).slice(0, 10),
                     hour: row.HourOfDay,
