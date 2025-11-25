@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import "./InventoryManagement.css";
 import api from "../utils/api.js";
 import { useConfirm } from '../ConfirmContext';
+import { useAlert } from '../AlertContext';
 
 export default function InventoryManagement() {
+    const { showSuccess, showError, showWarning, showInfo } = useAlert();
     const { confirm } = useConfirm();
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
@@ -76,7 +78,7 @@ export default function InventoryManagement() {
 
     async function handleRestock() {
         if (!supplierFilter) {
-            setMessage("Select a supplier before restocking");
+            showWarning("Select a supplier before restocking");
             return;
         }
 
@@ -105,7 +107,7 @@ export default function InventoryManagement() {
                 });
 
                 if (quantity < minQuantity) {
-                    setMessage(`${product.Name} needs at least ${minQuantity} units (10% above threshold)`);
+                    showError(`${product.Name} needs at least ${minQuantity} units (10% above threshold)`);
                     return;
                 }
 
@@ -114,7 +116,7 @@ export default function InventoryManagement() {
         }
 
         if (itemsToRestock.length === 0) {
-            setMessage("Enter quantities to restock");
+            showError("Enter quantities to restock");
             return;
         }
 
@@ -127,16 +129,14 @@ export default function InventoryManagement() {
             const res = await api.post("/admin/inventory/restock", payload);
 
             if (res.data && res.data.ok) {
-                setMessage(`Restocked ${res.data.itemsUpdated || itemsToRestock.length} item(s) successfully`);
+                showSuccess(`Restocked ${res.data.itemsUpdated || itemsToRestock.length} item(s) successfully`);
                 setRestock({});
                 fetchProducts();
-            } else {
-                setMessage("Restock completed");
             }
         } catch (err) {
             const errorMsg = err?.response?.data?.error || err?.message || "Restock failed";
             console.error("Restock error:", err?.response?.data || err);
-            setMessage(`Error: ${errorMsg}`);
+            showError(`Error: ${errorMsg}`);
         }
     }
 
@@ -150,17 +150,17 @@ export default function InventoryManagement() {
         if (!isConfirmed) return;
         try {
             await api.delete(`/admin/inventory/categories/${id}`);
-            setMessage("Category deleted");
+            showSuccess("Category deleted");
             fetchCategories();
         } catch (err) {
-            setMessage(err?.response?.data?.error || "Failed to delete category");
+            showError(err?.response?.data?.error || "Failed to delete category");
         }
     }
 
     async function handleUpdateCategory(e) {
         e.preventDefault();
         if (!editingCategory || !editingCategory.CategoryName) {
-            setMessage("Category name is required");
+            showWarning("Category name is required");
             return;
         }
         try {
@@ -168,12 +168,12 @@ export default function InventoryManagement() {
             await api.patch(`/admin/inventory/categories/${editingCategory.CategoryID}`, {
                 CategoryName: editingCategory.CategoryName,
             });
-            setMessage("Category updated");
+            showSuccess("Category updated");
             setShowCategoryEdit(false);
             setEditingCategory(null);
             fetchCategories();
         } catch (err) {
-            setMessage(err?.response?.data?.error || "Failed to update category");
+            showError(err?.response?.data?.error || "Failed to update category");
         } finally {
             setLoading(false);
         }
@@ -196,12 +196,12 @@ export default function InventoryManagement() {
                 ImgName: editingProduct.ImgPath ? editingProduct.ImgPath.substring(editingProduct.ImgPath.lastIndexOf('/') + 1) : null
             };
             await api.patch(`/admin/inventory/products/${editingProduct.ProductID}`, body);
-            setMessage("Product updated");
+            showSuccess("Product updated");
             setShowProductEdit(false);
             setEditingProduct(null);
             fetchProducts();
         } catch (err) {
-            setMessage(err?.response?.data?.error || "Failed to update product");
+            showError(err?.response?.data?.error || "Failed to update product");
         } finally {
             setLoading(false);
         }
@@ -218,10 +218,10 @@ export default function InventoryManagement() {
         try {
             setLoading(true);
             const res = await api.delete(`/admin/inventory/products/${id}`);
-            setMessage(res.data?.message || "Product deleted");
+            showSuccess(res.data?.message || "Product deleted");
             await fetchProducts();
         } catch (err) {
-            setMessage(err?.response?.data?.error || err?.response?.data?.message || "Failed to delete product");
+            showError(err?.response?.data?.error || err?.response?.data?.message || "Failed to delete product");
         } finally {
             setLoading(false);
         }
@@ -389,7 +389,7 @@ export default function InventoryManagement() {
                                 };
 
                                 if (body.SupplierID === null || body.CategoryID === null) {
-                                    setMessage("SupplierID and CategoryID are required.");
+                                    showWarning("SupplierID and CategoryID are required.");
                                     return;
                                 }
 
@@ -397,13 +397,16 @@ export default function InventoryManagement() {
                                 try {
                                     setLoading(true);
                                     const res = await api.post("/admin/inventory/products", body);
-                                    setMessage(res.data?.message || "Product created");
+                                    showSuccess(res.data?.message || "Product created");
                                     setShowCreate(false);
                                     setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: ""});
                                     fetchProducts();
                                 } catch (err) {
                                     console.error("Create product error:", err?.response?.data || err);
-                                    setMessage(err?.response?.data?.error || "Failed to create product");
+                                    showError("Failed to create product");
+                                    if(err?.response?.data?.detail === "ER_DATA_TOO_LONG"){
+                                        showError("Image URL is too long");
+                                    }
                                 } finally {
                                     setLoading(false);
                                 }
@@ -449,7 +452,7 @@ export default function InventoryManagement() {
                                     onClick={(e) => {
                                         if (newProduct.SupplierID === "" || newProduct.SupplierID == null) {
                                             e.preventDefault();
-                                            setMessage("Please select a supplier before creating the product.");
+                                            showWarning("Please select a supplier before creating the product.");
                                         }
                                     }}
                                 >
@@ -468,7 +471,7 @@ export default function InventoryManagement() {
                             onSubmit={async (e) => {
                                 e.preventDefault();
                                 if (!newSupplier.Name) {
-                                    setMessage('Supplier name is required');
+                                    showWarning('Supplier name is required');
                                     return;
                                 }
                                 try {
@@ -481,14 +484,14 @@ export default function InventoryManagement() {
                                     if (id) {
                                         setSupplierFilter(id);
                                         setNewProduct({ ...newProduct, SupplierID: id });
-                                        setMessage('Supplier created');
+                                        showSuccess('Supplier created');
                                     } else {
-                                        setMessage('Supplier created (no id returned)');
+                                        showSuccess('Supplier created (no id returned)');
                                     }
                                     setShowSupplierCreate(false);
                                     setNewSupplier({ Name: '', Phone: '', Email: '', Address: '' });
                                 } catch (err) {
-                                    setMessage(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create supplier');
+                                    showError(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create supplier');
                                 } finally {
                                     setLoading(false);
                                 }
@@ -517,7 +520,7 @@ export default function InventoryManagement() {
                             onSubmit={async (e) => {
                                 e.preventDefault();
                                 if (!newCategoryName) {
-                                    setMessage('Category name is required');
+                                    showWarning('Category name is required');
                                     return;
                                 }
                                 try {
@@ -529,14 +532,14 @@ export default function InventoryManagement() {
                                     setCategories((c) => [...c, created]);
                                     if (id) {
                                         setNewProduct({ ...newProduct, CategoryID: id });
-                                        setMessage('Category created');
+                                        showSuccess('Category created');
                                     } else {
-                                        setMessage('Category created (no id returned)');
+                                        showSuccess('Category created (no id returned)');
                                     }
                                     setShowCategoryCreate(false);
                                     setNewCategoryName('');
                                 } catch (err) {
-                                    setMessage(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create category');
+                                    showError(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create category');
                                 } finally {
                                     setLoading(false);
                                 }
