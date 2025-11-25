@@ -1,4 +1,4 @@
-# POS API (Backend) — Endpoints Doc
+# POS (Backend) — Endpoints Doc
 
 ## Folder layout
 
@@ -20,7 +20,7 @@ Mounted paths:
 - `/user/start` → `routes/user.start.routes.js`
 
 ---
-# LOGIN API
+# LOGIN
 
 ## POST `/api/login`
 
@@ -145,7 +145,7 @@ curl -s "http://localhost:8080/api/auth/role?employeeId=1" | jq .
   * `isAdmin` → computed boolean.
 
 ---
-# Employees API
+# Employees
 
 ### GET `/admin/employees`
 List employees with optional filtering and sorting.
@@ -416,7 +416,7 @@ curl -i -s -X DELETE "http://localhost:8080/admin/employees/8" | head -n1
 ```
 
 ---
-## Inventory API
+## Inventory
 
 ### GET `/admin/inventory/products`
 List products with stock and supplier info.
@@ -849,7 +849,7 @@ curl -s -X DELETE "http://localhost:8080/admin/inventory/suppliers/8" | jq .
 
 ---
 
-## Cashier API
+## Cashier 
 
 ### GET `/cashier/customers/lookup?email=<email>`
 
@@ -1361,7 +1361,7 @@ curl -s "http://localhost:8080/cashier/orders/42/receipt" | jq .
 
 ---
 
-## Orders API
+## Orders 
 
 ### GET `/admin/orders/recent?limit=N`
 
@@ -1607,7 +1607,7 @@ List **all orders for a given customer**, with per-order aggregates.
 
 ---
 
-## Sales & Analytics API
+## Sales & Analytics
 
 ---
 
@@ -1946,7 +1946,7 @@ Employee performance metrics based on orders and line items.
 ## Quick demo (Sales & Analytics)
 
 ```bash
-# Restock (Inventory API)
+# Restock (Inventory)
 curl -s -X POST "http://localhost:8080/admin/inventory/restock"   -H "Content-Type: application/json"   -d '{"SupplierID":2,"items":[{"ProductID":4,"Qty":5},{"ProductID":6,"Qty":3}]}' | jq .
 
 # High-level KPIs
@@ -1976,7 +1976,7 @@ curl -s "http://localhost:8080/admin/sales/charts" | jq .
 
 ---
 
-# Sale Events API 
+# Sale Events
 
 ## GET `/admin/sale-events`
 
@@ -2157,7 +2157,7 @@ Delete **all discounts** linked to events that are:
 
 ---
 
-# Discounts API
+# Discounts
 
 Discounts are always created **within a sale event**.
 Endpoints live under:
@@ -2282,7 +2282,7 @@ Delete a discount by its ID.
 
 ---
 
-## Search API 
+## Search 
 
 Single endpoint to quickly look up **customers**, **orders**, or **products** by numeric ID.
 
@@ -2408,7 +2408,7 @@ Possible error shapes returned by this endpoint:
 
 ---
 
-## Storefront Start / Promotions API 
+## Storefront Start / Promotions 
 
 These endpoints power the **storefront home page** and **promotions** view: active sale events, discounted products, and counts.
 
