@@ -556,15 +556,69 @@ function SalesReport() {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryTransactions, setCategoryTransactions] = useState([]);
 
+    const categoryOrderItemCounts = useMemo(() => {
+        const map = {};
+        categoryTransactions.forEach((tx) => {
+            const id = tx.OrderID;
+            if (!id) return;
+            const q = Number(tx.Quantity) || 0;
+            map[id] = (map[id] || 0) + q;
+        });
+        return map;
+    }, [categoryTransactions]);
+
+    const [expandedCategoryOrders, setExpandedCategoryOrders] = useState(new Set());
+
+    const groupedCategoryOrders = useMemo(() => {
+        const map = {};
+        categoryTransactions.forEach((tx) => {
+            const id = tx.OrderID ?? `order-${Math.random()}`;
+            if (!map[id]) {
+                map[id] = {
+                    OrderID: tx.OrderID,
+                    DatePlaced: tx.DatePlaced,
+                    CustomerName: tx.CustomerName,
+                    EmployeeName: tx.EmployeeName,
+                    Total: tx.Total ?? tx.Subtotal ?? 0,
+                    Status: tx.Status,
+                    items: [],
+                    itemsCount: 0,
+                };
+            }
+            map[id].items.push(tx);
+            map[id].itemsCount += Number(tx.Quantity) || 0;
+            // keep most recent DatePlaced and Total if present
+            if (tx.DatePlaced && (!map[id].DatePlaced || new Date(tx.DatePlaced) > new Date(map[id].DatePlaced))) {
+                map[id].DatePlaced = tx.DatePlaced;
+            }
+            if (tx.Total) map[id].Total = tx.Total;
+        });
+
+        // Return array sorted by date desc
+        return Object.values(map).sort((a, b) => new Date(b.DatePlaced) - new Date(a.DatePlaced));
+    }, [categoryTransactions]);
+
+    const toggleCategoryOrder = (orderId) => {
+        setExpandedCategoryOrders((prev) => {
+            const next = new Set(prev);
+            if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
+            return next;
+        });
+    };
+
     const handleCategoryClick = async (category) => {
+        console.log('handleCategoryClick called for', category);
         setSelectedCategory(category);
 
         try {
+            const params = { from: fromDate || undefined, to: toDate || undefined };
+            console.log('Calling category transactions API with params', params);
             const res = await api.get(
                 `/admin/sales/category/${category.CategoryID}/transactions`,
-                { params: { from: filters.from, to: filters.to } }
+                { params }
             );
-            setCategoryTransactions(res.data);
+            console.log('Category transactions response', res && res.data);
+            setCategoryTransactions(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             console.error("Failed loading category transactions", err);
             setCategoryTransactions([]);
@@ -574,19 +628,70 @@ function SalesReport() {
     const [selectedTrendRow, setSelectedTrendRow] = useState(null);
     const [trendDetails, setTrendDetails] = useState([]);
 
+    const trendOrderItemCounts = useMemo(() => {
+        const map = {};
+        trendDetails.forEach((d) => {
+            const id = d.OrderID;
+            if (!id) return;
+            const q = Number(d.Quantity) || 0;
+            map[id] = (map[id] || 0) + q;
+        });
+        return map;
+    }, [trendDetails]);
+
+    const [expandedTrendOrders, setExpandedTrendOrders] = useState(new Set());
+
+    const groupedTrendOrders = useMemo(() => {
+        const map = {};
+        trendDetails.forEach((d) => {
+            const id = d.OrderID ?? `order-${Math.random()}`;
+            if (!map[id]) {
+                map[id] = {
+                    OrderID: d.OrderID,
+                    DatePlaced: d.LocalDatePlaced || d.DatePlaced || d.SaleDate,
+                    CustomerName: d.CustomerName,
+                    EmployeeName: d.EmployeeName,
+                    Total: d.Total ?? d.Subtotal ?? 0,
+                    Status: d.Status,
+                    CategoryName: d.CategoryName,
+                    items: [],
+                    itemsCount: 0,
+                };
+            }
+            map[id].items.push(d);
+            map[id].itemsCount += Number(d.Quantity) || 0;
+            if (d.LocalDatePlaced && (!map[id].DatePlaced || new Date(d.LocalDatePlaced) > new Date(map[id].DatePlaced))) {
+                map[id].DatePlaced = d.LocalDatePlaced;
+            }
+            if (d.Total) map[id].Total = d.Total;
+        });
+
+        return Object.values(map).sort((a, b) => new Date(b.DatePlaced) - new Date(a.DatePlaced));
+    }, [trendDetails]);
+
+    const toggleTrendOrder = (orderId) => {
+        setExpandedTrendOrders((prev) => {
+            const next = new Set(prev);
+            if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
+            return next;
+        });
+    };
+
     const handleTrendRowClick = async (row) => {
+        console.log('handleTrendRowClick called for', row);
         setSelectedTrendRow(row);
-        
+
         try {
-            const res = await api.get('/admin/sales/sales-trends/details', {
-                params: {
-                    date: String(row.SaleDate).slice(0, 10),
-                    hour: row.HourOfDay,
-                    from: filters.from,
-                    to: filters.to
-                }
-            });
-            setTrendDetails(res.data);
+            const params = {
+                date: String(row.SaleDate).slice(0, 10),
+                hour: row.HourOfDay,
+                from: fromDate || undefined,
+                to: toDate || undefined
+            };
+            console.log('Calling trend details API with params', params);
+            const res = await api.get('/admin/sales/sales-trends/details', { params });
+            console.log('Trend details response', res && res.data);
+            setTrendDetails(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             console.error("Failed loading trend details", err);
             setTrendDetails([]);
@@ -979,6 +1084,65 @@ function SalesReport() {
                             setCurrentPage={setCategoryPage}
                             totalItems={filteredCategoryPerformance.length}
                         />
+                        {selectedCategory && (
+                            <div className="category-transactions">
+                                <h3>Transactions for {selectedCategory.CategoryName}</h3>
+
+                                {groupedCategoryOrders.length ? (
+                                    <table className="orders-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Order ID</th>
+                                                <th>Date</th>
+                                                <th>Customer</th>
+                                                <th>Employee</th>
+                                                <th>Items</th>
+                                                <th>Order Total ($)</th>
+                                                <th>Status</th>
+                                                <th />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {groupedCategoryOrders.map((order) => {
+                                                const expanded = expandedCategoryOrders.has(order.OrderID);
+                                                return (
+                                                    <>
+                                                        <tr key={order.OrderID} className="order-row">
+                                                            <td>{order.OrderID}</td>
+                                                            <td>{formatDate(order.DatePlaced)}</td>
+                                                            <td>{order.CustomerName || 'Guest'}</td>
+                                                            <td>{order.EmployeeName || 'N/A'}</td>
+                                                            <td>{order.itemsCount}</td>
+                                                            <td>${formatCurrency(order.Total)}</td>
+                                                            <td>{order.Status || 'N/A'}</td>
+                                                            <td>
+                                                                <button type="button" className="btn-link" onClick={() => toggleCategoryOrder(order.OrderID)}>
+                                                                    {expanded ? 'Hide items' : 'Show items'}
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+
+                                                        {expanded && order.items.map((item, idx) => (
+                                                            <tr key={item.OrderDetailID || `${order.OrderID}-line-${idx}`} className="order-line">
+                                                                <td colSpan={2} />
+                                                                <td>{item.ProductName || '-'}</td>
+                                                                <td />
+                                                                <td>{item.Quantity ?? '-'}</td>
+                                                                <td>${formatCurrency(item.LineTotal ?? (item.Quantity * item.Price))}</td>
+                                                                <td />
+                                                                <td />
+                                                            </tr>
+                                                        ))}
+                                                    </>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p>No transactions found for this category.</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </Tab>
 
@@ -1029,6 +1193,70 @@ function SalesReport() {
                             setCurrentPage={setTrendsPage}
                             totalItems={filteredSalesTrends.length}
                         />
+                        {selectedTrendRow && (
+                            <div className="trend-details">
+                                <h3>
+                                    Details for {selectedTrendRow.DayOfWeek} {String(selectedTrendRow.SaleDate).slice(0,10)} {selectedTrendRow.HourOfDay}:00
+                                </h3>
+
+                                {groupedTrendOrders.length ? (
+                                    <table className="orders-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Order ID</th>
+                                                <th>Date</th>
+                                                <th>Customer</th>
+                                                <th>Employee</th>
+                                                <th>Category</th>
+                                                <th>Items</th>
+                                                <th>Order Total ($)</th>
+                                                <th>Status</th>
+                                                <th />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {groupedTrendOrders.map((order) => {
+                                                const expanded = expandedTrendOrders.has(order.OrderID);
+                                                return (
+                                                    <>
+                                                        <tr key={order.OrderID} className="order-row">
+                                                            <td>{order.OrderID}</td>
+                                                            <td>{formatDate(order.DatePlaced)}</td>
+                                                            <td>{order.CustomerName || 'Guest'}</td>
+                                                            <td>{order.EmployeeName || 'N/A'}</td>
+                                                            <td>{order.CategoryName || '-'}</td>
+                                                            <td>{order.itemsCount}</td>
+                                                            <td>${formatCurrency(order.Total)}</td>
+                                                            <td>{order.Status || 'N/A'}</td>
+                                                            <td>
+                                                                <button type="button" className="btn-link" onClick={() => toggleTrendOrder(order.OrderID)}>
+                                                                    {expanded ? 'Hide items' : 'Show items'}
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+
+                                                        {expanded && order.items.map((item, idx) => (
+                                                            <tr key={item.OrderDetailID || `${order.OrderID}-line-${idx}`} className="order-line">
+                                                                <td colSpan={2} />
+                                                                <td>{item.ProductName || '-'}</td>
+                                                                <td>{item.EmployeeName || ''}</td>
+                                                                <td>{item.CategoryName || ''}</td>
+                                                                <td>{item.Quantity ?? '-'}</td>
+                                                                <td>${formatCurrency(item.LineTotal ?? (item.Quantity * item.Price))}</td>
+                                                                <td />
+                                                                <td />
+                                                            </tr>
+                                                        ))}
+                                                    </>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p>No details found for this trend row.</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </Tab>
 
