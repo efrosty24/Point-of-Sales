@@ -94,7 +94,7 @@ exports.getFilteredCustomers = (options, callback) => {
 
     const filters = [];
     const values = [];
-
+    filters.push('CustomerID != 1000');
     if (options.customerId) {
         filters.push('CustomerID = ?');
         values.push(options.customerId);
