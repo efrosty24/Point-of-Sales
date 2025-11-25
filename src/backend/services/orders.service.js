@@ -33,6 +33,7 @@ exports.list = ({ from, to, customerId, employeeId }, cb) => {
       COALESCE(SUM(od.Quantity * od.Price), 0) AS Total
     FROM Orders o
     LEFT JOIN OrderDetails od ON od.OrderID = o.OrderID
+    LEFT JOIN Customers c ON c.CustomerID = o.CustomerID
     ${clause}
     GROUP BY o.OrderID, o.DatePlaced, o.CustomerID, o.EmployeeID
     ORDER BY o.DatePlaced DESC
@@ -90,8 +91,19 @@ exports.listByProduct = (productId, cb) => {
   db.query(sql, [productId], (err, rows) => cb(err, rows));
 };
 
-exports.listByCustomer = (customerId, cb) => {
-  const sql = `
+exports.listByCustomer = ({customerId, from, to}, cb) => {
+    if (!customerId) return cb(new Error("Customer ID is required"));
+
+    const where = ['o.CustomerID = ?'];
+    const params = [customerId];
+
+    // Dynamically add date filters
+    if (from)       { where.push('o.DatePlaced >= ?'); params.push(from); }
+    if (to)         { where.push('o.DatePlaced < DATE_ADD(?, INTERVAL 1 DAY)'); params.push(to); }
+
+    const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const sql = `
     SELECT 
       o.OrderID,
       o.DatePlaced,
@@ -103,10 +115,10 @@ exports.listByCustomer = (customerId, cb) => {
     FROM Orders o
     JOIN OrderDetails od ON od.OrderID = o.OrderID
     JOIN Customers c ON o.CustomerID = c.CustomerID
-    WHERE o.CustomerID = ?
-    GROUP BY o.OrderID
+    ${clause}
+    GROUP BY o.OrderID, o.DatePlaced, o.Status, c.FirstName, c.LastName
     ORDER BY o.DatePlaced DESC;
   `;
 
-  db.query(sql, [customerId], (err, rows) => cb(err, rows));
+    db.query(sql, params, (err, rows) => cb(err, rows));
 };

@@ -175,6 +175,9 @@ function SalesReport() {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [showModal, setShowModal] = useState(false);
 
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [employeeOrders, setEmployeeOrders] = useState([]);
+
     
     const [productPage, setProductPage] = useState(1);
     const [customerPage, setCustomerPage] = useState(1);
@@ -444,6 +447,46 @@ function SalesReport() {
             .catch((err) => console.error("Error fetching employee performance:", err));
     }, [fromDate, toDate]);
 
+    async function handleEmployeeClick(employee) {
+        setSelectedProduct(null);
+        setSelectedCustomer(null);
+        setSelectedCategory(null);
+        setSelectedTrendRow(null);
+
+        if (selectedEmployee?.EmployeeID === employee.EmployeeID) {
+            setSelectedEmployee(null);
+            setEmployeeOrders([]);
+            return;
+        }
+
+        setSelectedEmployee(employee);
+        setEmployeeOrders([]);
+
+        try {
+            const from = fromDate || undefined;
+            const to = toDate || undefined;
+            const params = {
+                employeeId: employee.EmployeeID
+            };
+
+            if (from) {
+                params.from = from;
+            }
+
+            if (to) {
+                params.to = to;
+            }
+
+            const res = await api.get("/admin/orders", { params });
+            const data = res.data;
+
+            setEmployeeOrders(data || []);
+        } catch (err) {
+            console.error("Failed to fetch employee orders:", err);
+            setEmployeeOrders([]);
+        }
+    }
+
     const openOrderDetails = (orderId) => {
         api.get(`/admin/orders/${orderId}`)
             .then((res) => {
@@ -524,13 +567,37 @@ function SalesReport() {
 
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [productOrders, setProductOrders] = useState([]);
+
     const handleProductClick = (product) => {
-        console.log("Clicked product:", product);  
+        console.log("Clicked product:", product);
+
+
+        if (selectedProduct?.ProductID === product.ProductID) {
+            setSelectedProduct(null);
+            setProductOrders([]);
+            return;
+        }
+        setSelectedCustomer(null);
+        setSelectedCategory(null);
+        setSelectedTrendRow(null);
+        setSelectedEmployee(null);
+
         setSelectedProduct(product);
 
-        api.get(`/admin/orders/by-product/${product.ProductID}`)
+        const from = fromDate || null;
+        const to = toDate || null;
+
+        const params = {};
+        if (from) {
+            params.from = from;
+        }
+        if (to) {
+            params.to = to;
+        }
+
+        api.get(`/admin/orders/by-product/${product.ProductID}`, { params })
             .then(res => {
-                console.log("Orders response:", res.data); 
+                console.log("Orders response:", res.data);
                 setProductOrders(res.data);
             })
             .catch(err => {
@@ -541,11 +608,35 @@ function SalesReport() {
 
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [customerOrders, setCustomerOrders] = useState([]);
+
     async function handleCustomerClick(customer) {
+        if (selectedCustomer?.CustomerID === customer.CustomerID) {
+            setSelectedCustomer(null);
+            setCustomerOrders([]);
+            return;
+        }
+
+        setSelectedProduct(null);
+        setSelectedCategory(null);
+        setSelectedTrendRow(null);
+        setSelectedEmployee(null);
+
         setSelectedCustomer(customer);
 
         try {
-            const res = await api.get(`/admin/orders/by-customer/${customer.CustomerID}`);
+            const from = fromDate || null;
+            const to = toDate || null;
+
+            const params = {
+            };
+            if (from) {
+                params.from = from;
+            }
+            if (to) {
+                params.to = to;
+            }
+
+            const res = await api.get(`/admin/orders/by-customer/${customer.CustomerID}`, { params });
             setCustomerOrders(res.data);
         } catch (err) {
             console.error("Failed loading customer orders", err);
@@ -608,19 +699,54 @@ function SalesReport() {
 
     const handleCategoryClick = async (category) => {
         console.log('handleCategoryClick called for', category);
+
+        // 1. Toggle behavior: Close if the same category is clicked again
+        if (selectedCategory?.CategoryID === category.CategoryID) {
+            setSelectedCategory(null);
+            setCategoryTransactions([]);
+            return;
+        }
+
+        // 2. Clear all other drill-down selections
+        setSelectedProduct(null);
+        setSelectedCustomer(null);
+        setSelectedTrendRow(null);
+        setSelectedEmployee(null);
+
+        // 3. Set the new selection
         setSelectedCategory(category);
 
         try {
-            const params = { from: fromDate || undefined, to: toDate || undefined };
+            // 4. Construct parameters robustly from state
+            // Use the latest state for filtering
+            const from = fromDate || null;
+            const to = toDate || null;
+
+            const params = {};
+            if (from) {
+                params.from = from;
+            }
+            if (to) {
+                params.to = to;
+            }
+
             console.log('Calling category transactions API with params', params);
+
+            // API Endpoint for Category Transactions
             const res = await api.get(
                 `/admin/sales/category/${category.CategoryID}/transactions`,
                 { params }
             );
+
             console.log('Category transactions response', res && res.data);
             setCategoryTransactions(Array.isArray(res.data) ? res.data : []);
+
+            // You should now also add a rendering block for categoryTransactions,
+            // similar to what you have for employeeOrders or productOrders,
+            // inside the <Tab id="categories"> section of your JSX.
         } catch (err) {
             console.error("Failed loading category transactions", err);
+            // showError("Failed to load category transactions."); // Assuming you have an alert context
             setCategoryTransactions([]);
         }
     };
@@ -696,6 +822,34 @@ function SalesReport() {
             console.error("Failed loading trend details", err);
             setTrendDetails([]);
         }
+    };
+
+    const getDateRangeDisplay = (start, end) => {
+
+        const format = (dateStr) => {
+            if (!dateStr) return null;
+
+            return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        const formattedStart = format(start);
+        const formattedEnd = format(end);
+
+        if (!start && !end) {
+            return "All Time";
+        }
+
+        if (formattedStart && formattedEnd) {
+
+            if (start === end) {
+                return `On ${formattedStart}`;
+            }
+            return `From ${formattedStart} to ${formattedEnd}`;
+        }
+        if (formattedStart) return `From ${formattedStart} onwards`;
+        if (formattedEnd) return `Up to ${formattedEnd}`;
+
+        return "All Time";
     };
 
     return (
@@ -918,7 +1072,7 @@ function SalesReport() {
 
                         {selectedProduct && (
                         <div className="related-orders">
-                            <h3>Orders Containing {selectedProduct.ProductName}</h3>
+                            <h3>Orders Containing {selectedProduct.ProductName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
 
                             {productOrders.length ? (
                             <table className="orders-table">
@@ -1003,7 +1157,7 @@ function SalesReport() {
 
                         {selectedCustomer && (
                             <div className="customer-orders">
-                                <h3>Orders for {selectedCustomer.CustomerName}</h3>
+                                <h3>Orders for {selectedCustomer.CustomerName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
 
                                 {customerOrders.length ? (
                                     <table className="orders-table">
@@ -1086,7 +1240,7 @@ function SalesReport() {
                         />
                         {selectedCategory && (
                             <div className="category-transactions">
-                                <h3>Transactions for {selectedCategory.CategoryName}</h3>
+                                <h3>Transactions for {selectedCategory.CategoryName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
 
                                 {groupedCategoryOrders.length ? (
                                     <table className="orders-table">
@@ -1335,7 +1489,11 @@ function SalesReport() {
                                 <tbody>
                                 {paginatedEmployees.length ? (
                                     paginatedEmployees.map((emp) => (
-                                        <tr key={emp.EmployeeID}>
+                                        <tr
+                                            key={emp.EmployeeID}
+                                            onClick={() => handleEmployeeClick(emp)}
+                                            className="clickable-row"
+                                        >
                                             <td>
                                                 <div className="employee-cell">
                                                     <div className="employee-avatar">
@@ -1364,12 +1522,48 @@ function SalesReport() {
                                 </tbody>
                             </table>
                         </div>
+
                         <Pagination
                             currentPage={employeesPage}
                             setCurrentPage={setEmployeesPage}
                             totalItems={filteredEmployees.length}
                         />
                     </div>
+                    {selectedEmployee && (
+                        <div className="related-orders">
+                            <h3>Orders Processed by {selectedEmployee.FirstName} {selectedEmployee.LastName} ({getDateRangeDisplay(fromDate, toDate)})</h3>
+
+                            {employeeOrders.length ? (
+                                <table className="orders-table">
+                                    <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Date</th>
+                                        <th>Customer</th>
+                                        <th>Total ($)</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {employeeOrders.map(order => {
+                                        const customerName = order.FirstName || order.LastName
+                                            ? `${order.FirstName || ''} ${order.LastName || ''}`.trim()
+                                            : 'Guest';
+                                        return (
+                                            <tr key={order.OrderID}>
+                                                <td>{order.OrderID}</td>
+                                                <td>{formatDate(order.DatePlaced)}</td>
+                                                <td>{customerName}</td>
+                                                <td className="revenue-cell">${formatCurrency(order.Total)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <p>No orders found for this employee matching the filter criteria.</p>
+                            )}
+                        </div>
+                    )}
                 </Tab>
             </Tabs>
 

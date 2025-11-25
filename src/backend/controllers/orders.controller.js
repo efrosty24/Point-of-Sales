@@ -43,7 +43,22 @@ exports.reassignCustomer = (req, res) => {
 
 exports.byProduct = (req, res) => {
     const { productId } = req.params;
+    const { from, to } = req.query;
     if (!productId) return res.status(400).json({ error: "Product ID is required" });
+
+    const params = [productId];
+    const dateFilters = [];
+
+    // Dynamically construct date filters
+    if (from) {
+        dateFilters.push("o.DatePlaced >= ?");
+        params.push(from);
+    }
+    if (to) {
+        dateFilters.push("o.DatePlaced < DATE_ADD(?, INTERVAL 1 DAY)");
+        params.push(to);
+    }
+    const dateClause = dateFilters.length > 0 ? ` AND ${dateFilters.join(' AND ')}` : '';
 
     const sql = `
         SELECT 
@@ -58,21 +73,23 @@ exports.byProduct = (req, res) => {
         FROM Orders o
         JOIN OrderDetails od ON od.OrderID = o.OrderID
         LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
-        WHERE od.ProductID = ?
+        WHERE od.ProductID = ? 
+        ${dateClause} /* <-- APPLY DATE FILTER */
         ORDER BY o.DatePlaced DESC;
     `;
-    db.query(sql, [productId], (err, rows) => {
+    db.query(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: "DB_ERROR" });
         res.json(rows);
     });
 };
 
 exports.byCustomer = (req, res) => {
-  const customerId = Number(req.params.id);
-  if (!customerId) return res.status(400).json({ error: "INVALID_CUSTOMER_ID" });
+    const customerId = Number(req.params.id);
+    const { from, to } = req.query;
+    if (!customerId) return res.status(400).json({ error: "INVALID_CUSTOMER_ID" });
 
-  svc.listByCustomer(customerId, (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB_ERROR", details: err });
-    res.json(rows.length ? rows : []);
-  });
+    svc.listByCustomer({ customerId, from, to }, (err, rows) => { // <-- Pass filters to service
+        if (err) return res.status(500).json({ error: "DB_ERROR", details: err });
+        res.json(rows.length ? rows : []);
+    });
 };
