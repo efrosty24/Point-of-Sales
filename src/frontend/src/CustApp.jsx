@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthContext";
 import api from "./utils/api.js";
 import "./CustApp.css";
+import { useAlert } from './AlertContext';
 
 function CustApp() {
+    const { showSuccess, showError, showWarning, showInfo } = useAlert();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -21,7 +23,6 @@ function CustApp() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState({});
-    const [serverError, setServerError] = useState("");
 
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [newPassword, setNewPassword] = useState("");
@@ -156,7 +157,6 @@ function CustApp() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setServerError("");
 
         if (!validateForm()) return;
 
@@ -180,7 +180,7 @@ function CustApp() {
                     setUser(response.data.customer);
                     navigate("/cashier");
                 } else {
-                    setServerError(response.data.message || "Login failed");
+                    showError(response.data.message || "Login failed");
                 }
             } else {
                 const payload = {
@@ -200,8 +200,7 @@ function CustApp() {
 
                 if (res.status < 200 || res.status >= 300) {
                     console.error("Create failed");
-                    setServerError("Registration failed. Please try again.");
-                    alert(res.data.error || "SignUp Failed");
+                    showError(res.data.error || "SignUp Failed");
                     return;
                 }
                 console.log(res);
@@ -229,8 +228,7 @@ function CustApp() {
             }
         } catch (error) {
             console.error('Auth error:', error);
-            setServerError(error.response?.data?.error || "Unable to connect to server");
-            alert(error.response?.data?.error || "SignUp Failed");
+            showError(error.response?.data?.error || "SignUp Failed");
         } finally {
             setIsLoading(false);
         }
@@ -239,7 +237,6 @@ function CustApp() {
     const toggleMode = () => {
         setIsLogin(!isLogin);
         setErrors({});
-        setServerError("");
         setPassword("");
         setConfirmPassword("");
     };
@@ -429,17 +426,6 @@ function CustApp() {
                             </p>
                         </div>
 
-                        {}
-                        {serverError && (
-                            <div className="server-error">
-                                <svg viewBox="0 0 24 24" fill="none">
-                                    <path d="M12 9V11M12 15H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0377 2.66667 10.2679 4L3.33975 16C2.56995 17.3333 3.53223 19 5.07183 19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                                <span>{serverError}</span>
-                            </div>
-                        )}
-
-                        {}
                         <form onSubmit={handleSubmit} className="auth-form">
                             {!isLogin && (
                                 <>

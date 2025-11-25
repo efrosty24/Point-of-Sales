@@ -7,6 +7,7 @@ import api from "../utils/api.js";
 import { Info } from "lucide-react";
 import { AuthContext } from "../AuthContext";
 import { useNotifications } from "../NotificationContext";
+import { useAlert } from '../AlertContext';
 
 
 const GUEST_KEY = "cashierGuest";
@@ -105,6 +106,7 @@ function QtyStepper({ value, onSet, labelId, disablePlusVisual = false }) {
 
 export default function Cashier() {
     const { user, setUser } = useContext(AuthContext);
+    const { showSuccess, showError } = useAlert();
     const navigate = useNavigate();
 
     const [products, setProducts] = useState([]);
@@ -619,7 +621,7 @@ export default function Cashier() {
                 setPoints(0);
             }
         } else {
-            alert("Add items to cart to lookup customer");
+            showError("Add items to cart to lookup customer");
         }
     };
 
@@ -638,7 +640,7 @@ export default function Cashier() {
     };
 
     const handleCheckout = async () => {
-        if (!cart.length) return alert("Cart is empty!");
+        if (!cart.length) return showError("Cart is empty!");
         try {
             const id = await ensureRegister();
 
@@ -696,10 +698,10 @@ export default function Cashier() {
             }
 
             const errMsg = (res.data && (res.data.message || res.data.error)) || 'Checkout failed';
-            alert(errMsg);
+            showError(errMsg);
         } catch (err) {
             const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || String(err);
-            alert("Checkout failed: " + msg);
+            showError("Checkout failed: " + msg);
         }
     };
 

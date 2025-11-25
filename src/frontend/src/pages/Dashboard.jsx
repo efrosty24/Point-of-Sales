@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import "./Dashboard.css";
 import SearchBar from "./SearchBar";
 import api from "../utils/api.js";
+import { useAlert } from '../AlertContext';
+
 import {
     LineChart,
     Line,
@@ -17,6 +19,7 @@ import {
 import { FaDollarSign, FaShoppingCart, FaUsers, FaChartLine } from "react-icons/fa";
 
 function Dashboard() {
+    const { showSuccess, showError } = useAlert();
     const [recentSales, setRecentSales] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [newCustomers, setNewCustomers] = useState([]);
@@ -24,7 +27,7 @@ function Dashboard() {
     const [searchResults, setSearchResults] = useState([]);
     const [searchType, setSearchType] = useState("");
 
-    // Chart Data
+    
     const [hourlySales, setHourlySales] = useState([]);
     const [dailySales, setDailySales] = useState([]);
     const [monthlySales, setMonthlySales] = useState([]);
@@ -41,7 +44,7 @@ function Dashboard() {
                 setMonthlySales(res.data.monthly || [
                     { month: "Jan", total: 0 },
                     { month: "Feb", total: 0 }
-                ]); // fallback dummy data
+                ]); 
             })
             .catch(console.error);
     }, []);
@@ -56,7 +59,7 @@ function Dashboard() {
     const openOrderDetails = (orderId) => {
         api.get(`/admin/orders/${orderId}`)
             .then(res => setSelectedOrder(res.data))
-            .catch(() => alert("Failed to fetch order details"));
+            .catch(() => showError("Failed to fetch order details"));
     };
 
     const closeOrderDetails = () => setSelectedOrder(null);
@@ -66,7 +69,7 @@ function Dashboard() {
         return Number.isFinite(n) ? n.toFixed(2) : "0.00";
     };
 
-    // --- Compute Today's Sales Report ---
+    
     const today = new Date();
     const isToday = (dateStr) => {
         if (!dateStr) return false;
@@ -89,7 +92,7 @@ function Dashboard() {
                 <h1>Admin Dashboard</h1>
             </div>
 
-            {/* --- SALES REPORT CARDS --- */}
+            {}
             <div className="report-row separated-cards">
                 <div className="report-card sales-card">
                     <div className="report-icon"><FaDollarSign /></div>
@@ -116,9 +119,9 @@ function Dashboard() {
                 </div>
             </div>
 
-            {/* --- CHARTS --- */}
+            {}
             <div className="charts-grid">
-                {/* HOURLY SALES */}
+                {}
                 <div className="chart-card">
                     <h4>Hourly Sales</h4>
                     <ResponsiveContainer width="100%" height={250}>
@@ -135,7 +138,7 @@ function Dashboard() {
                     </ResponsiveContainer>
                 </div>
 
-                {/* DAILY SALES */}
+                {}
                 <div className="chart-card">
                     <h4>Daily Sales</h4>
                     <ResponsiveContainer width="100%" height={250}>
@@ -169,7 +172,7 @@ function Dashboard() {
                     </ResponsiveContainer>
                 </div>
 
-                {/* MONTHLY SALES */}
+                {}
                 <div className="chart-card">
                     <h4>Monthly Sales</h4>
                     <ResponsiveContainer width="100%" height={250}>
@@ -187,10 +190,10 @@ function Dashboard() {
                 </div>
             </div>
 
-            {/* --- SEARCH BAR --- */}
+            {}
             <SearchBar onSearch={handleSearch} />
 
-            {/* --- SEARCH RESULTS --- */}
+            {}
             {searchResults.length > 0 && (
                 <div className="search-results" style={{ marginBottom: "20px" }}>
                     <h2>Search Results</h2>
@@ -268,7 +271,7 @@ function Dashboard() {
                 </div>
             )}
 
-            {/* --- RECENT ORDERS --- */}
+            {}
             <h2 className="dashboard-title">Recent Orders</h2>
             {recentSales.length === 0 ? <p>No recent sales</p> : (
                 <table className="sales-table">
@@ -303,7 +306,7 @@ function Dashboard() {
                 </table>
             )}
 
-            {/* --- NEW CUSTOMERS --- */}
+            {}
             <h2 className="dashboard-title" style={{ marginTop: 40 }}>New Customers</h2>
             {newCustomers.length === 0 ? <p>No new customers</p> : (
                 <table className="sales-table">
@@ -328,7 +331,7 @@ function Dashboard() {
                 </table>
             )}
 
-            {/* --- ORDER MODAL --- */}
+            {}
             {selectedOrder && selectedOrder.header && (
                 <div className="order-modal" onClick={closeOrderDetails}>
                     <div className="order-modal-content" onClick={(e) => e.stopPropagation()}>

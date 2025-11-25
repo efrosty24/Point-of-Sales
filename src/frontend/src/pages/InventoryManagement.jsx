@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import "./InventoryManagement.css";
 import api from "../utils/api.js";
+import { useConfirm } from '../ConfirmContext';
+import { useAlert } from '../AlertContext';
 
 export default function InventoryManagement() {
+    const { showSuccess, showError, showWarning, showInfo } = useAlert();
+    const { confirm } = useConfirm();
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -74,7 +78,7 @@ export default function InventoryManagement() {
 
     async function handleRestock() {
         if (!supplierFilter) {
-            setMessage("Select a supplier before restocking");
+            showWarning("Select a supplier before restocking");
             return;
         }
 
@@ -103,7 +107,7 @@ export default function InventoryManagement() {
                 });
 
                 if (quantity < minQuantity) {
-                    setMessage(`${product.Name} needs at least ${minQuantity} units (10% above threshold)`);
+                    showError(`${product.Name} needs at least ${minQuantity} units (10% above threshold)`);
                     return;
                 }
 
@@ -112,7 +116,7 @@ export default function InventoryManagement() {
         }
 
         if (itemsToRestock.length === 0) {
-            setMessage("Enter quantities to restock");
+            showError("Enter quantities to restock");
             return;
         }
 
@@ -122,38 +126,41 @@ export default function InventoryManagement() {
                 items: itemsToRestock,
             };
             console.log("Restock payload:", payload);
-
             const res = await api.post("/admin/inventory/restock", payload);
 
             if (res.data && res.data.ok) {
-                setMessage(`Restocked ${res.data.itemsUpdated || itemsToRestock.length} item(s) successfully`);
+                showSuccess(`Restocked ${res.data.itemsUpdated || itemsToRestock.length} item(s) successfully`);
                 setRestock({});
                 fetchProducts();
-            } else {
-                setMessage("Restock completed");
             }
         } catch (err) {
             const errorMsg = err?.response?.data?.error || err?.message || "Restock failed";
             console.error("Restock error:", err?.response?.data || err);
-            setMessage(`Error: ${errorMsg}`);
+            showError(`Error: ${errorMsg}`);
         }
     }
 
-    async function handleDeleteCategory(id) {
-        if (!window.confirm("Delete this category? Products using it may be affected.")) return;
+    async function confirmDeleteCategory(id) {
+        const isConfirmed = await confirm({
+            title: 'Delete Category',
+            message: 'Delete this Category? Products using it may be affected.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+        if (!isConfirmed) return;
         try {
             await api.delete(`/admin/inventory/categories/${id}`);
-            setMessage("Category deleted");
+            showSuccess("Category deleted");
             fetchCategories();
         } catch (err) {
-            setMessage(err?.response?.data?.error || "Failed to delete category");
+            showError(err?.response?.data?.error || "Failed to delete category");
         }
     }
 
     async function handleUpdateCategory(e) {
         e.preventDefault();
         if (!editingCategory || !editingCategory.CategoryName) {
-            setMessage("Category name is required");
+            showWarning("Category name is required");
             return;
         }
         try {
@@ -161,12 +168,12 @@ export default function InventoryManagement() {
             await api.patch(`/admin/inventory/categories/${editingCategory.CategoryID}`, {
                 CategoryName: editingCategory.CategoryName,
             });
-            setMessage("Category updated");
+            showSuccess("Category updated");
             setShowCategoryEdit(false);
             setEditingCategory(null);
             fetchCategories();
         } catch (err) {
-            setMessage(err?.response?.data?.error || "Failed to update category");
+            showError(err?.response?.data?.error || "Failed to update category");
         } finally {
             setLoading(false);
         }
@@ -189,26 +196,32 @@ export default function InventoryManagement() {
                 ImgName: editingProduct.ImgPath ? editingProduct.ImgPath.substring(editingProduct.ImgPath.lastIndexOf('/') + 1) : null
             };
             await api.patch(`/admin/inventory/products/${editingProduct.ProductID}`, body);
-            setMessage("Product updated");
+            showSuccess("Product updated");
             setShowProductEdit(false);
             setEditingProduct(null);
             fetchProducts();
         } catch (err) {
-            setMessage(err?.response?.data?.error || "Failed to update product");
+            showError(err?.response?.data?.error || "Failed to update product");
         } finally {
             setLoading(false);
         }
     }
 
-    async function handleDeleteProduct(id) {
-        if (!window.confirm("Delete this product?")) return;
+    async function confirmDeleteProduct(id) {
+        const isConfirmed = await confirm({
+            title: 'Delete Product',
+            message: 'Are you sure you want to delete this product? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+        if (!isConfirmed) return;
         try {
             setLoading(true);
             const res = await api.delete(`/admin/inventory/products/${id}`);
-            setMessage(res.data?.message || "Product deleted");
+            showSuccess(res.data?.message || "Product deleted");
             await fetchProducts();
         } catch (err) {
-            setMessage(err?.response?.data?.error || err?.response?.data?.message || "Failed to delete product");
+            showError(err?.response?.data?.error || err?.response?.data?.message || "Failed to delete product");
         } finally {
             setLoading(false);
         }
@@ -231,7 +244,6 @@ export default function InventoryManagement() {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
-
                     <select
                         className="select"
                         value={supplierFilter}
@@ -327,7 +339,7 @@ export default function InventoryManagement() {
                                         </button>
                                         <button
                                             className="btn"
-                                            onClick={() => handleDeleteProduct(p.ProductID)}
+                                            onClick={() => confirmDeleteProduct(p.ProductID)}
                                         >
                                             Delete
                                         </button>
@@ -347,9 +359,14 @@ export default function InventoryManagement() {
                 <div className="actions-footer">
                     <button className="btn primary" onClick={handleRestock} disabled={!supplierFilter}>Restock Selected</button>
                     <button className="btn" onClick={() => setRestock({})}>Reset Quantities</button>
+                    {!supplierFilter && (
+                        <span style={{ color: '#d85534ff', fontSize: '20px', marginLeft: '30px' }}>
+                            Select a supplier above to enable restocking
+                        </span>
+                    )}
                 </div>
 
-                {/* CREATE PRODUCT MODAL */}
+                {}
                 {showCreate && (
                     <div className="overlay">
                         <form
@@ -372,7 +389,7 @@ export default function InventoryManagement() {
                                 };
 
                                 if (body.SupplierID === null || body.CategoryID === null) {
-                                    setMessage("SupplierID and CategoryID are required.");
+                                    showWarning("SupplierID and CategoryID are required.");
                                     return;
                                 }
 
@@ -380,13 +397,16 @@ export default function InventoryManagement() {
                                 try {
                                     setLoading(true);
                                     const res = await api.post("/admin/inventory/products", body);
-                                    setMessage(res.data?.message || "Product created");
+                                    showSuccess(res.data?.message || "Product created");
                                     setShowCreate(false);
                                     setNewProduct({ Name: "", Brand: "", Price: "", Stock: "", SupplierID: "", CategoryID: "", ReorderThreshold: ""});
                                     fetchProducts();
                                 } catch (err) {
                                     console.error("Create product error:", err?.response?.data || err);
-                                    setMessage(err?.response?.data?.error || "Failed to create product");
+                                    showError("Failed to create product");
+                                    if(err?.response?.data?.detail === "ER_DATA_TOO_LONG"){
+                                        showError("Image URL is too long");
+                                    }
                                 } finally {
                                     setLoading(false);
                                 }
@@ -432,7 +452,7 @@ export default function InventoryManagement() {
                                     onClick={(e) => {
                                         if (newProduct.SupplierID === "" || newProduct.SupplierID == null) {
                                             e.preventDefault();
-                                            setMessage("Please select a supplier before creating the product.");
+                                            showWarning("Please select a supplier before creating the product.");
                                         }
                                     }}
                                 >
@@ -443,7 +463,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* SUPPLIER CREATE MODAL */}
+                {}
                 {showSupplierCreate && (
                     <div className="overlay">
                         <form
@@ -451,7 +471,7 @@ export default function InventoryManagement() {
                             onSubmit={async (e) => {
                                 e.preventDefault();
                                 if (!newSupplier.Name) {
-                                    setMessage('Supplier name is required');
+                                    showWarning('Supplier name is required');
                                     return;
                                 }
                                 try {
@@ -464,14 +484,14 @@ export default function InventoryManagement() {
                                     if (id) {
                                         setSupplierFilter(id);
                                         setNewProduct({ ...newProduct, SupplierID: id });
-                                        setMessage('Supplier created');
+                                        showSuccess('Supplier created');
                                     } else {
-                                        setMessage('Supplier created (no id returned)');
+                                        showSuccess('Supplier created (no id returned)');
                                     }
                                     setShowSupplierCreate(false);
                                     setNewSupplier({ Name: '', Phone: '', Email: '', Address: '' });
                                 } catch (err) {
-                                    setMessage(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create supplier');
+                                    showError(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create supplier');
                                 } finally {
                                     setLoading(false);
                                 }
@@ -492,7 +512,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* CATEGORY CREATE MODAL */}
+                {}
                 {showCategoryCreate && (
                     <div className="overlay">
                         <form
@@ -500,7 +520,7 @@ export default function InventoryManagement() {
                             onSubmit={async (e) => {
                                 e.preventDefault();
                                 if (!newCategoryName) {
-                                    setMessage('Category name is required');
+                                    showWarning('Category name is required');
                                     return;
                                 }
                                 try {
@@ -512,14 +532,14 @@ export default function InventoryManagement() {
                                     setCategories((c) => [...c, created]);
                                     if (id) {
                                         setNewProduct({ ...newProduct, CategoryID: id });
-                                        setMessage('Category created');
+                                        showSuccess('Category created');
                                     } else {
-                                        setMessage('Category created (no id returned)');
+                                        showSuccess('Category created (no id returned)');
                                     }
                                     setShowCategoryCreate(false);
                                     setNewCategoryName('');
                                 } catch (err) {
-                                    setMessage(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create category');
+                                    showError(err?.response?.data?.message || err?.response?.data?.error || 'Failed to create category');
                                 } finally {
                                     setLoading(false);
                                 }
@@ -537,7 +557,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* CATEGORY EDIT MODAL */}
+                {}
                 {showCategoryEdit && editingCategory && (
                     <div className="overlay">
                         <form className="modal" onSubmit={handleUpdateCategory}>
@@ -572,7 +592,7 @@ export default function InventoryManagement() {
                     </div>
                 )}
 
-                {/* PRODUCT EDIT MODAL */}
+                {}
                 {showProductEdit && editingProduct && (
                     <div className="overlay">
                         <form className="modal" onSubmit={handleUpdateProduct}>
@@ -614,61 +634,60 @@ export default function InventoryManagement() {
                                         onChange={(e) => setEditingProduct({
                                             ...editingProduct,
                                             ImgPath: e.target.value,
-                                            // Also update ImgName based on URL for consistency
                                             ImgName: e.target.value ? e.target.value.substring(e.target.value.lastIndexOf('/') + 1) : null
                                         })}
                                     />
                                     <p className="url-helper-text">Current URL: {editingProduct.ImgPath || 'None'}</p>
 
-                                <select
-                                    className="select"
-                                    value={editingProduct.SupplierID || ''}
-                                    onChange={(e) => setEditingProduct({ ...editingProduct, SupplierID: e.target.value === "" ? "" : Number(e.target.value) })}
-                                    required
-                                >
-                                    <option value="">Select supplier</option>
-                                    {suppliers.map((s) => (
-                                        <option key={s.SupplierID} value={s.SupplierID}>{s.Name}</option>
-                                    ))}
-                                </select>
-                                <select
-                                    className="select"
-                                    value={editingProduct.CategoryID || ''}
-                                    onChange={(e) => setEditingProduct({ ...editingProduct, CategoryID: e.target.value === "" ? "" : Number(e.target.value) })}
-                                    required
-                                >
-                                    <option value="">Select category</option>
-                                    {categories.map(c => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
-                                </select>
-                                <input
-                                    className="input"
-                                    placeholder="Reorder threshold"
-                                    type="number"
-                                    value={editingProduct.ReorderThreshold}
-                                    onChange={(e) => setEditingProduct({ ...editingProduct, ReorderThreshold: e.target.value })}
-                                />
-                            </div>
-                            <div className="modal-actions">
-                                <button
-                                    className="btn"
-                                    type="button"
-                                    onClick={() => {
-                                        setShowProductEdit(false);
-                                        setEditingProduct(null);
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                                <button className="btn primary" type="submit">
-                                    Update
-                                </button>
+                                    <select
+                                        className="select"
+                                        value={editingProduct.SupplierID || ''}
+                                        onChange={(e) => setEditingProduct({ ...editingProduct, SupplierID: e.target.value === "" ? "" : Number(e.target.value) })}
+                                        required
+                                    >
+                                        <option value="">Select supplier</option>
+                                        {suppliers.map((s) => (
+                                            <option key={s.SupplierID} value={s.SupplierID}>{s.Name}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        className="select"
+                                        value={editingProduct.CategoryID || ''}
+                                        onChange={(e) => setEditingProduct({ ...editingProduct, CategoryID: e.target.value === "" ? "" : Number(e.target.value) })}
+                                        required
+                                    >
+                                        <option value="">Select category</option>
+                                        {categories.map(c => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
+                                    </select>
+                                    <input
+                                        className="input"
+                                        placeholder="Reorder threshold"
+                                        type="number"
+                                        value={editingProduct.ReorderThreshold}
+                                        onChange={(e) => setEditingProduct({ ...editingProduct, ReorderThreshold: e.target.value })}
+                                    />
+                                </div>
+                                <div className="modal-actions">
+                                    <button
+                                        className="btn"
+                                        type="button"
+                                        onClick={() => {
+                                            setShowProductEdit(false);
+                                            setEditingProduct(null);
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button className="btn primary" type="submit">
+                                        Update
+                                    </button>
                                 </div>
                             </div>
                         </form>
                     </div>
                 )}
 
-                {/* CATEGORY MANAGE MODAL */}
+                {}
                 {showCategoryManage && (
                     <div className="overlay">
                         <div className="modal" style={{ maxWidth: '700px', width: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
@@ -704,7 +723,7 @@ export default function InventoryManagement() {
                                                     <button
                                                         className="btn"
                                                         onClick={() => {
-                                                            handleDeleteCategory(c.CategoryID);
+                                                            confirmDeleteCategory(c.CategoryID);
                                                             setShowCategoryManage(false);
                                                         }}
                                                         style={{ padding: '6px 12px', fontSize: '14px', background: '#fee', color: '#c00', whiteSpace: 'nowrap' }}
