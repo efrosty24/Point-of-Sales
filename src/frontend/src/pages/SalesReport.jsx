@@ -807,6 +807,12 @@ function SalesReport() {
         console.log('handleTrendRowClick called for', row);
         setSelectedTrendRow(row);
 
+        if (!row.SaleDate || row.HourOfDay === undefined) {
+            // This might happen if the click target didn't contain valid data.
+            console.error("Missing SaleDate or HourOfDay in clicked row.");
+            return;
+        }
+
         try {
             const params = {
                 date: String(row.SaleDate).slice(0, 10),
@@ -821,6 +827,24 @@ function SalesReport() {
         } catch (err) {
             console.error("Failed loading trend details", err);
             setTrendDetails([]);
+        }
+    };
+    const getToggleText = (type, currentItem) => {
+        switch (type) {
+            case 'product':
+                return selectedProduct?.ProductID === currentItem.ProductID ? "Hide items" : "Show items";
+            case 'customer':
+                return selectedCustomer?.CustomerID === currentItem.CustomerID ? "Hide items" : "Show items";
+            case 'employee':
+                return selectedEmployee?.EmployeeID === currentItem.EmployeeID ? "Hide items" : "Show items";
+            case 'category':
+                return selectedCategory?.CategoryID === currentItem.CategoryID ? "Hide items" : "Show items";
+            case 'trend':
+                // For trend rows, compare the identifying fields (SaleDate and HourOfDay)
+                 const isExpanded = selectedTrendRow?.SaleDate === currentItem.SaleDate && selectedTrendRow?.HourOfDay === currentItem.HourOfDay;
+                return isExpanded ? "Hide items" : "Show items";
+            default:
+                return "Show items";
         }
     };
 
@@ -1029,16 +1053,13 @@ function SalesReport() {
                                     <th>Revenue ($)</th>
                                     <th>Avg Price ($)</th>
                                     <th>Stock Status</th>
+                                    <th>Details</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                     {paginatedProducts.length ? (
                                         paginatedProducts.map((p) => (
-                                            <tr
-                                                key={p.ProductID}
-                                                onClick={() => handleProductClick(p)}
-                                                className="clickable-row"
-                                            >
+                                            <tr>
                                                 <td>{p.ProductName}</td>
                                                 <td>{p.Brand || 'N/A'}</td>
                                                 <td>{p.CategoryName}</td>
@@ -1053,11 +1074,19 @@ function SalesReport() {
                                                         {p.StockStatus}
                                                     </span>
                                                 </td>
+                                                <td>
+                                                    <button className='btn-link'
+                                                            key={p.ProductID}
+                                                            onClick={() => handleProductClick(p)}
+                                                    >
+                                                    {getToggleText('product', p)}
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="8">No products found</td>
+                                            <td colSpan="9">No products found</td>
                                         </tr>
                                     )}
                             </tbody>
@@ -1123,14 +1152,13 @@ function SalesReport() {
                                     <th>Items Bought</th>
                                     <th>Loyalty Points</th>
                                     <th>Last Purchase</th>
+                                    <th>Details</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 {paginatedCustomers.length ? (
                                     paginatedCustomers.map((c) => (
-                                        <tr key={c.CustomerID} 
-                                            onClick={() => handleCustomerClick(c)}
-                                            className="clickable-row">
+                                        <tr>
                                             <td>{c.CustomerName}</td>
                                             <td>{c.Email || 'N/A'}</td>
                                             <td>{c.TotalOrders}</td>
@@ -1139,11 +1167,19 @@ function SalesReport() {
                                             <td>{c.TotalItemsBought}</td>
                                             <td>{c.LoyaltyPoints}</td>
                                             <td className="date-cell">{formatDate(c.LastPurchaseDate)}</td>
+                                            <td>
+                                                <button className='btn-link'
+                                                        key={c.CustomerID}
+                                                        onClick={() => handleCustomerClick(c)}
+                                                >
+                                                {getToggleText('customer', c)}
+                                            </button>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8">No customers found</td>
+                                        <td colSpan="9">No customers found</td>
                                     </tr>
                                 )}
                                 </tbody>
@@ -1206,15 +1242,13 @@ function SalesReport() {
                                     <th>Avg per Sale ($)</th>
                                     <th>Employees</th>
                                     <th>Customers</th>
+                                    <th>Details</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 {paginatedCategories.length ? (
                                     paginatedCategories.map((c) => (
-                                        <tr key={c.CategoryID}
-                                            onClick={() => handleCategoryClick(c)}
-                                            className="clickable-row"
-                                        >
+                                        <tr>
                                             <td>{c.CategoryName}</td>
                                             <td>{c.OrderCount}</td>
                                             <td>{c.UniqueProducts}</td>
@@ -1223,11 +1257,17 @@ function SalesReport() {
                                             <td>${formatCurrency(c.AvgRevenuePerSale)}</td>
                                             <td>{c.EmployeesInvolved}</td>
                                             <td>{c.UniqueCustomers}</td>
+                                            <td><button className='btn-link'
+                                                        key={c.CategoryID}
+                                                        onClick={() => handleCategoryClick(c)}>
+                                                {getToggleText('category', c)}
+                                            </button>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8">No categories found</td>
+                                        <td colSpan="9">No categories found</td>
                                     </tr>
                                 )}
                                 </tbody>
@@ -1315,15 +1355,13 @@ function SalesReport() {
                                     <th>Revenue ($)</th>
                                     <th>Avg Order ($)</th>
                                     <th>Items/Order</th>
+                                    <th>Details</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 {paginatedTrends.length ? (
                                     paginatedTrends.map((t, idx) => (
-                                            <tr key={idx}
-                                                onClick={() => handleTrendRowClick(t)}
-                                                className="clickable-row"
-                                            >
+                                            <tr>
                                                 <td>{t.DayOfWeek}</td>
                                                 <td className="date-cell">{formatDate(t.SaleDate)}</td>
                                                 <td>{t.HourOfDay}:00</td>
@@ -1332,11 +1370,17 @@ function SalesReport() {
                                                 <td className="revenue-cell">${formatCurrency(t.TotalRevenue)}</td>
                                                 <td>${formatCurrency(t.AvgOrderValue)}</td>
                                                 <td>{parseFloat(t.AvgItemsPerOrder).toFixed(1)}</td>
+                                                <td><button className='btn-link'
+                                                            key={idx}
+                                                            onClick={() => handleTrendRowClick(t)}>
+                                                    {getToggleText('trend', t)}
+                                                </button>
+                                                </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="8">No trends data found</td>
+                                            <td colSpan="9">No trends data found</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -1426,6 +1470,7 @@ function SalesReport() {
                                     <th>Total ($)</th>
                                     <th>Date</th>
                                     <th>Status</th>
+                                    <th>Order Details</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -1437,11 +1482,7 @@ function SalesReport() {
                                             : 'Guest';
 
                                         return (
-                                            <tr
-                                                key={order.OrderID}
-                                                onClick={() => openOrderDetails(order.OrderID)}
-                                                className="clickable-row"
-                                            >
+                                            <tr>
                                                 <td>#{order.OrderID}</td>
                                                 <td>{customerName}</td>
                                                 <td>${formatCurrency(order.Total)}</td>
@@ -1451,12 +1492,18 @@ function SalesReport() {
                                                         {order.Status || "N/A"}
                                                     </span>
                                                 </td>
+                                                <td>
+                                                    <button key={order.OrderID}
+                                                            onClick={() => openOrderDetails(order.OrderID)}
+                                                            className="btn-link">View Details
+                                                    </button>
+                                                    </td>
                                             </tr>
                                         );
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="5">No orders found</td>
+                                        <td colSpan="6">No orders found</td>
                                     </tr>
                                 )}
                                 </tbody>
@@ -1484,16 +1531,13 @@ function SalesReport() {
                                     <th>Revenue ($)</th>
                                     <th>Avg Order ($)</th>
                                     <th>Products</th>
+                                    <th>Details</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 {paginatedEmployees.length ? (
                                     paginatedEmployees.map((emp) => (
-                                        <tr
-                                            key={emp.EmployeeID}
-                                            onClick={() => handleEmployeeClick(emp)}
-                                            className="clickable-row"
-                                        >
+                                        <tr>
                                             <td>
                                                 <div className="employee-cell">
                                                     <div className="employee-avatar">
@@ -1512,11 +1556,17 @@ function SalesReport() {
                                             <td className="revenue-cell">${formatCurrency(emp.TotalRevenue)}</td>
                                             <td>${formatCurrency(emp.AvgOrderValue)}</td>
                                             <td>{emp.UniqueProducts || 0}</td>
+                                            <td><button className='btn-link'
+                                                        key={emp.EmployeeID}
+                                                        onClick={() => handleEmployeeClick(emp)}
+                                                        >{getToggleText('employee', emp)}
+                                            </button>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7">No employees found</td>
+                                        <td colSpan="8">No employees found</td>
                                     </tr>
                                 )}
                                 </tbody>
